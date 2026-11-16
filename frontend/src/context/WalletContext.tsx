@@ -8,13 +8,12 @@ import {
 import type { ReactNode } from 'react'
 import type {
   WalletConnection,
-  WalletProvider,
+  WalletProviderType,
   VaultState,
   VaultConfig,
   Receipt,
   Mandate,
 } from '../lib/types'
-import { currentDayMarker } from '../lib/contract'
 
 // ── Context shape ──────────────────────────────────────────
 interface WalletCtx {
@@ -24,7 +23,7 @@ interface WalletCtx {
   receipts: Receipt[]
   connecting: boolean
   error: string | null
-  connect: (provider: WalletProvider) => Promise<void>
+  connect: (provider: WalletProviderType) => Promise<void>
   disconnect: () => void
   setVaultConfig: (c: VaultConfig) => void
   refreshVault: () => Promise<void>
@@ -40,7 +39,7 @@ export function useWallet(): WalletCtx {
   return ctx
 }
 
-// ── Storage ────────────────────────────────────────────────
+// ── Storage helpers ────────────────────────────────────────
 const RECEIPTS_KEY = 'nomos:receipts'
 const WALLET_KEY = 'nomos:wallet'
 const CONFIG_KEY = 'nomos:vaultConfig'
@@ -60,16 +59,22 @@ function save(key: string, val: unknown) {
   } catch { /* noop */ }
 }
 
-// ── Provider ───────────────────────────────────────────────
+// ── Provider component ─────────────────────────────────────
 export function WalletProvider({ children }: { children: ReactNode }) {
-  const [wallet, setWallet] = useState<WalletConnection | null>(() => load(WALLET_KEY, null))
+  const [wallet, setWallet] = useState<WalletConnection | null>(
+    () => load(WALLET_KEY, null),
+  )
   const [vault, setVault] = useState<VaultState | null>(null)
-  const [vaultConfig, setVaultConfigState] = useState<VaultConfig | null>(() => load(CONFIG_KEY, null))
-  const [receipts, setReceipts] = useState<Receipt[]>(() => load(RECEIPTS_KEY, []))
+  const [vaultConfig, setVaultConfigState] = useState<VaultConfig | null>(
+    () => load(CONFIG_KEY, null),
+  )
+  const [receipts, setReceipts] = useState<Receipt[]>(
+    () => load(RECEIPTS_KEY, []),
+  )
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const connect = useCallback(async (provider: WalletProvider) => {
+  const connect = useCallback(async (provider: WalletProviderType) => {
     setConnecting(true)
     setError(null)
     try {
@@ -116,10 +121,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const updateMandate = useCallback((m: Mandate) => {
-    setVault(prev => prev ? { ...prev, mandate: m } : prev)
+    setVault(prev => (prev ? { ...prev, mandate: m } : prev))
   }, [])
 
-  // Auto-refresh when config is available
   useEffect(() => {
     if (wallet && vaultConfig) refreshVault()
   }, [wallet, vaultConfig, refreshVault])
