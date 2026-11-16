@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
 import { wouldRefuse, remainingToday, executeSpend, validateCashAddress, EXPLORER_TX_URL } from '../lib/contract'
 
@@ -71,6 +71,7 @@ export default function Pay() {
 
   return (
     <div className="space-y-6">
+      <Link to="/vault" className="text-xs text-nomos-muted hover:text-nomos-accent">← Vault</Link>
       <h2 className="font-mono text-xl font-bold">Pay</h2>
 
       <div className="rounded-lg border border-nomos-border bg-nomos-surface p-3 text-center font-mono text-sm">

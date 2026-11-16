@@ -24,6 +24,9 @@ export default function ReceiptCard({ receipt }: { receipt: ReceiptType }) {
           {isPaid ? 'Paid under mandate' : 'Refused by Nomos'}
         </span>
         <span className="font-mono text-xs text-nomos-muted">
+          {new Date(receipt.timestamp).toLocaleDateString(undefined, {
+            month: 'short', day: 'numeric',
+          })}{' '}
           {new Date(receipt.timestamp).toLocaleTimeString()}
         </span>
       </div>

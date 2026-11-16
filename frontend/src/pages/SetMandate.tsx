@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Navigate } from 'react-router-dom'
+import { Link, useNavigate, Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
 import { executeSetMandate, validateAllowlistAddress } from '../lib/contract'
 
@@ -99,6 +99,7 @@ export default function SetMandate() {
 
   return (
     <div className="space-y-6">
+      <Link to="/vault" className="text-xs text-nomos-muted hover:text-nomos-accent">← Vault</Link>
       <h2 className="font-mono text-xl font-bold">Set Mandate</h2>
 
       {!vaultConfig ? (
