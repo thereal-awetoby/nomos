@@ -6,9 +6,14 @@ import {
   useEffect,
 } from 'react'
 import type { ReactNode } from 'react'
+import { useWizardConnect } from '@wizardconnect/react'
+import {
+  setWcManager,
+  getWcPubkeyHex,
+  getWcAddress,
+} from '../lib/wallet'
 import type {
   WalletConnection,
-  WalletProviderType,
   VaultState,
   VaultConfig,
   Receipt,
@@ -23,11 +28,16 @@ interface WalletCtx {
   receipts: Receipt[]
   connecting: boolean
   error: string | null
-  /** Connect a WC2 wallet (WizardConnect is handled by the hook in Connect.tsx) */
+  // WizardConnect hook state exposed to pages
+  wcState: string
+  wcUri: string | null
+  wcQrUri: string | null
+  wcWalletName: string | null
+  /** Start a WizardConnect pairing (returns false if already connecting) */
+  startWizardConnect: () => boolean | undefined
+  /** Connect via BCH WalletConnect v2 */
   connectWc2: () => Promise<void>
-  /** Set wallet directly (used by WizardConnect hook flow) */
-  setWalletDirect: (conn: WalletConnection | null) => void
-  disconnect: () => void
+  disconnect: () => Promise<void>
   setVaultConfig: (c: VaultConfig) => void
   refreshVault: () => Promise<void>
   addReceipt: (r: Receipt) => void
@@ -77,6 +87,56 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // ── WizardConnect hook (lives here so it survives page navigation) ──
+  const {
+    state: wcState,
+    manager: wcManager,
+    uri: wcUri,
+    qrUri: wcQrUri,
+    walletName: wcWalletName,
+    connect: wcConnect,
+    disconnect: wcDisconnect,
+    error: wcError,
+  } = useWizardConnect({
+    dappName: 'Nomos',
+    dappIcon: window.location.origin + '/favicon.ico',
+    persistSession: true,
+  })
+
+  // Keep wallet.ts module-level manager in sync
+  useEffect(() => {
+    setWcManager(wcManager ?? null)
+  }, [wcManager])
+
+  // When WizardConnect reaches "connected", derive address + pubkey
+  useEffect(() => {
+    if (wcState === 'connected' && wcManager) {
+      const address = getWcAddress()
+      const pubkey = getWcPubkeyHex()
+      if (address) {
+        const conn: WalletConnection = {
+          provider: 'wizardconnect',
+          address,
+          pubkey,
+          connected: true,
+        }
+        setWallet(conn)
+        save(WALLET_KEY, conn)
+      }
+    }
+  }, [wcState, wcManager])
+
+  // Surface WizardConnect errors
+  useEffect(() => {
+    if (wcError) setError(wcError)
+  }, [wcError])
+
+  /** Start WizardConnect pairing */
+  const startWizardConnect = useCallback(() => {
+    setError(null)
+    return wcConnect()
+  }, [wcConnect])
+
   /** Connect via BCH WalletConnect v2 */
   const connectWc2 = useCallback(async () => {
     setConnecting(true)
@@ -94,25 +154,21 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  /** Set wallet directly — used by WizardConnect hook flow in Connect.tsx */
-  const setWalletDirect = useCallback((conn: WalletConnection | null) => {
-    setWallet(conn)
-    save(WALLET_KEY, conn)
-    if (!conn) setError(null)
-  }, [])
-
+  /** Disconnect — handles both providers */
   const disconnect = useCallback(async () => {
     const prev = wallet
     setWallet(null)
     setVault(null)
     save(WALLET_KEY, null)
-    // Clean up WC2 session if that was the provider
+
     if (prev?.provider === 'wc2') {
       const { disconnectWc2 } = await import('../lib/wallet')
       await disconnectWc2()
+    } else if (prev?.provider === 'wizardconnect') {
+      await wcDisconnect()
+      setWcManager(null)
     }
-    // WizardConnect disconnect is handled by the hook's disconnect() in Connect.tsx
-  }, [wallet])
+  }, [wallet, wcDisconnect])
 
   const setVaultConfig = useCallback((c: VaultConfig) => {
     setVaultConfigState(c)
@@ -150,8 +206,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     <WalletContext.Provider
       value={{
         wallet, vault, vaultConfig, receipts, connecting, error,
-        connectWc2, setWalletDirect, disconnect, setVaultConfig,
-        refreshVault, addReceipt, updateMandate,
+        wcState, wcUri, wcQrUri, wcWalletName,
+        startWizardConnect, connectWc2, disconnect,
+        setVaultConfig, refreshVault, addReceipt, updateMandate,
       }}
     >
       {children}
