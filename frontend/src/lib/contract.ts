@@ -91,14 +91,48 @@ function addrToHash160(addr: string): string {
   }
 }
 
-/** Validate a BCH cashaddr — returns null if valid, error string if not */
+// ── Address validation ────────────────────────────────────
+
+const EXPECTED_PREFIX = NETWORK === 'mainnet' ? 'bitcoincash' : 'bchtest'
+
+/**
+ * Validate a BCH cashaddr for use as a payment destination.
+ * Any valid cashaddr is accepted (P2PKH, P2SH20, P2SH32, token-aware).
+ * Returns null if valid, error string if not.
+ */
 export function validateCashAddress(addr: string): string | null {
   if (!addr) return 'Empty address'
   try {
     const decoded = decodeCashAddress(addr)
-    if (typeof decoded === 'string') return decoded // error message from libauth
-    if (decoded.payload.length !== 20) return 'Not a 20-byte (P2PKH) address'
-    return null // valid
+    if (typeof decoded === 'string') return decoded
+    return null
+  } catch (e: any) {
+    return e.message || 'Invalid address'
+  }
+}
+
+/**
+ * Stricter validation for allowlist entries.
+ * Must be a P2PKH address on the correct network.
+ * The contract's allowlist check extracts bytes20 from P2PKH locking
+ * bytecode at offset 3 — P2SH addresses won't match.
+ */
+export function validateAllowlistAddress(addr: string): string | null {
+  if (!addr) return 'Empty address'
+  try {
+    const decoded = decodeCashAddress(addr)
+    if (typeof decoded === 'string') return decoded
+    if (decoded.prefix !== EXPECTED_PREFIX) {
+      return `Wrong network: expected ${EXPECTED_PREFIX}, got ${decoded.prefix}`
+    }
+    if (decoded.payload.length !== 20) {
+      return 'Only 20-byte P2PKH addresses work with the allowlist'
+    }
+    // libauth v3: type is 'p2pkh' | 'p2sh' | ...
+    if ((decoded as any).type && (decoded as any).type !== 'p2pkh') {
+      return `Only P2PKH addresses work with the allowlist (got ${(decoded as any).type})`
+    }
+    return null
   } catch (e: any) {
     return e.message || 'Invalid address'
   }

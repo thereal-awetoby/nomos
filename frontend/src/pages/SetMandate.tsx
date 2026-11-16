@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
-import { executeSetMandate, validateCashAddress } from '../lib/contract'
+import { executeSetMandate, validateAllowlistAddress } from '../lib/contract'
 
 export default function SetMandate() {
   const navigate = useNavigate()
@@ -28,22 +28,22 @@ export default function SetMandate() {
       return
     }
 
-    setSubmitting(true)
     setError(null)
 
     const parsedAddrs = allowlistInput.split('\n').map(s => s.trim()).filter(Boolean).slice(0, 5)
 
-    // Validate allowlist addresses before proceeding
+    // Validate allowlist addresses (strict: P2PKH only, correct network)
     if (allowlistEnabled && parsedAddrs.length > 0) {
       for (const addr of parsedAddrs) {
-        const err = validateCashAddress(addr)
+        const err = validateAllowlistAddress(addr)
         if (err) {
-          setError(`Invalid address "${addr.slice(0, 20)}…": ${err}`)
-          setSubmitting(false)
+          setError(`Bad allowlist address "${addr.slice(0, 24)}…": ${err}`)
           return
         }
       }
     }
+
+    setSubmitting(true)
 
     const newConfig = {
       ownerPk: wallet.pubkey,
