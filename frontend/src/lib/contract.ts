@@ -14,7 +14,7 @@ import {
   placeholderSignature,
   placeholderPublicKey,
 } from 'cashscript'
-import type { NetworkProvider, Utxo } from 'cashscript'
+import type { Network, NetworkProvider, Utxo } from 'cashscript'
 import type {
   Mandate,
   Receipt,
@@ -39,7 +39,7 @@ async function getArtifact(): Promise<any> {
 }
 
 // ── Network ────────────────────────────────────────────────
-const NETWORK = (import.meta.env.VITE_BCH_NETWORK as string) || 'mainnet'
+const NETWORK = ((import.meta.env.VITE_BCH_NETWORK as string) || 'mainnet') as Network
 
 function getProvider(): NetworkProvider {
   return new ElectrumNetworkProvider(NETWORK)
