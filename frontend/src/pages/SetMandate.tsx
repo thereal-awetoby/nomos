@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate, Navigate } from 'react-router-dom'
+import { useNavigate, Navigate, Link } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
 import { executeSetMandate, validateAllowlistAddress } from '../lib/contract'
 
@@ -98,70 +98,99 @@ export default function SetMandate() {
   }
 
   return (
-    <div className="space-y-6">
-      <Link to="/vault" className="text-xs text-nomos-muted hover:text-nomos-accent">← Vault</Link>
-      <h2 className="font-mono text-xl font-bold">Set Mandate</h2>
+    <div className="space-y-5">
+      {/* Back nav */}
+      <Link to="/vault" className="text-xs text-nomos-muted hover:text-nomos-accent transition-colors duration-200">
+        ← Back to vault
+      </Link>
 
+      <h2 className="font-mono text-2xl font-bold">Set Mandate</h2>
+
+      {/* Info banner */}
       {!vaultConfig ? (
-        <div className="rounded-lg border border-nomos-accent/30 bg-nomos-accent/5 p-3 text-xs text-nomos-accent">
+        <div className="card border-nomos-accent/15 bg-nomos-accent/[0.04] p-4 text-xs text-nomos-accent" style={{ borderWidth: '1px', borderStyle: 'solid' }}>
           <strong>First time?</strong> This saves your mandate config locally.
-          To deploy the vault on-chain, you'll also need to mint the genesis
-          NFT using the <code>mint-nft.mjs</code> script and fund the
-          contract address.
+          Deploy the vault on-chain with <code className="text-nomos-accent/80">mint-nft.mjs</code>, then fund the contract address.
         </div>
       ) : (
-        <div className="rounded-lg border border-nomos-accent/30 bg-nomos-accent/5 p-3 text-xs text-nomos-accent">
-          <strong>Updating mandate.</strong> This will redeploy your vault to
-          a new contract address. The NFT and funds move automatically.
+        <div className="card border-nomos-accent/15 bg-nomos-accent/[0.04] p-4 text-xs text-nomos-accent" style={{ borderWidth: '1px', borderStyle: 'solid' }}>
+          <strong>Updating mandate.</strong> This redeploys your vault to a new contract address. NFT and funds move automatically.
         </div>
       )}
 
       {noPubkey && (
-        <div className="rounded-lg border border-nomos-refuse/30 bg-nomos-refuse/5 p-3 text-xs text-nomos-refuse">
-          Your wallet didn't provide a public key.
-          Reconnect with WizardConnect for full support.
+        <div className="card border-nomos-refuse/15 bg-nomos-refuse/[0.04] p-4 text-xs text-nomos-refuse" style={{ borderWidth: '1px', borderStyle: 'solid' }}>
+          Your wallet didn't provide a public key. Reconnect with WizardConnect for full support.
         </div>
       )}
 
+      {/* Daily limit */}
       <div>
-        <label className="mb-1 block text-xs uppercase tracking-widest text-nomos-muted">Daily limit (BCH)</label>
-        <input type="number" step="0.00000001" value={dailyLimit}
-          onChange={(e) => setDailyLimit(e.target.value)} placeholder="0.001"
-          className="w-full rounded-lg border border-nomos-border bg-nomos-bg px-4 py-3 font-mono text-sm focus:border-nomos-accent focus:outline-none" />
+        <label className="label mb-2 block">Daily Limit (BCH)</label>
+        <input
+          type="number"
+          step="0.00000001"
+          value={dailyLimit}
+          onChange={(e) => setDailyLimit(e.target.value)}
+          placeholder="0.001"
+          className="input"
+        />
       </div>
 
+      {/* Allowlist */}
       <div>
-        <label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-widest text-nomos-muted">
-          <input type="checkbox" checked={allowlistEnabled}
-            onChange={(e) => setAllowlistEnabled(e.target.checked)} className="accent-nomos-accent" />
+        <label className="mb-3 flex items-center gap-2 label cursor-pointer">
+          <input
+            type="checkbox"
+            checked={allowlistEnabled}
+            onChange={(e) => setAllowlistEnabled(e.target.checked)}
+            className="accent-nomos-accent h-3.5 w-3.5"
+          />
           Allowlist (up to 5 addresses)
         </label>
         {allowlistEnabled && (
-          <textarea value={allowlistInput} onChange={(e) => setAllowlistInput(e.target.value)}
-            placeholder={'bitcoincash:qr…\nbitcoincash:qp…'} rows={5}
-            className="w-full rounded-lg border border-nomos-border bg-nomos-bg px-4 py-3 font-mono text-xs focus:border-nomos-accent focus:outline-none" />
+          <textarea
+            value={allowlistInput}
+            onChange={(e) => setAllowlistInput(e.target.value)}
+            placeholder={'bitcoincash:qr…\nbitcoincash:qp…'}
+            rows={4}
+            className="input text-xs resize-none"
+          />
         )}
       </div>
 
+      {/* Agent key */}
       <div>
-        <label className="mb-1 block text-xs uppercase tracking-widest text-nomos-muted">Agent public key (optional)</label>
-        <input type="text" value={agentPk} onChange={(e) => setAgentPk(e.target.value)}
+        <label className="label mb-2 block">Agent Public Key (optional)</label>
+        <input
+          type="text"
+          value={agentPk}
+          onChange={(e) => setAgentPk(e.target.value)}
           placeholder="02abc…"
-          className="w-full rounded-lg border border-nomos-border bg-nomos-bg px-4 py-3 font-mono text-xs focus:border-nomos-accent focus:outline-none" />
+          className="input text-xs"
+        />
       </div>
 
+      {/* Rescue key */}
       <div>
-        <label className="mb-1 block text-xs uppercase tracking-widest text-nomos-muted">Rescue co-signer public key (optional)</label>
-        <input type="text" value={rescuePk} onChange={(e) => setRescuePk(e.target.value)}
+        <label className="label mb-2 block">Rescue Co-signer Key (optional)</label>
+        <input
+          type="text"
+          value={rescuePk}
+          onChange={(e) => setRescuePk(e.target.value)}
           placeholder="03def…"
-          className="w-full rounded-lg border border-nomos-border bg-nomos-bg px-4 py-3 font-mono text-xs focus:border-nomos-accent focus:outline-none" />
+          className="input text-xs"
+        />
       </div>
 
-      {error && <p className="text-sm text-nomos-refuse">{error}</p>}
+      {error && <p className="text-xs text-nomos-refuse">{error}</p>}
 
-      <button onClick={handleConfirm} disabled={submitting}
-        className="w-full rounded-lg bg-nomos-accent py-3 text-center font-semibold text-nomos-bg transition-all hover:brightness-110 disabled:opacity-40">
-        {submitting ? 'Signing…' : vaultConfig ? 'Update Mandate (sign on-chain)' : 'Save Mandate Config'}
+      <button onClick={handleConfirm} disabled={submitting} className="btn-primary w-full">
+        {submitting
+          ? 'Signing…'
+          : vaultConfig
+            ? 'Update Mandate'
+            : 'Save Mandate Config'}
       </button>
     </div>
   )

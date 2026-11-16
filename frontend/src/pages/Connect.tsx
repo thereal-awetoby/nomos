@@ -16,12 +16,10 @@ export default function Connect() {
   const [wc2Uri, setWc2Uri] = useState<string | null>(null)
   const qrCanvasRef = useRef<HTMLCanvasElement>(null)
 
-  // Navigate once connected
   useEffect(() => {
     if (wallet?.connected) navigate('/vault', { replace: true })
   }, [wallet, navigate])
 
-  // Listen for WC2 pairing URI (emitted by lib/wallet.ts) and render as QR
   useEffect(() => {
     const handler = (e: Event) => {
       const uri = (e as CustomEvent<string>).detail
@@ -35,25 +33,21 @@ export default function Connect() {
     if (!wc2Uri || !qrCanvasRef.current) return
     import('qrcode').then((QRCode) => {
       QRCode.toCanvas(qrCanvasRef.current!, wc2Uri, {
-        width: 256,
+        width: 220,
         margin: 2,
-        color: { dark: '#00e599', light: '#0a0a0f' },
+        color: { dark: '#e8e8f0', light: '#00000000' },
       })
     }).catch(() => {
-      // qrcode failed to load — canvas stays blank, URI can still be copied
+      // QR generation failure leaves the pairing URI available to copy.
     })
   }, [wc2Uri])
 
-  // ── WizardConnect flow ──
   const handleWizardConnect = useCallback(() => {
     setLocalError(null)
     const started = startWizardConnect()
-    if (started !== false) {
-      setShowQr(true)
-    }
+    if (started !== false) setShowQr(true)
   }, [startWizardConnect])
 
-  // ── WC2 flow ──
   const handleWc2 = useCallback(async () => {
     setLocalError(null)
     setWc2Uri(null)
@@ -68,48 +62,51 @@ export default function Connect() {
   const displayError = localError || error || null
 
   return (
-    <div className="flex min-h-[70vh] flex-col items-center justify-center text-center">
-      <h1 className="mb-2 font-mono text-4xl font-bold tracking-tight">
-        NOMOS
-      </h1>
-      <p className="mb-10 max-w-md text-sm text-nomos-muted">
-        Pay or withdraw BCH only under rules the chain itself enforces.
-        <br />
-        Violate → refuse on-chain. Obey → pay + receipt.
-      </p>
+    <div className="flex min-h-[75vh] flex-col items-center justify-center text-center">
+      {/* Logo */}
+      <div className="mb-10">
+        <h1 className="font-mono text-5xl font-bold tracking-tighter text-nomos-text">
+          NOMOS
+        </h1>
+        <p className="mt-3 max-w-[280px] text-sm leading-relaxed text-nomos-muted">
+          Spend rules the chain enforces.
+          <br />
+          Violate → refuse. Obey → pay + receipt.
+        </p>
+      </div>
 
+      {/* Buttons */}
       <div className="flex w-full max-w-xs flex-col gap-3">
         <button
           onClick={handleWizardConnect}
           disabled={connecting || wcState === 'connecting'}
-          className="rounded-lg border border-nomos-border bg-nomos-surface px-6 py-3 font-medium transition-all hover:border-nomos-accent hover:bg-nomos-accent/10 disabled:opacity-40"
+          className="btn-primary"
         >
           {wcState === 'connecting'
             ? 'Scan QR to connect…'
             : wcState === 'reconnecting'
               ? 'Reconnecting…'
-              : 'Connect with WizardConnect'}
+              : 'Connect Wallet'}
         </button>
         <button
           onClick={handleWc2}
           disabled={connecting || wcState === 'connecting'}
-          className="rounded-lg border border-nomos-border bg-nomos-surface px-6 py-3 font-medium transition-all hover:border-nomos-accent hover:bg-nomos-accent/10 disabled:opacity-40"
+          className="btn-ghost"
         >
-          {connecting ? 'Connecting…' : 'Connect with WalletConnect'}
+          {connecting ? 'Connecting…' : 'WalletConnect'}
         </button>
       </div>
 
       {/* WC2 QR code */}
       {wc2Uri && connecting && (
-        <div className="mt-6 flex flex-col items-center gap-3">
-          <p className="text-xs text-nomos-muted">Scan with your BCH wallet</p>
-          <canvas
-            ref={qrCanvasRef}
-            className="rounded-lg border border-nomos-border"
-          />
+        <div className="mt-8 flex flex-col items-center gap-3">
+          <p className="label">Scan with your BCH wallet</p>
+          <div className="card p-3">
+            <canvas ref={qrCanvasRef} />
+          </div>
           <button
             onClick={() => navigator.clipboard?.writeText(wc2Uri)}
-            className="text-[10px] text-nomos-muted underline hover:text-nomos-accent"
+            className="text-[10px] text-nomos-muted hover:text-nomos-accent transition-colors duration-200"
           >
             Copy pairing URI
           </button>
@@ -117,25 +114,19 @@ export default function Connect() {
       )}
 
       {wcWalletName && wcState === 'connected' && (
-        <p className="mt-4 text-sm text-nomos-muted">
+        <p className="mt-5 text-xs text-nomos-muted-bright">
           Connected to {wcWalletName}
         </p>
       )}
 
       {displayError && (
-        <p className="mt-4 text-sm text-nomos-refuse">
-          {displayError}
-        </p>
+        <p className="mt-5 text-xs text-nomos-refuse">{displayError}</p>
       )}
 
-      {/* WizardConnect QR Dialog (from @wizardconnect/react) */}
       {wcUri && wcQrUri && (
         <WizardConnectQRDialog
           show={showQr}
-          onClose={() => {
-            setShowQr(false)
-            cancelWizardConnect()
-          }}
+          onClose={() => { setShowQr(false); cancelWizardConnect() }}
           uri={wcUri}
           qrUri={wcQrUri}
           title="Nomos"
