@@ -1,15 +1,14 @@
 pragma cashscript ^0.10.0;
 
 // Nomos — On-chain spend mandate (covenant) for Bitcoin Cash
-// Rules: daily limit, allowlist, agent key, rescue
+// Mutable state (spentToday, dayMarker) stored in NFT commitment (CashTokens).
+// Immutable config (owner, limit, allowlist, etc.) in constructor params.
 // Violate → refuse on-chain. Obey → pay + receipt.
 
 contract NomosVault(
     pubkey ownerPk,
     pubkey agentPk,
     int dailyLimitSats,
-    int spentTodaySats,
-    int dayMarker,
     bool allowlistEnabled,
     bytes20 allowedAddr1,
     bytes20 allowedAddr2,
@@ -19,21 +18,24 @@ contract NomosVault(
     pubkey rescuePk
 ) {
     // ── Spend: Owner or Agent, under mandate rules ──────────────
+    // NFT commitment layout: spentTodaySats (8 bytes LE) || dayMarker (8 bytes LE)
     function spend(sig spenderSig, pubkey spenderPk, int amount) {
         // Caller must be owner or agent
         require(spenderPk == ownerPk || spenderPk == agentPk);
         require(checkSig(spenderSig, spenderPk));
-
-        // Positive amount
         require(amount > 0);
 
-        // ── Day reset logic ──
-        // tx.locktime must be set to current unix time by the caller
-        // (locktime >= 500_000_000 is interpreted as unix seconds)
+        // Locktime must be unix timestamp (not block height)
         require(tx.locktime >= 500000000);
-        int currentDay = tx.locktime / 86400;
 
-        // If new day, reset spent counter
+        // ── Read mutable state from input NFT commitment ──
+        bytes inputCommitment = tx.inputs[this.activeInputIndex].nftCommitment;
+        bytes spentBytes, bytes dayBytes = inputCommitment.split(8);
+        int spentTodaySats = int(spentBytes);
+        int dayMarker = int(dayBytes);
+
+        // ── Day reset logic ──
+        int currentDay = tx.locktime / 86400;
         int effectiveSpent = 0;
         if (currentDay == dayMarker) {
             effectiveSpent = spentTodaySats;
@@ -44,7 +46,11 @@ contract NomosVault(
 
         // ── Allowlist check ──
         if (allowlistEnabled) {
-            bytes20 destHash = bytes20(tx.outputs[1].lockingBytecode.split(3)[1].split(20)[0]);
+            bytes lockScript = tx.outputs[1].lockingBytecode;
+            bytes p1, bytes addrAndRest = lockScript.split(3);
+            bytes20 destHash, bytes p2 = addrAndRest.split(20);
+            require(p1 == p1); // consume unused
+            require(p2 == p2);
             require(
                 destHash == allowedAddr1 ||
                 destHash == allowedAddr2 ||
@@ -55,56 +61,29 @@ contract NomosVault(
         }
 
         // ── Covenant continuation ──
-        int minerFee = 1000;
+        // Output 0 must keep the same locking bytecode (same contract + params)
+        require(tx.outputs[0].lockingBytecode == tx.inputs[this.activeInputIndex].lockingBytecode);
+
+        // Output 0 NFT must carry updated state
         int newSpent = effectiveSpent + amount;
-        int changeAmount = tx.inputs[this.activeInputIndex].value - amount - minerFee;
-        require(changeAmount >= 546);
+        bytes newCommitment = bytes8(newSpent) + bytes8(currentDay);
+        require(tx.outputs[0].nftCommitment == newCommitment);
 
-        // Output 0: new vault with updated state
-        bytes newContract = new LockingBytecodeP2SH32(hash256(
-            new NomosVault(
-                ownerPk, agentPk, dailyLimitSats, newSpent, currentDay,
-                allowlistEnabled, allowedAddr1, allowedAddr2, allowedAddr3,
-                allowedAddr4, allowedAddr5, rescuePk
-            )
-        ));
-        require(tx.outputs[0].lockingBytecode == newContract);
-        require(tx.outputs[0].value == changeAmount);
+        // Preserve the token category (same NFT lineage)
+        require(tx.outputs[0].tokenCategory == tx.inputs[this.activeInputIndex].tokenCategory);
 
-        // Output 1: payment to destination (built by caller)
+        // ── Value checks ──
         require(tx.outputs[1].value == amount);
+        int minerFee = 1000;
+        require(tx.outputs[0].value >= tx.inputs[this.activeInputIndex].value - amount - minerFee);
     }
 
     // ── Set Mandate: Owner only ─────────────────────────────────
-    function setMandate(
-        sig ownerSig,
-        pubkey newAgentPk,
-        int newDailyLimit,
-        bool newAllowlistEnabled,
-        bytes20 newAddr1,
-        bytes20 newAddr2,
-        bytes20 newAddr3,
-        bytes20 newAddr4,
-        bytes20 newAddr5,
-        pubkey newRescuePk
-    ) {
+    // Owner spends current vault, builds a new NomosVault deployment
+    // with updated params. No covenant on outputs — owner has full
+    // authority; mandate is self-imposed.
+    function setMandate(sig ownerSig) {
         require(checkSig(ownerSig, ownerPk));
-        require(newDailyLimit > 0);
-
-        int minerFee = 1000;
-        int changeAmount = tx.inputs[this.activeInputIndex].value - minerFee;
-        require(changeAmount >= 546);
-
-        // Output 0: vault with new mandate params, same spent/day state
-        bytes newContract = new LockingBytecodeP2SH32(hash256(
-            new NomosVault(
-                ownerPk, newAgentPk, newDailyLimit, spentTodaySats, dayMarker,
-                newAllowlistEnabled, newAddr1, newAddr2, newAddr3, newAddr4, newAddr5,
-                newRescuePk
-            )
-        ));
-        require(tx.outputs[0].lockingBytecode == newContract);
-        require(tx.outputs[0].value == changeAmount);
     }
 
     // ── Rescue: Owner + rescue co-signer ────────────────────────
@@ -112,6 +91,5 @@ contract NomosVault(
     function rescue(sig ownerSig, sig rescueSig) {
         require(checkSig(ownerSig, ownerPk));
         require(checkSig(rescueSig, rescuePk));
-        // No covenant constraint — funds go wherever owner directs
     }
 }

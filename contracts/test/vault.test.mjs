@@ -3,13 +3,16 @@
 /**
  * Nomos Vault — Chipnet integration test
  *
+ * Contract uses CashTokens NFT commitment for mutable state:
+ *   commitment = spentTodaySats (8 bytes LE) + dayMarker (8 bytes LE)
+ *
  * Tests:
  *  1. Compile NomosVault.cash
- *  2. Deploy vault with low daily limit
- *  3. Spend UNDER limit → success
- *  4. Spend OVER limit → on-chain refuse (script failure)
- *  5. setMandate → update limit
- *  6. rescue → bypass limit
+ *  2. Deploy vault with NFT + low daily limit
+ *  3. Spend UNDER limit → success (covenant continues with updated NFT)
+ *  4. Spend OVER limit → refuse (script failure)
+ *  5. setMandate → owner migrates vault
+ *  6. rescue → owner + cosigner bypass limit
  *
  * Prerequisites:
  *   cd contracts && npm install
@@ -24,9 +27,9 @@ import {
   Contract,
   ElectrumNetworkProvider,
   SignatureTemplate,
+  HashType,
 } from 'cashscript';
-import { hexToBin, binToHex, cashAddressToLockingBytecode } from '@bitauth/libauth';
-import { readFileSync } from 'fs';
+import { hexToBin, binToHex } from '@bitauth/libauth';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -40,22 +43,29 @@ if (!PRIVATE_KEY) {
 }
 
 const NETWORK = 'chipnet';
-const DAILY_LIMIT_SATS = 10_000; // 0.0001 BCH
-const SPEND_UNDER = 3_000;       // should succeed
-const SPEND_OVER = 15_000;       // should fail (refuse)
+const DAILY_LIMIT_SATS = 10_000;
+const SPEND_UNDER = 3_000;
+const SPEND_OVER = 15_000;
 const MINER_FEE = 1000;
 
-// Dummy values for unused slots
-const ZERO_HASH = '0000000000000000000000000000000000000000';
-const ZERO_PK = '0'.repeat(66);
+const ZERO_HASH20 = '0000000000000000000000000000000000000000';
 
 // ── Helpers ─────────────────────────────────────────────────
 function currentDay() {
   return Math.floor(Date.now() / 1000 / 86400);
 }
 
+/** Encode vault state as NFT commitment (16 bytes) */
+function encodeCommitment(spentTodaySats, dayMarker) {
+  const buf = Buffer.alloc(16);
+  buf.writeBigInt64LE(BigInt(spentTodaySats), 0);
+  buf.writeBigInt64LE(BigInt(dayMarker), 8);
+  return buf;
+}
+
 function log(label, msg) {
-  console.log(`\n[${'='.repeat(3)} ${label} ${'='.repeat(40 - label.length)}]`);
+  const pad = Math.max(1, 40 - label.length);
+  console.log(`\n[${'='.repeat(3)} ${label} ${'='.repeat(pad)}]`);
   if (typeof msg === 'object') console.log(JSON.stringify(msg, null, 2));
   else console.log(msg);
 }
@@ -65,133 +75,144 @@ async function main() {
   // 1. Compile
   log('COMPILE', 'Compiling NomosVault.cash...');
   const artifact = compileFile(resolve(__dirname, '..', 'NomosVault.cash'));
-  log('COMPILE', `✓ Compiled. Contract name: ${artifact.contractName}`);
+  log('COMPILE', `✓ Compiled — ${artifact.contractName}`);
 
-  // 2. Set up provider + signer
+  // 2. Provider + signer
   const provider = new ElectrumNetworkProvider(NETWORK);
   const sigTemplate = new SignatureTemplate(PRIVATE_KEY);
   const ownerPk = sigTemplate.getPublicKey();
-  const ownerPkHex = binToHex(ownerPk);
 
-  log('WALLET', `Owner pubkey: ${ownerPkHex}`);
+  log('WALLET', `Owner pubkey: ${binToHex(ownerPk)}`);
 
-  // 3. Deploy vault (initial state)
-  const initParams = [
-    ownerPk,                             // ownerPk
-    ownerPk,                             // agentPk (self for testing)
-    BigInt(DAILY_LIMIT_SATS),            // dailyLimitSats
-    0n,                                  // spentTodaySats
-    BigInt(currentDay()),                // dayMarker
-    false,                               // allowlistEnabled
-    hexToBin(ZERO_HASH),                 // allowedAddr1-5
-    hexToBin(ZERO_HASH),
-    hexToBin(ZERO_HASH),
-    hexToBin(ZERO_HASH),
-    hexToBin(ZERO_HASH),
-    ownerPk,                             // rescuePk (self for testing)
+  // 3. Build contract (immutable params only — state is in NFT)
+  const contractParams = [
+    ownerPk,                        // ownerPk
+    ownerPk,                        // agentPk (self for testing)
+    BigInt(DAILY_LIMIT_SATS),       // dailyLimitSats
+    false,                          // allowlistEnabled
+    hexToBin(ZERO_HASH20),          // allowedAddr1-5
+    hexToBin(ZERO_HASH20),
+    hexToBin(ZERO_HASH20),
+    hexToBin(ZERO_HASH20),
+    hexToBin(ZERO_HASH20),
+    ownerPk,                        // rescuePk (self for testing)
   ];
 
-  const contract = new Contract(artifact, initParams, { provider });
-  const vaultAddress = contract.address;
-
-  log('DEPLOY', `Vault address: ${vaultAddress}`);
+  const contract = new Contract(artifact, contractParams, { provider });
+  log('CONTRACT', `Address: ${contract.address}`);
 
   // Check balance
   const balance = await contract.getBalance();
   log('BALANCE', `${balance} sats`);
 
-  if (balance < SPEND_UNDER + SPEND_OVER + MINER_FEE * 4) {
-    console.error(
-      `\n⚠ Vault needs funding! Send at least ${SPEND_OVER * 2 + MINER_FEE * 4} sats to:\n${vaultAddress}\n\nUse https://tbch.googol.cash/`
-    );
+  if (!balance || balance <= 0n) {
+    log('FUND', `Vault needs funding! Send chipnet BCH to:\n\n  ${contract.address}\n\nFaucet: https://tbch.googol.cash/`);
+    log('NOTE', 'To test spend path, also mint a mutable NFT to this address.\nFor setMandate + rescue, plain BCH is enough.');
     process.exit(1);
   }
 
-  // We need a destination address — just send to ourselves
-  const destAddress = vaultAddress; // for testing, send back to vault won't work with covenant
-  // Use a simple P2PKH address derived from our key instead
-  // For chipnet testing, we'll use the owner's P2PKH address
+  // Check for NFT UTXOs
+  const utxos = await contract.getUtxos();
+  const nftUtxos = utxos.filter(u => u.token);
+  const plainUtxos = utxos.filter(u => !u.token);
+
+  log('UTXOS', `Total: ${utxos.length}, with NFT: ${nftUtxos.length}, plain: ${plainUtxos.length}`);
+
+  if (nftUtxos.length === 0) {
+    log('NFT SETUP', 'No NFT found on contract. The vault needs a mutable NFT with state commitment.');
+    log('NFT SETUP', 'For now, testing setMandate + rescue (no NFT required)...');
+
+    // ── TEST: setMandate (owner sig only, no covenant) ──
+    if (plainUtxos.length > 0) {
+      log('TEST: setMandate', 'Owner migrates vault (sig check only)...');
+      try {
+        const tx = await contract.functions
+          .setMandate(sigTemplate)
+          .to(contract.address, balance - BigInt(MINER_FEE))
+          .send();
+        log('TEST ✓', `setMandate succeeded — tx: ${tx.txid}`);
+        log('EXPLORER', `https://chipnet.chaingraph.cash/tx/${tx.txid}`);
+      } catch (err) {
+        log('TEST ✗', `setMandate failed: ${err.message}`);
+      }
+    }
+
+    // ── TEST: rescue (owner + rescue sig) ──
+    const balanceAfter = await contract.getBalance();
+    if (balanceAfter > 0n) {
+      log('TEST: rescue', 'Owner + cosigner rescue funds...');
+      try {
+        const tx = await contract.functions
+          .rescue(sigTemplate, sigTemplate) // same key for both in test
+          .to(contract.address, balanceAfter - BigInt(MINER_FEE))
+          .send();
+        log('TEST ✓', `rescue succeeded — tx: ${tx.txid}`);
+        log('EXPLORER', `https://chipnet.chaingraph.cash/tx/${tx.txid}`);
+      } catch (err) {
+        log('TEST ✗', `rescue failed: ${err.message}`);
+      }
+    }
+
+    log('NEXT', 'To test spend (with daily limit enforcement), mint an NFT to the contract address.');
+    log('NEXT', 'The NFT commitment should be 16 zero bytes (0 spent, day 0) with mutable capability.');
+    process.exit(0);
+  }
+
+  // ── We have an NFT — test the spend path ──
+  const nftUtxo = nftUtxos[0];
+  log('NFT FOUND', `Category: ${nftUtxo.token.category}, commitment: ${binToHex(nftUtxo.token.nft.commitment)}`);
 
   // 4. TEST: Spend UNDER limit → should succeed
-  log('TEST 1', `Spending ${SPEND_UNDER} sats (under limit of ${DAILY_LIMIT_SATS})...`);
+  log('TEST 1', `Spend ${SPEND_UNDER} sats (under limit of ${DAILY_LIMIT_SATS})...`);
   try {
-    const currentLocktime = Math.floor(Date.now() / 1000);
-
-    // Build the covenant continuation contract (with updated spentToday)
-    const newParams = [...initParams];
-    newParams[3] = BigInt(SPEND_UNDER);              // spentTodaySats
-    newParams[4] = BigInt(currentDay());              // dayMarker
-
-    const nextContract = new Contract(artifact, newParams, { provider });
+    const locktime = Math.floor(Date.now() / 1000);
+    const newCommitment = encodeCommitment(SPEND_UNDER, currentDay());
 
     const tx = await contract.functions
       .spend(sigTemplate, ownerPk, BigInt(SPEND_UNDER))
-      .to(nextContract.address, BigInt(SPEND_UNDER))
-      .withTime(currentLocktime)
+      .from(nftUtxo)
+      .to(contract.tokenAddress, nftUtxo.satoshis - BigInt(SPEND_UNDER) - BigInt(MINER_FEE), {
+        category: nftUtxo.token.category,
+        nft: { capability: 'mutable', commitment: binToHex(newCommitment) },
+      })
+      .to(contract.address, BigInt(SPEND_UNDER))
+      .withTime(locktime)
       .send();
 
-    log('TEST 1 ✓', `PAID — tx: ${tx.txid}`);
+    log('TEST 1 ✓', `PAID under mandate — tx: ${tx.txid}`);
     log('EXPLORER', `https://chipnet.chaingraph.cash/tx/${tx.txid}`);
   } catch (err) {
-    log('TEST 1 ✗', `UNEXPECTED FAILURE: ${err.message}`);
+    log('TEST 1 ✗', `Unexpected failure: ${err.message}`);
   }
 
   // 5. TEST: Spend OVER limit → should REFUSE
-  log('TEST 2', `Spending ${SPEND_OVER} sats (OVER limit of ${DAILY_LIMIT_SATS})...`);
+  log('TEST 2', `Spend ${SPEND_OVER} sats (OVER limit of ${DAILY_LIMIT_SATS})...`);
   try {
-    const currentLocktime = Math.floor(Date.now() / 1000);
+    const locktime = Math.floor(Date.now() / 1000);
+    const newCommitment = encodeCommitment(SPEND_OVER, currentDay());
 
-    const tx = await contract.functions
-      .spend(sigTemplate, ownerPk, BigInt(SPEND_OVER))
-      .to(contract.address, BigInt(SPEND_OVER))
-      .withTime(currentLocktime)
-      .send();
+    // Re-fetch UTXOs after test 1
+    const freshUtxos = await contract.getUtxos();
+    const freshNft = freshUtxos.find(u => u.token);
 
-    log('TEST 2 ✗', `Should have been refused but got tx: ${tx.txid}`);
+    if (!freshNft) {
+      log('TEST 2 ✗', 'No NFT UTXO available (test 1 may have consumed it)');
+    } else {
+      const tx = await contract.functions
+        .spend(sigTemplate, ownerPk, BigInt(SPEND_OVER))
+        .from(freshNft)
+        .to(contract.tokenAddress, freshNft.satoshis - BigInt(SPEND_OVER) - BigInt(MINER_FEE), {
+          category: freshNft.token.category,
+          nft: { capability: 'mutable', commitment: binToHex(newCommitment) },
+        })
+        .to(contract.address, BigInt(SPEND_OVER))
+        .withTime(locktime)
+        .send();
+
+      log('TEST 2 ✗', `Should have been refused but got tx: ${tx.txid}`);
+    }
   } catch (err) {
     log('TEST 2 ✓', `REFUSED by Nomos — ${err.message}`);
-  }
-
-  // 6. TEST: setMandate — update daily limit
-  log('TEST 3', 'Updating mandate: raising daily limit to 50000 sats...');
-  try {
-    const newLimit = 50_000n;
-    const mandateParams = [
-      ownerPk,                           // newAgentPk
-      newLimit,                          // newDailyLimit
-      false,                             // newAllowlistEnabled
-      hexToBin(ZERO_HASH),              // newAddr1-5
-      hexToBin(ZERO_HASH),
-      hexToBin(ZERO_HASH),
-      hexToBin(ZERO_HASH),
-      hexToBin(ZERO_HASH),
-      ownerPk,                           // newRescuePk
-    ];
-
-    const updatedParams = [...initParams];
-    updatedParams[2] = newLimit;
-    const updatedContract = new Contract(artifact, updatedParams, { provider });
-
-    const tx = await contract.functions
-      .setMandate(sigTemplate, ...mandateParams)
-      .to(updatedContract.address, balance - BigInt(MINER_FEE))
-      .send();
-
-    log('TEST 3 ✓', `Mandate updated — tx: ${tx.txid}`);
-  } catch (err) {
-    log('TEST 3 ✗', `setMandate failed: ${err.message}`);
-  }
-
-  // 7. TEST: rescue — move all funds out
-  log('TEST 4', 'Rescue: moving all funds out (bypasses limit)...');
-  try {
-    const tx = await contract.functions
-      .rescue(sigTemplate, sigTemplate) // owner + rescue are same key for testing
-      .send();
-
-    log('TEST 4 ✓', `Rescued — tx: ${tx.txid}`);
-  } catch (err) {
-    log('TEST 4 ✗', `Rescue failed: ${err.message}`);
   }
 
   log('DONE', 'All tests complete.');
