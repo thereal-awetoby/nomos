@@ -56,6 +56,15 @@ export default function Rescue() {
         co-signer to approve. The daily limit is bypassed.
       </div>
 
+      {hasRescuePk && (
+        <div className="rounded-lg border border-nomos-border bg-nomos-surface p-3 text-xs text-nomos-muted">
+          <strong>Note:</strong> Multi-party signing is not yet supported.
+          Currently rescue works only when the connected wallet holds both
+          the owner key and the rescue co-signer key (e.g. same seed,
+          different derivation path).
+        </div>
+      )}
+
       {!hasRescuePk && (
         <div className="rounded-lg border border-nomos-border bg-nomos-surface p-3 text-xs text-nomos-muted">
           No rescue co-signer configured. Set one in{' '}
