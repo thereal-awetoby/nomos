@@ -8,7 +8,7 @@ export default function Connect() {
   const {
     wallet, connecting, error,
     wcState, wcUri, wcQrUri, wcWalletName,
-    startWizardConnect, connectWc2, disconnect,
+    startWizardConnect, cancelWizardConnect, connectWc2,
   } = useWallet()
 
   const [localError, setLocalError] = useState<string | null>(null)
@@ -134,7 +134,7 @@ export default function Connect() {
           show={showQr}
           onClose={() => {
             setShowQr(false)
-            disconnect()
+            cancelWizardConnect()
           }}
           uri={wcUri}
           qrUri={wcQrUri}

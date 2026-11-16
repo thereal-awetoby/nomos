@@ -35,6 +35,8 @@ interface WalletCtx {
   wcWalletName: string | null
   /** Start a WizardConnect pairing (returns false if already connecting) */
   startWizardConnect: () => boolean | undefined
+  /** Cancel an in-progress WizardConnect pairing (safe to call any time) */
+  cancelWizardConnect: () => Promise<void>
   /** Connect via BCH WalletConnect v2 */
   connectWc2: () => Promise<void>
   disconnect: () => Promise<void>
@@ -74,9 +76,15 @@ function save(key: string, val: unknown) {
 
 // ── Provider component ─────────────────────────────────────
 export function WalletProvider({ children }: { children: ReactNode }) {
-  const [wallet, setWallet] = useState<WalletConnection | null>(
-    () => load(WALLET_KEY, null),
-  )
+  const [wallet, setWallet] = useState<WalletConnection | null>(() => {
+    const saved = load<WalletConnection | null>(WALLET_KEY, null)
+    // For WizardConnect, don't restore as "connected" until the hook reconnects
+    // (the manager isn't ready yet — signing would fail)
+    if (saved?.provider === 'wizardconnect') {
+      return { ...saved, connected: false }
+    }
+    return saved
+  })
   const [vault, setVault] = useState<VaultState | null>(null)
   const [vaultConfig, setVaultConfigState] = useState<VaultConfig | null>(
     () => load(CONFIG_KEY, null),
@@ -136,6 +144,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setError(null)
     return wcConnect()
   }, [wcConnect])
+
+  /** Cancel an in-progress WizardConnect pairing (or tear down relay) */
+  const cancelWizardConnect = useCallback(async () => {
+    await wcDisconnect()
+  }, [wcDisconnect])
 
   /** Connect via BCH WalletConnect v2 */
   const connectWc2 = useCallback(async () => {
@@ -207,7 +220,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       value={{
         wallet, vault, vaultConfig, receipts, connecting, error,
         wcState, wcUri, wcQrUri, wcWalletName,
-        startWizardConnect, connectWc2, disconnect,
+        startWizardConnect, cancelWizardConnect, connectWc2, disconnect,
         setVaultConfig, refreshVault, addReceipt, updateMandate,
       }}
     >
