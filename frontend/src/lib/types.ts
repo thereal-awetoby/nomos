@@ -45,6 +45,6 @@ export interface VaultConfig {
   agentPk: string       // hex, or '' if none
   dailyLimitSats: number
   allowlistEnabled: boolean
-  allowedAddrs: string[] // up to 5 — bytes20 hashes (hex, zero-padded)
+  allowedAddrs: string[] // up to 5 — cashaddresses (converted to bytes20 at contract instantiation)
   rescuePk: string      // hex, or '' if none
 }

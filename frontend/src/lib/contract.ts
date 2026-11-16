@@ -19,6 +19,7 @@ import type {
   WalletProviderType,
 } from './types'
 import { signWcTransaction } from './wallet'
+import { decodeCashAddress, binToHex as libBinToHex } from '@bitauth/libauth'
 
 // ── Artifact ───────────────────────────────────────────────
 let artifactCache: any = null
@@ -76,9 +77,18 @@ function reverseHex(hex: string): string {
   return hex.match(/.{2}/g)?.reverse().join('') ?? hex
 }
 
-function padBytes20(hex: string): string {
-  if (!hex) return '0'.repeat(40)
-  return hex.padEnd(40, '0').slice(0, 40)
+/** Convert a cashaddr (bitcoincash:q…) to 20-byte hex hash, or return zero hash */
+function addrToHash160(addr: string): string {
+  if (!addr) return '0'.repeat(40)
+  try {
+    const decoded = decodeCashAddress(addr)
+    if (typeof decoded === 'string') return '0'.repeat(40)
+    return libBinToHex(decoded.payload)
+  } catch {
+    // If it's already hex (40 chars), pass through
+    if (/^[0-9a-fA-F]{40}$/.test(addr)) return addr.toLowerCase()
+    return '0'.repeat(40)
+  }
 }
 
 // ── Instantiate contract ───────────────────────────────────
@@ -95,11 +105,11 @@ export async function getContract(config: VaultConfig): Promise<Contract> {
     config.agentPk || '0'.repeat(66),
     BigInt(config.dailyLimitSats),
     config.allowlistEnabled,
-    padBytes20(addrs[0]),
-    padBytes20(addrs[1]),
-    padBytes20(addrs[2]),
-    padBytes20(addrs[3]),
-    padBytes20(addrs[4]),
+    addrToHash160(addrs[0]),
+    addrToHash160(addrs[1]),
+    addrToHash160(addrs[2]),
+    addrToHash160(addrs[3]),
+    addrToHash160(addrs[4]),
     config.rescuePk || '0'.repeat(66),
   ], { provider, addressType: 'p2sh32' })
 }
