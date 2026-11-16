@@ -1,19 +1,24 @@
 {
   "name": "nomos",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "compile": "cashc ../contracts/NomosVault.cash -o src/lib/NomosVault.json"
   },
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",
     "cashscript": "^0.10.0",
-    "@cashscript/utils": "^0.10.0"
+    "@cashscript/utils": "^0.10.0",
+    "@wizardconnect/core": "^1.0.0",
+    "@wizardconnect/dapp": "^1.0.0",
+    "@wizardconnect/react": "^1.0.0",
+    "@walletconnect/sign-client": "^2.17.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",

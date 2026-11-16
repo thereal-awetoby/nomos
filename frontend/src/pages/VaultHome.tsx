@@ -1,24 +1,13 @@
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
+import { useWallet } from '../context/WalletContext'
 import { remainingToday } from '../lib/contract'
-import type { VaultState } from '../lib/types'
-
-// Placeholder state — will come from on-chain read
-const DEMO_STATE: VaultState = {
-  address: 'bitcoincash:qr...',
-  balanceSats: 50000,
-  mandate: {
-    dailyLimitSats: 10000,
-    spentTodaySats: 0,
-    dayMarker: Math.floor(Date.now() / 1000 / 86400),
-    allowlistEnabled: false,
-    allowlist: [],
-    agentPk: null,
-    rescuePk: null,
-  },
-}
 
 export default function VaultHome() {
-  const vault = DEMO_STATE
+  const { wallet, vault, refreshVault, disconnect } = useWallet()
+
+  if (!wallet?.connected) return <Navigate to="/" replace />
+  if (!vault) return <p className="text-center text-nomos-muted">Loading vault...</p>
+
   const remaining = remainingToday(vault.mandate)
 
   return (
@@ -31,6 +20,9 @@ export default function VaultHome() {
         <p className="mt-1 font-mono text-3xl font-bold">
           {(vault.balanceSats / 1e8).toFixed(8)}{' '}
           <span className="text-lg text-nomos-muted">BCH</span>
+        </p>
+        <p className="mt-1 font-mono text-[10px] text-nomos-muted truncate">
+          {vault.address}
         </p>
       </div>
 
@@ -91,6 +83,22 @@ export default function VaultHome() {
         >
           Activity
         </Link>
+      </div>
+
+      {/* Refresh + Disconnect */}
+      <div className="flex gap-3">
+        <button
+          onClick={refreshVault}
+          className="flex-1 rounded-lg border border-nomos-border py-2 text-xs text-nomos-muted hover:border-nomos-accent hover:text-nomos-accent"
+        >
+          ↻ Refresh
+        </button>
+        <button
+          onClick={disconnect}
+          className="flex-1 rounded-lg border border-nomos-refuse/30 py-2 text-xs text-nomos-refuse/60 hover:border-nomos-refuse hover:text-nomos-refuse"
+        >
+          Disconnect
+        </button>
       </div>
     </div>
   )

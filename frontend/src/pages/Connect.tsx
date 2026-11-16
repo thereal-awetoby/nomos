@@ -1,13 +1,27 @@
 import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { useWallet } from '../context/WalletContext'
+import type { WalletProvider } from '../lib/types'
 
 export default function Connect() {
   const navigate = useNavigate()
+  const { connect, connecting, error, wallet } = useWallet()
+  const [localError, setLocalError] = useState<string | null>(null)
 
-  // TODO: replace with real wallet connection
-  const handleConnect = (provider: 'wizardconnect' | 'xo') => {
-    console.log(`[nomos] connect with ${provider}`)
-    // After real wallet connect, navigate to vault home
-    navigate('/vault')
+  // If already connected, redirect
+  if (wallet?.connected) {
+    navigate('/vault', { replace: true })
+    return null
+  }
+
+  const handleConnect = async (provider: WalletProvider) => {
+    setLocalError(null)
+    try {
+      await connect(provider)
+      navigate('/vault')
+    } catch (err: any) {
+      setLocalError(err.message || 'Connection failed')
+    }
   }
 
   return (
@@ -26,17 +40,26 @@ export default function Connect() {
       <div className="flex w-full max-w-xs flex-col gap-3">
         <button
           onClick={() => handleConnect('wizardconnect')}
-          className="rounded-lg border border-nomos-border bg-nomos-surface px-6 py-3 font-medium transition-all hover:border-nomos-accent hover:bg-nomos-accent/10"
+          disabled={connecting}
+          className="rounded-lg border border-nomos-border bg-nomos-surface px-6 py-3 font-medium transition-all hover:border-nomos-accent hover:bg-nomos-accent/10 disabled:opacity-40"
         >
-          Connect with WizardConnect
+          {connecting ? 'Connecting...' : 'Connect with WizardConnect'}
         </button>
         <button
           onClick={() => handleConnect('xo')}
-          className="rounded-lg border border-nomos-border bg-nomos-surface px-6 py-3 font-medium transition-all hover:border-nomos-accent hover:bg-nomos-accent/10"
+          disabled={connecting}
+          className="rounded-lg border border-nomos-border bg-nomos-surface px-6 py-3 font-medium transition-all hover:border-nomos-accent hover:bg-nomos-accent/10 disabled:opacity-40"
         >
-          Connect with XO
+          {connecting ? 'Connecting...' : 'Connect with XO'}
         </button>
       </div>
+
+      {/* Error display */}
+      {(error || localError) && (
+        <p className="mt-4 text-sm text-nomos-refuse">
+          {error || localError}
+        </p>
+      )}
     </div>
   )
 }
