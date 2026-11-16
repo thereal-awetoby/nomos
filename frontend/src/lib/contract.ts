@@ -1,95 +1,123 @@
 // ── Contract interaction layer ──────────────────────────────
-// Wraps CashScript SDK calls for NomosVault covenant.
-// Uses TransactionBuilder + placeholderP2PKHUnlocker for wallet signing.
+// CashScript SDK + BCH WalletConnect signing for NomosVault.
 
 import {
   Contract,
   ElectrumNetworkProvider,
-  TransactionBuilder,
 } from 'cashscript'
-import { placeholderP2PKHUnlocker } from '@cashscript/utils'
-import type { Mandate, Receipt, VaultState, WalletProvider } from './types'
+import type { NetworkProvider } from 'cashscript'
+import type { Mandate, Receipt, VaultState, VaultConfig, WalletProvider } from './types'
 import { signWcTransaction } from './wallet'
 
-// ── Artifact: compiled NomosVault.cash output ──────────────
-// The build step (cashc) produces this JSON. We import it statically.
-// If the compiled artifact isn't available yet, the import will fail
-// at build time, which is fine — it means you need to run:
-//   npx cashc contracts/NomosVault.cash --output frontend/src/lib/NomosVault.json
-//
-// For now we'll use a dynamic import with a fallback.
+// ── Artifact ───────────────────────────────────────────────
 let artifactCache: any = null
 
-async function getArtifact() {
+async function getArtifact(): Promise<any> {
   if (artifactCache) return artifactCache
   try {
-    artifactCache = (await import('./NomosVault.json')).default
+    const mod = await import('./NomosVault.json')
+    artifactCache = mod.default ?? mod
   } catch {
     throw new Error(
-      'NomosVault artifact not found. Run: npx cashc contracts/NomosVault.cash -o frontend/src/lib/NomosVault.json',
+      'NomosVault artifact not found. Run: npm run compile',
     )
   }
   return artifactCache
 }
 
-// ── Network provider ───────────────────────────────────────
-// Mainnet by default; switch to chipnet for testing.
+// ── Network ────────────────────────────────────────────────
 const NETWORK = (import.meta.env.VITE_BCH_NETWORK as string) || 'mainnet'
 
-function getProvider() {
+function getProvider(): NetworkProvider {
   return new ElectrumNetworkProvider(NETWORK)
 }
 
-const DUST_LIMIT = 546
-const MINER_FEE = 1000
+export const DUST_LIMIT = 546
+export const MINER_FEE = 1000
 
-/** Get current UTC day number */
+// ── Helpers ────────────────────────────────────────────────
+
+/** Current UTC day number */
 export function currentDayMarker(): number {
   return Math.floor(Date.now() / 1000 / 86400)
 }
 
-/** Calculate remaining daily budget */
+/** Remaining daily budget in sats */
 export function remainingToday(mandate: Mandate): number {
   const today = currentDayMarker()
   if (today !== mandate.dayMarker) return mandate.dailyLimitSats
   return Math.max(0, mandate.dailyLimitSats - mandate.spentTodaySats)
 }
 
-/** Check if a spend would be refused (client-side pre-check) */
+/** Client-side pre-check: would this spend be refused? */
 export function wouldRefuse(
   mandate: Mandate,
   amountSats: number,
   destination: string,
 ): { refused: boolean; reason?: string } {
-  const remaining = remainingToday(mandate)
-
   if (amountSats <= 0) {
     return { refused: true, reason: 'Amount must be positive' }
   }
-
+  const remaining = remainingToday(mandate)
   if (amountSats > remaining) {
     return {
       refused: true,
       reason: `Refused: exceeds daily limit (${remaining} sats remaining)`,
     }
   }
-
-  if (mandate.allowlistEnabled) {
-    if (!mandate.allowlist.includes(destination)) {
-      return { refused: true, reason: 'Refused: destination not allowlisted' }
-    }
+  if (mandate.allowlistEnabled && !mandate.allowlist.includes(destination)) {
+    return { refused: true, reason: 'Refused: destination not allowlisted' }
   }
-
   return { refused: false }
+}
+
+/** Reverse hex byte-by-byte (LE ↔ BE) */
+function reverseHex(hex: string): string {
+  return hex.match(/.{2}/g)?.reverse().join('') ?? hex
+}
+
+/** Pad bytes20 hash to 20 bytes of zeros if empty */
+function padBytes20(hex: string): string {
+  if (!hex) return '0000000000000000000000000000000000000000'
+  return hex.padEnd(40, '0').slice(0, 40)
+}
+
+// ── Instantiate contract with real constructor params ──────
+
+export async function getContract(config: VaultConfig): Promise<Contract> {
+  const artifact = await getArtifact()
+  const provider = getProvider()
+
+  // Constructor params match NomosVault.cash:
+  // ownerPk, agentPk, dailyLimitSats, allowlistEnabled,
+  // allowedAddr1..5, rescuePk
+  const addrs = config.allowedAddrs.slice(0, 5)
+  while (addrs.length < 5) addrs.push('')
+
+  return new Contract(artifact, [
+    config.ownerPk,
+    config.agentPk || '0'.repeat(66),
+    BigInt(config.dailyLimitSats),
+    config.allowlistEnabled,
+    padBytes20(addrs[0]),
+    padBytes20(addrs[1]),
+    padBytes20(addrs[2]),
+    padBytes20(addrs[3]),
+    padBytes20(addrs[4]),
+    config.rescuePk || '0'.repeat(66),
+  ], { provider, addressType: 'p2sh32' })
 }
 
 // ── Read vault state from chain ────────────────────────────
 
-export async function readVaultState(contractAddress: string): Promise<VaultState> {
-  const provider = getProvider()
+export async function readVaultState(
+  config: VaultConfig,
+): Promise<VaultState> {
+  const contract = await getContract(config)
+  const address = contract.address
+  const tokenAddress = contract.tokenAddress
 
-  // Get UTXOs for the contract address
-  const utxos = await provider.getUtxos(contractAddress)
+  const utxos = await contract.getUtxos()
   let balanceSats = 0
   let spentTodaySats = 0
   let dayMarker = 0
@@ -97,163 +125,179 @@ export async function readVaultState(contractAddress: string): Promise<VaultStat
   for (const utxo of utxos) {
     balanceSats += Number(utxo.satoshis)
 
-    // Read NFT commitment for mutable state
-    if (utxo.token?.nft?.commitment) {
-      const commitHex = utxo.token.nft.commitment
-      if (commitHex.length === 32) {
-        // 16 bytes = 32 hex chars
-        // spentTodaySats: first 8 bytes LE
-        const spentHex = commitHex.slice(0, 16)
-        spentTodaySats = Number(
-          BigInt('0x' + reverseHex(spentHex)),
-        )
-        // dayMarker: last 8 bytes LE
-        const dayHex = commitHex.slice(16, 32)
-        dayMarker = Number(
-          BigInt('0x' + reverseHex(dayHex)),
-        )
-      }
+    // Read mutable state from NFT commitment (16 bytes)
+    const commitment = (utxo as any).token?.nft?.commitment as string | undefined
+    if (commitment && commitment.length === 32) {
+      const spentHex = commitment.slice(0, 16)
+      spentTodaySats = Number(BigInt('0x' + reverseHex(spentHex)))
+      const dayHex = commitment.slice(16, 32)
+      dayMarker = Number(BigInt('0x' + reverseHex(dayHex)))
     }
   }
 
   return {
-    address: contractAddress,
+    address,
+    tokenAddress,
     balanceSats,
     mandate: {
-      dailyLimitSats: 0, // read from contract constructor (off-chain config)
+      dailyLimitSats: config.dailyLimitSats,
       spentTodaySats,
       dayMarker,
-      allowlistEnabled: false,
-      allowlist: [],
-      agentPk: null,
-      rescuePk: null,
+      allowlistEnabled: config.allowlistEnabled,
+      allowlist: config.allowedAddrs.filter(Boolean),
+      agentPk: config.agentPk || null,
+      rescuePk: config.rescuePk || null,
     },
   }
 }
 
-/** Reverse hex string byte-by-byte (for LE encoding) */
-function reverseHex(hex: string): string {
-  return hex.match(/.{2}/g)?.reverse().join('') ?? hex
-}
-
-// ── Build + sign spend tx ──────────────────────────────────
+// ── Spend ──────────────────────────────────────────────────
 
 export async function executeSpend(
-  contractAddress: string,
+  config: VaultConfig,
   mandate: Mandate,
   amountSats: number,
   destination: string,
   signerAddress: string,
   walletProvider: WalletProvider,
 ): Promise<Receipt> {
-  const artifact = await getArtifact()
-  const provider = getProvider()
-
-  // Instantiate contract
-  const contract = new Contract(artifact, [], { provider, addressType: 'p2sh32' })
-
-  // Get the contract's UTXOs (need the one with the NFT)
+  const contract = await getContract(config)
   const utxos = await contract.getUtxos()
   const nftUtxo = utxos.find((u: any) => u.token?.nft)
   if (!nftUtxo) throw new Error('No NFT UTXO found in vault')
 
-  // Build the spend transaction using TransactionBuilder
-  const txBuilder = new TransactionBuilder({
-    provider,
-  })
-
-  // Use placeholderP2PKHUnlocker so the wallet signs via WalletConnect
-  const unlocker = placeholderP2PKHUnlocker(signerAddress)
-
-  // Set locktime to current unix timestamp
   const locktime = Math.floor(Date.now() / 1000)
 
-  // Call contract.functions.spend() with the builder pattern
-  const txBuilt = contract.functions
-    .spend(unlocker, Buffer.alloc(33), amountSats)
+  // Build tx with CashScript — the .spend() function call
+  // uses placeholderP2PKHUnlocker so the wallet fills the signature.
+  const tx = contract.functions
+    .spend(
+      // sig placeholder — wallet fills this
+      new Uint8Array(65),
+      // pubkey placeholder — wallet fills this
+      new Uint8Array(33),
+      BigInt(amountSats),
+    )
     .from(nftUtxo)
-    .to(destination, amountSats)
+    .to(destination, BigInt(amountSats))
     .withTime(locktime)
 
-  // Generate WalletConnect transaction object (unsigned)
-  const wcTxObj = await txBuilt.build()
+  // Generate the WC transaction object for wallet signing
+  let wcTxObj: any
+  if (walletProvider === 'wizardconnect') {
+    wcTxObj = (tx as any).generateWizardConnectTransactionObject?.({
+      broadcast: false,
+      userPrompt: `Nomos: pay ${amountSats} sats`,
+    })
+  }
+  if (!wcTxObj) {
+    wcTxObj = (tx as any).generateWcTransactionObject?.({
+      broadcast: false,
+      userPrompt: `Nomos: pay ${amountSats} sats`,
+    })
+  }
+  if (!wcTxObj) {
+    // Fallback: build and broadcast directly (for testing with WIF keys)
+    const txResult = await tx.send()
+    return {
+      id: typeof txResult === 'string' ? txResult : (txResult as any)?.txid ?? Date.now().toString(),
+      status: 'paid',
+      amount: amountSats,
+      destination,
+      txHash: typeof txResult === 'string' ? txResult : (txResult as any)?.txid,
+      mandate,
+      timestamp: Date.now(),
+    }
+  }
 
-  // Sign via wallet
-  const txid = await signWcTransaction(walletProvider, wcTxObj)
+  const result = await signWcTransaction(walletProvider, wcTxObj)
 
-  const receipt: Receipt = {
-    id: txid || Date.now().toString(),
+  return {
+    id: result.txid || Date.now().toString(),
     status: 'paid',
     amount: amountSats,
     destination,
-    txHash: txid,
+    txHash: result.txid,
     mandate,
     timestamp: Date.now(),
   }
-
-  return receipt
 }
 
-/** Build + broadcast a setMandate transaction */
+// ── Set Mandate ────────────────────────────────────────────
+
 export async function executeSetMandate(
-  contractAddress: string,
-  currentMandate: Mandate,
-  newMandate: Partial<Mandate>,
+  config: VaultConfig,
+  _newMandate: Partial<Mandate>,
   ownerAddress: string,
   walletProvider: WalletProvider,
 ): Promise<string> {
-  const artifact = await getArtifact()
-  const provider = getProvider()
-  const contract = new Contract(artifact, [], { provider, addressType: 'p2sh32' })
-
+  const contract = await getContract(config)
   const utxos = await contract.getUtxos()
   const nftUtxo = utxos.find((u: any) => u.token?.nft)
   if (!nftUtxo) throw new Error('No NFT UTXO found in vault')
 
-  const unlocker = placeholderP2PKHUnlocker(ownerAddress)
-
-  // setMandate just requires owner sig — no covenant constraints on output
-  const txBuilt = contract.functions
-    .setMandate(unlocker)
+  const tx = contract.functions
+    .setMandate(new Uint8Array(65))
     .from(nftUtxo)
 
-  const wcTxObj = await txBuilt.build()
-  const txid = await signWcTransaction(walletProvider, wcTxObj)
+  let wcTxObj: any
+  if (walletProvider === 'wizardconnect') {
+    wcTxObj = (tx as any).generateWizardConnectTransactionObject?.({
+      broadcast: false,
+      userPrompt: 'Nomos: update mandate',
+    })
+  }
+  if (!wcTxObj) {
+    wcTxObj = (tx as any).generateWcTransactionObject?.({
+      broadcast: false,
+      userPrompt: 'Nomos: update mandate',
+    })
+  }
+  if (!wcTxObj) {
+    const txResult = await tx.send()
+    return typeof txResult === 'string' ? txResult : (txResult as any)?.txid ?? ''
+  }
 
-  return txid
+  const result = await signWcTransaction(walletProvider, wcTxObj)
+  return result.txid
 }
 
-/** Build + broadcast a rescue transaction */
+// ── Rescue ─────────────────────────────────────────────────
+
 export async function executeRescue(
-  contractAddress: string,
+  config: VaultConfig,
   mandate: Mandate,
   destination: string,
-  ownerAddress: string,
   walletProvider: WalletProvider,
 ): Promise<string> {
-  const artifact = await getArtifact()
-  const provider = getProvider()
-  const contract = new Contract(artifact, [], { provider, addressType: 'p2sh32' })
-
+  const contract = await getContract(config)
   const utxos = await contract.getUtxos()
   const nftUtxo = utxos.find((u: any) => u.token?.nft)
   if (!nftUtxo) throw new Error('No NFT UTXO found in vault')
 
-  // Rescue requires both owner + rescue sigs
-  const ownerUnlocker = placeholderP2PKHUnlocker(ownerAddress)
-  // Note: rescue co-signer must also approve via their wallet
-  // For now, both sigs go through the same wallet session
-  const rescueUnlocker = placeholderP2PKHUnlocker(ownerAddress)
-
-  const txBuilt = contract.functions
-    .rescue(ownerUnlocker, rescueUnlocker)
+  const tx = contract.functions
+    .rescue(new Uint8Array(65), new Uint8Array(65))
     .from(nftUtxo)
-    .to(destination, Number(nftUtxo.satoshis) - MINER_FEE)
+    .to(destination, BigInt(Number(nftUtxo.satoshis) - MINER_FEE))
 
-  const wcTxObj = await txBuilt.build()
-  const txid = await signWcTransaction(walletProvider, wcTxObj)
+  let wcTxObj: any
+  if (walletProvider === 'wizardconnect') {
+    wcTxObj = (tx as any).generateWizardConnectTransactionObject?.({
+      broadcast: false,
+      userPrompt: 'Nomos: rescue funds',
+    })
+  }
+  if (!wcTxObj) {
+    wcTxObj = (tx as any).generateWcTransactionObject?.({
+      broadcast: false,
+      userPrompt: 'Nomos: rescue funds',
+    })
+  }
+  if (!wcTxObj) {
+    const txResult = await tx.send()
+    return typeof txResult === 'string' ? txResult : (txResult as any)?.txid ?? ''
+  }
 
-  return txid
+  const result = await signWcTransaction(walletProvider, wcTxObj)
+  return result.txid
 }
-
-export { DUST_LIMIT, MINER_FEE }

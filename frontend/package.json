@@ -1,6 +1,6 @@
 {
   "name": "nomos",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,9 +15,9 @@
     "react-router-dom": "^6.28.0",
     "cashscript": "^0.10.0",
     "@cashscript/utils": "^0.10.0",
-    "@wizardconnect/core": "^1.0.0",
-    "@wizardconnect/dapp": "^1.0.0",
-    "@wizardconnect/react": "^1.0.0",
+    "@wizardconnect/core": "^0.1.4",
+    "@wizardconnect/dapp": "^0.1.4",
+    "@wizardconnect/react": "^0.1.4",
     "@walletconnect/sign-client": "^2.17.0"
   },
   "devDependencies": {
