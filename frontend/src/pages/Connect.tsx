@@ -1,59 +1,20 @@
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useWallet } from '../context/WalletContext'
-import { useWizardConnect } from '@wizardconnect/react'
 import { WizardConnectQRDialog } from '@wizardconnect/react'
-import {
-  setWcManager,
-  getWcPubkeyHex,
-  getWcAddress,
-} from '../lib/wallet'
 
 export default function Connect() {
   const navigate = useNavigate()
-  const { connectWc2, setWalletDirect, connecting, error, wallet } = useWallet()
+  const {
+    wallet, connecting, error,
+    wcState, wcUri, wcQrUri, wcWalletName,
+    startWizardConnect, connectWc2, disconnect,
+  } = useWallet()
+
   const [localError, setLocalError] = useState<string | null>(null)
   const [showQr, setShowQr] = useState(false)
   const [wc2Uri, setWc2Uri] = useState<string | null>(null)
   const qrCanvasRef = useRef<HTMLCanvasElement>(null)
-
-  // ── WizardConnect hook (handles relay, session, auto-reconnect) ──
-  const {
-    state: wcState,
-    manager: wcManager,
-    uri: wcUri,
-    qrUri: wcQrUri,
-    walletName,
-    connect: wcConnect,
-    disconnect: wcDisconnect,
-    error: wcError,
-  } = useWizardConnect({
-    dappName: 'Nomos',
-    dappIcon: window.location.origin + '/favicon.ico',
-    persistSession: true,
-  })
-
-  // Keep wallet.ts in sync with the current manager
-  useEffect(() => {
-    setWcManager(wcManager ?? null)
-  }, [wcManager])
-
-  // When WizardConnect reaches "connected", derive address + pubkey
-  useEffect(() => {
-    if (wcState === 'connected' && wcManager) {
-      const address = getWcAddress()
-      const pubkey = getWcPubkeyHex()
-      if (address) {
-        setWalletDirect({
-          provider: 'wizardconnect',
-          address,
-          pubkey,
-          connected: true,
-        })
-        setShowQr(false)
-      }
-    }
-  }, [wcState, wcManager, setWalletDirect])
 
   // Navigate once connected
   useEffect(() => {
@@ -86,11 +47,11 @@ export default function Connect() {
   // ── WizardConnect flow ──
   const handleWizardConnect = useCallback(() => {
     setLocalError(null)
-    const started = wcConnect()
+    const started = startWizardConnect()
     if (started !== false) {
       setShowQr(true)
     }
-  }, [wcConnect])
+  }, [startWizardConnect])
 
   // ── WC2 flow ──
   const handleWc2 = useCallback(async () => {
@@ -104,7 +65,7 @@ export default function Connect() {
     }
   }, [connectWc2, navigate])
 
-  const displayError = localError || error || wcError || null
+  const displayError = localError || error || null
 
   return (
     <div className="flex min-h-[70vh] flex-col items-center justify-center text-center">
@@ -155,9 +116,9 @@ export default function Connect() {
         </div>
       )}
 
-      {walletName && wcState === 'connected' && (
+      {wcWalletName && wcState === 'connected' && (
         <p className="mt-4 text-sm text-nomos-muted">
-          Connected to {walletName}
+          Connected to {wcWalletName}
         </p>
       )}
 
@@ -173,8 +134,7 @@ export default function Connect() {
           show={showQr}
           onClose={() => {
             setShowQr(false)
-            // Cancel the connection attempt
-            wcDisconnect()
+            disconnect()
           }}
           uri={wcUri}
           qrUri={wcQrUri}
