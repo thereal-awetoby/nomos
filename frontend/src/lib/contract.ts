@@ -91,8 +91,6 @@ function addrToHash160(addr: string): string {
   }
 }
 
-// ── Address validation ────────────────────────────────────
-
 const EXPECTED_PREFIX = NETWORK === 'mainnet' ? 'bitcoincash' : 'bchtest'
 
 /**
@@ -113,9 +111,9 @@ export function validateCashAddress(addr: string): string | null {
 
 /**
  * Stricter validation for allowlist entries.
- * Must be a P2PKH address on the correct network.
- * The contract's allowlist check extracts bytes20 from P2PKH locking
- * bytecode at offset 3 — P2SH addresses won't match.
+ * Must be P2PKH on the correct network — the contract's allowlist check
+ * extracts bytes20 from P2PKH locking bytecode at offset 3, so P2SH and
+ * token-aware addresses won't match.
  */
 export function validateAllowlistAddress(addr: string): string | null {
   if (!addr) return 'Empty address'
@@ -128,7 +126,6 @@ export function validateAllowlistAddress(addr: string): string | null {
     if (decoded.payload.length !== 20) {
       return 'Only 20-byte P2PKH addresses work with the allowlist'
     }
-    // libauth v3: type is 'p2pkh' | 'p2sh' | ...
     if ((decoded as any).type && (decoded as any).type !== 'p2pkh') {
       return `Only P2PKH addresses work with the allowlist (got ${(decoded as any).type})`
     }
