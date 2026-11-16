@@ -12,6 +12,23 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
+  /* Page transition */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Pulse glow for loading states */
+  @keyframes pulseGlow {
+    0%, 100% { opacity: 0.4; }
+    50%      { opacity: 1; }
+  }
+
+  /* Spinner rotation */
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
 }
 
 @layer components {
@@ -82,5 +99,52 @@
   .input:focus {
     border-color: rgba(0,229,153,0.3);
     box-shadow: 0 0 0 3px rgba(0,229,153,0.08);
+  }
+
+  /* Page enter animation */
+  .page-enter {
+    animation: fadeUp 0.3s ease-out both;
+  }
+
+  /* Staggered card entrance — use on siblings */
+  .stagger > * {
+    animation: fadeUp 0.35s ease-out both;
+  }
+  .stagger > *:nth-child(1) { animation-delay: 0.04s; }
+  .stagger > *:nth-child(2) { animation-delay: 0.08s; }
+  .stagger > *:nth-child(3) { animation-delay: 0.12s; }
+  .stagger > *:nth-child(4) { animation-delay: 0.16s; }
+  .stagger > *:nth-child(5) { animation-delay: 0.20s; }
+  .stagger > *:nth-child(6) { animation-delay: 0.24s; }
+  .stagger > *:nth-child(7) { animation-delay: 0.28s; }
+
+  /* Spinner */
+  .spinner {
+    @apply inline-block h-4 w-4 rounded-full;
+    border: 2px solid rgba(255,255,255,0.15);
+    border-top-color: currentColor;
+    animation: spin 0.6s linear infinite;
+  }
+
+  /* Skeleton loading shimmer */
+  .skeleton {
+    @apply rounded-xl bg-nomos-surface-raised/60;
+    background: linear-gradient(
+      90deg,
+      rgba(22,22,37,0.6) 25%,
+      rgba(22,22,37,0.9) 50%,
+      rgba(22,22,37,0.6) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+  @keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Pulse text (for "Loading…" / "Signing…" states) */
+  .pulse-text {
+    animation: pulseGlow 1.5s ease-in-out infinite;
   }
 }

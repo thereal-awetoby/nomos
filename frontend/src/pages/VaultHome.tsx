@@ -33,7 +33,7 @@ export default function VaultHome() {
 
   if (!vaultConfig) {
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
+      <div className="page-enter flex min-h-[50vh] flex-col items-center justify-center text-center">
         <p className="mb-5 text-sm text-nomos-muted">
           No vault configured yet.
         </p>
@@ -46,8 +46,14 @@ export default function VaultHome() {
 
   if (!vault) {
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
-        <p className="text-sm text-nomos-muted">Loading vault…</p>
+      <div className="page-enter flex min-h-[50vh] flex-col items-center justify-center text-center">
+        <p className="pulse-text text-sm text-nomos-muted">Loading vault…</p>
+        {/* Skeleton cards */}
+        <div className="mt-6 w-full max-w-lg space-y-4 px-5">
+          <div className="skeleton h-36 w-full" />
+          <div className="skeleton h-44 w-full" />
+          <div className="skeleton h-12 w-full" />
+        </div>
         <button onClick={refreshVault} className="btn-ghost mt-4 text-xs">
           ↻ Retry
         </button>
@@ -66,7 +72,7 @@ export default function VaultHome() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="stagger space-y-5">
       {/* ── Balance hero ── */}
       <div className="card px-5 py-6 text-center">
         <p className="label">Vault Balance</p>

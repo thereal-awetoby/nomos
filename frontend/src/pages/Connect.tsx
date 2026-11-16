@@ -62,7 +62,7 @@ export default function Connect() {
   const displayError = localError || error || null
 
   return (
-    <div className="flex min-h-[75vh] flex-col items-center justify-center text-center">
+    <div className="page-enter flex min-h-[75vh] flex-col items-center justify-center text-center">
       {/* Logo */}
       <div className="mb-10">
         <h1 className="font-mono text-5xl font-bold tracking-tighter text-nomos-text">
@@ -83,9 +83,9 @@ export default function Connect() {
           className="btn-primary"
         >
           {wcState === 'connecting'
-            ? 'Scan QR to connect…'
+            ? <><span className="spinner mr-2" /> Scan QR to connect…</>
             : wcState === 'reconnecting'
-              ? 'Reconnecting…'
+              ? <><span className="spinner mr-2" /> Reconnecting…</>
               : 'Connect Wallet'}
         </button>
         <button
@@ -93,7 +93,7 @@ export default function Connect() {
           disabled={connecting || wcState === 'connecting'}
           className="btn-ghost"
         >
-          {connecting ? 'Connecting…' : 'WalletConnect'}
+          {connecting ? <><span className="spinner mr-2" /> Connecting…</> : 'WalletConnect'}
         </button>
       </div>
 
