@@ -1,20 +1,20 @@
 // ── Nomos types ─────────────────────────────────────────────
 
-export type WalletProvider = 'wizardconnect' | 'wc2'
+export type WalletProviderType = 'wizardconnect' | 'wc2'
 
 export interface Mandate {
   dailyLimitSats: number
   spentTodaySats: number
   dayMarker: number
   allowlistEnabled: boolean
-  allowlist: string[] // up to 5 BCH addresses
+  allowlist: string[]
   agentPk: string | null
   rescuePk: string | null
 }
 
 export interface VaultState {
   address: string
-  tokenAddress: string // CashTokens-aware address for NFT UTXO
+  tokenAddress: string
   balanceSats: number
   mandate: Mandate
 }
@@ -33,18 +33,18 @@ export interface Receipt {
 }
 
 export interface WalletConnection {
-  provider: WalletProvider
+  provider: WalletProviderType
   address: string
   pubkey: string
   connected: boolean
 }
 
-// ── Contract constructor config (immutable on-chain params) ─
+/** Immutable on-chain constructor params for the NomosVault covenant */
 export interface VaultConfig {
-  ownerPk: string      // hex-encoded 33-byte compressed pubkey
-  agentPk: string      // hex, or all-zeros if none
+  ownerPk: string       // hex 33-byte compressed pubkey
+  agentPk: string       // hex, or '' if none
   dailyLimitSats: number
   allowlistEnabled: boolean
-  allowedAddrs: string[] // exactly 5 bytes20 hashes (pad with zeros)
-  rescuePk: string     // hex, or all-zeros if none
+  allowedAddrs: string[] // up to 5 — bytes20 hashes (hex, zero-padded)
+  rescuePk: string      // hex, or '' if none
 }

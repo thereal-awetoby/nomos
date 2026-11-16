@@ -1,19 +1,18 @@
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { useWallet } from '../context/WalletContext'
-import type { WalletProvider } from '../lib/types'
+import type { WalletProviderType } from '../lib/types'
 
 export default function Connect() {
   const navigate = useNavigate()
   const { connect, connecting, error, wallet } = useWallet()
   const [localError, setLocalError] = useState<string | null>(null)
 
-  // Redirect if already connected
   useEffect(() => {
     if (wallet?.connected) navigate('/vault', { replace: true })
   }, [wallet, navigate])
 
-  const handleConnect = async (provider: WalletProvider) => {
+  const handleConnect = async (provider: WalletProviderType) => {
     setLocalError(null)
     try {
       await connect(provider)

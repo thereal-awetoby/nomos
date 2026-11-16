@@ -31,7 +31,6 @@ export default function SetMandate() {
 
     try {
       if (vaultConfig) {
-        // Existing vault — call setMandate on-chain
         await executeSetMandate(
           vaultConfig,
           {
@@ -45,7 +44,6 @@ export default function SetMandate() {
           wallet.provider,
         )
       }
-      // Save new config locally (used to instantiate the contract)
       setVaultConfig(newConfig)
       navigate('/vault')
     } catch (err: any) {

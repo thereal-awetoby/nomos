@@ -1,15 +1,19 @@
 {
   "name": "nomos-contracts",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "private": true,
+  "type": "module",
   "scripts": {
-    "compile": "cashc NomosVault.cash -o artifacts/NomosVault.json",
-    "test": "node test/vault.test.mjs"
+    "compile": "cashc NomosVault.cash -o ../frontend/src/lib/NomosVault.json",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest"
   },
   "dependencies": {
-    "cashscript": "^0.10.0",
-    "@cashscript/utils": "^0.10.0",
-    "cashc": "^0.10.0",
+    "cashscript": "^0.11.0",
+    "@cashscript/utils": "^0.11.0",
+    "cashc": "^0.11.0",
     "@bitauth/libauth": "^3.0.0"
+  },
+  "devDependencies": {
+    "mainnet-js": "^2.5.0"
   }
 }
