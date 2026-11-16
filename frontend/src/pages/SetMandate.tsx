@@ -1,24 +1,48 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
+import { useWallet } from '../context/WalletContext'
+import { executeSetMandate } from '../lib/contract'
 
 export default function SetMandate() {
   const navigate = useNavigate()
+  const { wallet, vault } = useWallet()
   const [dailyLimit, setDailyLimit] = useState('')
   const [allowlistEnabled, setAllowlistEnabled] = useState(false)
   const [allowlistInput, setAllowlistInput] = useState('')
   const [agentPk, setAgentPk] = useState('')
   const [rescuePk, setRescuePk] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  if (!wallet?.connected) return <Navigate to="/" replace />
 
   const handleConfirm = async () => {
-    // TODO: build + sign setMandate tx via CashScript
-    console.log('[nomos] setMandate', {
-      dailyLimit,
+    if (!vault) return
+    setSubmitting(true)
+    setError(null)
+
+    const newMandate = {
+      dailyLimitSats: Math.round(parseFloat(dailyLimit || '0') * 1e8),
       allowlistEnabled,
       allowlist: allowlistInput.split('\n').filter(Boolean),
       agentPk: agentPk || null,
       rescuePk: rescuePk || null,
-    })
-    navigate('/vault')
+    }
+
+    try {
+      await executeSetMandate(
+        vault.address,
+        vault.mandate,
+        newMandate,
+        wallet.address,
+        wallet.provider,
+      )
+      navigate('/vault')
+    } catch (err: any) {
+      setError(err.message || 'Failed to set mandate')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -90,12 +114,18 @@ export default function SetMandate() {
         />
       </div>
 
+      {/* Error */}
+      {error && (
+        <p className="text-sm text-nomos-refuse">{error}</p>
+      )}
+
       {/* Confirm */}
       <button
         onClick={handleConfirm}
-        className="w-full rounded-lg bg-nomos-accent py-3 text-center font-semibold text-nomos-bg transition-all hover:brightness-110"
+        disabled={submitting}
+        className="w-full rounded-lg bg-nomos-accent py-3 text-center font-semibold text-nomos-bg transition-all hover:brightness-110 disabled:opacity-40"
       >
-        Confirm Mandate (sign on-chain)
+        {submitting ? 'Signing...' : 'Confirm Mandate (sign on-chain)'}
       </button>
     </div>
   )

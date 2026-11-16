@@ -1,28 +1,23 @@
 import { useState } from 'react'
-import { wouldRefuse, remainingToday } from '../lib/contract'
-import type { Mandate } from '../lib/types'
-
-// Placeholder — will come from on-chain read
-const DEMO_MANDATE: Mandate = {
-  dailyLimitSats: 10000,
-  spentTodaySats: 0,
-  dayMarker: Math.floor(Date.now() / 1000 / 86400),
-  allowlistEnabled: false,
-  allowlist: [],
-  agentPk: null,
-  rescuePk: null,
-}
+import { Navigate } from 'react-router-dom'
+import { useWallet } from '../context/WalletContext'
+import { wouldRefuse, remainingToday, executeSpend } from '../lib/contract'
 
 export default function Pay() {
+  const { wallet, vault, addReceipt, refreshVault } = useWallet()
   const [amount, setAmount] = useState('')
   const [destination, setDestination] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<{
     type: 'success' | 'refused'
     message: string
     txHash?: string
   } | null>(null)
 
-  const mandate = DEMO_MANDATE
+  if (!wallet?.connected) return <Navigate to="/" replace />
+  if (!vault) return <p className="text-center text-nomos-muted">Loading...</p>
+
+  const mandate = vault.mandate
   const remaining = remainingToday(mandate)
   const amountSats = Math.round(parseFloat(amount || '0') * 1e8)
 
@@ -31,6 +26,16 @@ export default function Pay() {
     const check = wouldRefuse(mandate, amountSats, destination)
 
     if (check.refused) {
+      const receipt = {
+        id: Date.now().toString(),
+        status: 'refused' as const,
+        amount: amountSats,
+        destination,
+        reason: check.reason,
+        mandate,
+        timestamp: Date.now(),
+      }
+      addReceipt(receipt)
       setResult({
         type: 'refused',
         message: check.reason || 'Refused by Nomos',
@@ -38,19 +43,32 @@ export default function Pay() {
       return
     }
 
-    // TODO: call executeSpend() — will also catch on-chain refusals
+    // On-chain spend
+    setSubmitting(true)
     try {
-      // const receipt = await executeSpend(mandate, amountSats, destination, ownerPk)
+      const receipt = await executeSpend(
+        vault.address,
+        mandate,
+        amountSats,
+        destination,
+        wallet.address,
+        wallet.provider,
+      )
+      addReceipt(receipt)
       setResult({
         type: 'success',
         message: 'Paid under mandate',
-        // txHash: receipt.txHash,
+        txHash: receipt.txHash,
       })
+      // Refresh vault state after successful spend
+      await refreshVault()
     } catch (err: any) {
       setResult({
         type: 'refused',
         message: err.message || 'Transaction failed',
       })
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -104,10 +122,10 @@ export default function Pay() {
       {/* Pay button */}
       <button
         onClick={handlePay}
-        disabled={!amount || !destination}
+        disabled={!amount || !destination || submitting}
         className="w-full rounded-lg bg-nomos-accent py-3 text-center font-semibold text-nomos-bg transition-all hover:brightness-110 disabled:opacity-40"
       >
-        Pay
+        {submitting ? 'Signing...' : 'Pay'}
       </button>
 
       {/* Result */}
