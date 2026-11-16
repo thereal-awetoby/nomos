@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
-import { wouldRefuse, remainingToday, executeSpend } from '../lib/contract'
+import { wouldRefuse, remainingToday, executeSpend, validateCashAddress } from '../lib/contract'
 
 export default function Pay() {
   const { wallet, vault, vaultConfig, addReceipt, refreshVault } = useWallet()
@@ -22,6 +22,13 @@ export default function Pay() {
   const amountSats = Math.round(parseFloat(amount || '0') * 1e8)
 
   const handlePay = async () => {
+    // Validate destination address before anything else
+    const addrErr = validateCashAddress(destination)
+    if (addrErr) {
+      setResult({ type: 'refused', message: `Invalid destination: ${addrErr}` })
+      return
+    }
+
     const check = wouldRefuse(mandate, amountSats, destination)
     if (check.refused) {
       const receipt = {

@@ -91,6 +91,19 @@ function addrToHash160(addr: string): string {
   }
 }
 
+/** Validate a BCH cashaddr — returns null if valid, error string if not */
+export function validateCashAddress(addr: string): string | null {
+  if (!addr) return 'Empty address'
+  try {
+    const decoded = decodeCashAddress(addr)
+    if (typeof decoded === 'string') return decoded // error message from libauth
+    if (decoded.payload.length !== 20) return 'Not a 20-byte (P2PKH) address'
+    return null // valid
+  } catch (e: any) {
+    return e.message || 'Invalid address'
+  }
+}
+
 // ── Instantiate contract ───────────────────────────────────
 
 export async function getContract(config: VaultConfig): Promise<Contract> {

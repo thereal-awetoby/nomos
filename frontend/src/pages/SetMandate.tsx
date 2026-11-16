@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
-import { executeSetMandate } from '../lib/contract'
+import { executeSetMandate, validateCashAddress } from '../lib/contract'
 
 export default function SetMandate() {
   const navigate = useNavigate()
@@ -31,12 +31,26 @@ export default function SetMandate() {
     setSubmitting(true)
     setError(null)
 
+    const parsedAddrs = allowlistInput.split('\n').map(s => s.trim()).filter(Boolean).slice(0, 5)
+
+    // Validate allowlist addresses before proceeding
+    if (allowlistEnabled && parsedAddrs.length > 0) {
+      for (const addr of parsedAddrs) {
+        const err = validateCashAddress(addr)
+        if (err) {
+          setError(`Invalid address "${addr.slice(0, 20)}…": ${err}`)
+          setSubmitting(false)
+          return
+        }
+      }
+    }
+
     const newConfig = {
       ownerPk: wallet.pubkey,
       agentPk: agentPk || '',
       dailyLimitSats: Math.round(parseFloat(dailyLimit || '0') * 1e8),
       allowlistEnabled,
-      allowedAddrs: allowlistInput.split('\n').filter(Boolean).slice(0, 5),
+      allowedAddrs: parsedAddrs,
       rescuePk: rescuePk || '',
     }
 
