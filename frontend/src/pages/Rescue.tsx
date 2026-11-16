@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
-import { executeRescue, validateCashAddress } from '../lib/contract'
+import { executeRescue, validateCashAddress, EXPLORER_TX_URL } from '../lib/contract'
 
 export default function Rescue() {
-  const { wallet, vault, vaultConfig } = useWallet()
+  const { wallet, vault, vaultConfig, refreshVault } = useWallet()
   const [destination, setDestination] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<{
@@ -35,6 +35,7 @@ export default function Rescue() {
         message: 'Rescue complete — all funds swept',
         txHash: txid,
       })
+      await refreshVault()
     } catch (err: any) {
       setResult({ type: 'error', message: err.message || 'Rescue failed' })
     } finally {
@@ -55,7 +56,7 @@ export default function Rescue() {
       {!hasRescuePk && (
         <div className="rounded-lg border border-nomos-border bg-nomos-surface p-3 text-xs text-nomos-muted">
           No rescue co-signer configured. Set one in{' '}
-          <a href="/mandate" className="underline text-nomos-accent">Set Mandate</a>{' '}
+          <Link to="/mandate" className="underline text-nomos-accent">Set Mandate</Link>{' '}
           to enable rescue.
         </div>
       )}
@@ -100,7 +101,7 @@ export default function Rescue() {
           <p className="mt-1 text-sm opacity-80">{result.message}</p>
           {result.txHash && (
             <a
-              href={`https://blockchair.com/bitcoin-cash/transaction/${result.txHash}`}
+              href={`${EXPLORER_TX_URL}${result.txHash}`}
               target="_blank"
               rel="noreferrer"
               className="mt-2 inline-block text-xs underline"

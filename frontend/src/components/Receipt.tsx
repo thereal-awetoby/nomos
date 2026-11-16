@@ -1,6 +1,5 @@
 import type { Receipt as ReceiptType } from '../lib/types'
-
-const EXPLORER_BASE = 'https://blockchair.com/bitcoin-cash/transaction/'
+import { EXPLORER_TX_URL } from '../lib/contract'
 
 export default function ReceiptCard({ receipt }: { receipt: ReceiptType }) {
   const isPaid = receipt.status === 'paid'
@@ -47,7 +46,7 @@ export default function ReceiptCard({ receipt }: { receipt: ReceiptType }) {
       {/* Explorer link */}
       {receipt.txHash && (
         <a
-          href={`${EXPLORER_BASE}${receipt.txHash}`}
+          href={`${EXPLORER_TX_URL}${receipt.txHash}`}
           target="_blank"
           rel="noreferrer"
           className="mt-3 inline-block text-xs text-nomos-accent hover:underline"
