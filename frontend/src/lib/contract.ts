@@ -1,5 +1,7 @@
 // ── Contract interaction layer ──────────────────────────────
-// CashScript 0.11.x SDK: new TransactionBuilder + WC transaction objects.
+// CashScript 0.11.x SDK: TransactionBuilder + generateWcTransactionObject.
+// NOTE: generateWizardConnectTransactionObject does NOT exist in 0.11.x.
+// We use generateWcTransactionObject for both wallets and wrap for WizardConnect.
 
 import {
   Contract,
@@ -146,28 +148,22 @@ function findNftUtxo(utxos: Utxo[]): Utxo {
   return nft
 }
 
-// ── Helper: build WC tx object and sign ────────────────────
+// ── Helper: build WC tx object, sign, and broadcast ────────
+//
+// Uses generateWcTransactionObject() (available in cashscript 0.11.1+).
+// generateWizardConnectTransactionObject does NOT exist in 0.11.x.
+// For WizardConnect we wrap the WcTransactionObject with inputPaths manually.
 
-async function buildAndSign(
+async function buildSignAndBroadcast(
   txBuilder: TransactionBuilder,
   walletProvider: WalletProviderType,
   prompt: string,
 ): Promise<{ txid: string; signedTransaction: string }> {
-  let wcTxObj: any
-
-  if (walletProvider === 'wizardconnect') {
-    wcTxObj = (txBuilder as any).generateWizardConnectTransactionObject?.({
-      broadcast: false,
-      userPrompt: prompt,
-    })
-  }
-
-  if (!wcTxObj) {
-    wcTxObj = (txBuilder as any).generateWcTransactionObject?.({
-      broadcast: false,
-      userPrompt: prompt,
-    })
-  }
+  // Generate the standard WC transaction object
+  const wcTxObj = (txBuilder as any).generateWcTransactionObject({
+    broadcast: true,   // ask the wallet to broadcast
+    userPrompt: prompt,
+  })
 
   if (!wcTxObj) {
     throw new Error(
@@ -176,7 +172,28 @@ async function buildAndSign(
     )
   }
 
-  return signWcTransaction(walletProvider, wcTxObj)
+  // For WizardConnect, the signing API takes { transaction, inputPaths }
+  // where inputPaths describes which P2PKH inputs the wallet should sign.
+  // Contract inputs (which use placeholderSignature) don't need inputPaths
+  // entries — the wallet fills in signatures for its own keys.
+  // Since all our inputs are contract inputs (not user P2PKH), inputPaths is [].
+
+  const result = await signWcTransaction(walletProvider, wcTxObj, [])
+
+  // If the wallet didn't broadcast (no txid), broadcast manually
+  if (!result.txid && result.signedTransaction) {
+    try {
+      const provider = getProvider()
+      const txid = await (provider as any).sendRawTransaction(
+        result.signedTransaction,
+      )
+      return { txid: txid ?? '', signedTransaction: result.signedTransaction }
+    } catch (err: any) {
+      throw new Error(`Broadcast failed: ${err.message}`)
+    }
+  }
+
+  return result
 }
 
 // ── Spend ──────────────────────────────────────────────────
@@ -236,7 +253,9 @@ export async function executeSpend(
   txBuilder.addOutput({ to: destination, amount })
   txBuilder.setLocktime(locktime)
 
-  const result = await buildAndSign(txBuilder, walletProvider, `Nomos: pay ${amountSats} sats`)
+  const result = await buildSignAndBroadcast(
+    txBuilder, walletProvider, `Nomos: pay ${amountSats} sats`,
+  )
 
   return {
     id: result.txid || Date.now().toString(),
@@ -283,7 +302,9 @@ export async function executeSetMandate(
     },
   })
 
-  const result = await buildAndSign(txBuilder, walletProvider, 'Nomos: update mandate')
+  const result = await buildSignAndBroadcast(
+    txBuilder, walletProvider, 'Nomos: update mandate',
+  )
   return result.txid
 }
 
@@ -310,6 +331,8 @@ export async function executeRescue(
   const sweepAmount = nftUtxo.satoshis - MINER_FEE
   txBuilder.addOutput({ to: destination, amount: sweepAmount })
 
-  const result = await buildAndSign(txBuilder, walletProvider, 'Nomos: rescue funds')
+  const result = await buildSignAndBroadcast(
+    txBuilder, walletProvider, 'Nomos: rescue funds',
+  )
   return result.txid
 }

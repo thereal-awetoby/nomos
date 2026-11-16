@@ -7,7 +7,7 @@ export default function Connect() {
   const navigate = useNavigate()
   const { connect, connecting, error, wallet } = useWallet()
   const [localError, setLocalError] = useState<string | null>(null)
-  const [wc2Uri, setWc2Uri] = useState<string | null>(null)
+  const [qrUri, setQrUri] = useState<string | null>(null)
   const qrCanvasRef = useRef<HTMLCanvasElement>(null)
 
   // Redirect if already connected
@@ -15,23 +15,26 @@ export default function Connect() {
     if (wallet?.connected) navigate('/vault', { replace: true })
   }, [wallet, navigate])
 
-  // Listen for WC2 URI to display as QR
+  // Listen for BOTH WizardConnect and WC2 URIs
   useEffect(() => {
-    const handler = (e: Event) => {
+    const handleWcUri = (e: Event) => {
       const uri = (e as CustomEvent<string>).detail
-      if (uri) setWc2Uri(uri)
+      if (uri) setQrUri(uri)
     }
-    window.addEventListener('nomos:wc2:uri', handler)
-    return () => window.removeEventListener('nomos:wc2:uri', handler)
+    // WizardConnect emits nomos:wc:uri, WC2 emits nomos:wc2:uri
+    window.addEventListener('nomos:wc:uri', handleWcUri)
+    window.addEventListener('nomos:wc2:uri', handleWcUri)
+    return () => {
+      window.removeEventListener('nomos:wc:uri', handleWcUri)
+      window.removeEventListener('nomos:wc2:uri', handleWcUri)
+    }
   }, [])
 
-  // Render QR code when URI arrives (simple text-based fallback;
-  // a real QR lib like 'qrcode' can be added later)
+  // Render QR code when URI arrives
   useEffect(() => {
-    if (!wc2Uri || !qrCanvasRef.current) return
-    // Try to use qrcode library if available, otherwise show URI text
+    if (!qrUri || !qrCanvasRef.current) return
     import('qrcode').then((QRCode) => {
-      QRCode.toCanvas(qrCanvasRef.current!, wc2Uri, {
+      QRCode.toCanvas(qrCanvasRef.current!, qrUri, {
         width: 256,
         margin: 2,
         color: { dark: '#00e599', light: '#0a0a0f' },
@@ -39,11 +42,11 @@ export default function Connect() {
     }).catch(() => {
       // qrcode not installed — canvas stays hidden, URI shown as text
     })
-  }, [wc2Uri])
+  }, [qrUri])
 
   const handleConnect = async (provider: WalletProviderType) => {
     setLocalError(null)
-    setWc2Uri(null)
+    setQrUri(null)
     try {
       await connect(provider)
       navigate('/vault')
@@ -69,19 +72,19 @@ export default function Connect() {
           disabled={connecting}
           className="rounded-lg border border-nomos-border bg-nomos-surface px-6 py-3 font-medium transition-all hover:border-nomos-accent hover:bg-nomos-accent/10 disabled:opacity-40"
         >
-          {connecting ? 'Connecting…' : 'Connect with WizardConnect'}
+          {connecting ? 'Scan QR…' : 'Connect with WizardConnect'}
         </button>
         <button
           onClick={() => handleConnect('wc2')}
           disabled={connecting}
           className="rounded-lg border border-nomos-border bg-nomos-surface px-6 py-3 font-medium transition-all hover:border-nomos-accent hover:bg-nomos-accent/10 disabled:opacity-40"
         >
-          {connecting ? 'Connecting…' : 'Connect with WalletConnect'}
+          {connecting ? 'Scan QR…' : 'Connect with WalletConnect'}
         </button>
       </div>
 
-      {/* WC2 QR Code */}
-      {wc2Uri && (
+      {/* QR Code (shown for both WizardConnect and WC2) */}
+      {qrUri && (
         <div className="mt-6 flex flex-col items-center gap-3">
           <p className="text-xs text-nomos-muted">
             Scan with your BCH wallet
@@ -90,9 +93,8 @@ export default function Connect() {
             ref={qrCanvasRef}
             className="rounded-lg border border-nomos-border"
           />
-          {/* Fallback: copyable URI if QR lib not available */}
           <button
-            onClick={() => navigator.clipboard?.writeText(wc2Uri)}
+            onClick={() => navigator.clipboard?.writeText(qrUri)}
             className="text-[10px] text-nomos-muted underline hover:text-nomos-accent"
           >
             Copy pairing URI
