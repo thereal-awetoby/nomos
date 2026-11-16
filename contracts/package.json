@@ -9,6 +9,7 @@
   "dependencies": {
     "cashscript": "^0.10.0",
     "@cashscript/utils": "^0.10.0",
-    "cashc": "^0.10.0"
+    "cashc": "^0.10.0",
+    "@bitauth/libauth": "^3.0.0"
   }
 }
