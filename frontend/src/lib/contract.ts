@@ -44,6 +44,11 @@ function getProvider(): NetworkProvider {
 
 export const DUST_LIMIT = 546n
 
+/** Explorer base URL — switches automatically for chipnet. */
+export const EXPLORER_TX_URL = NETWORK === 'mainnet'
+  ? 'https://blockchair.com/bitcoin-cash/transaction/'
+  : 'https://chipnet.imaginary.cash/tx/'
+
 // The contract's spend() hardcodes `int minerFee = 1000` as the floor.
 // For setMandate/rescue (no contract constraint) we still use this as minimum.
 const CONTRACT_FEE_FLOOR = 1000n

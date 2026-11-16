@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
-import { wouldRefuse, remainingToday, executeSpend, validateCashAddress } from '../lib/contract'
+import { wouldRefuse, remainingToday, executeSpend, validateCashAddress, EXPLORER_TX_URL } from '../lib/contract'
 
 export default function Pay() {
   const { wallet, vault, vaultConfig, addReceipt, refreshVault } = useWallet()
@@ -107,7 +107,7 @@ export default function Pay() {
           </p>
           <p className="mt-1 text-sm opacity-80">{result.message}</p>
           {result.txHash && (
-            <a href={`https://blockchair.com/bitcoin-cash/transaction/${result.txHash}`}
+            <a href={`${EXPLORER_TX_URL}${result.txHash}`}
               target="_blank" rel="noreferrer"
               className="mt-2 inline-block text-xs underline">
               View on explorer →
