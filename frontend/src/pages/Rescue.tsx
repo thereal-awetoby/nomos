@@ -48,6 +48,7 @@ export default function Rescue() {
 
   return (
     <div className="space-y-6">
+      <Link to="/vault" className="text-xs text-nomos-muted hover:text-nomos-accent">← Vault</Link>
       <h2 className="font-mono text-xl font-bold">Rescue</h2>
 
       <div className="rounded-lg border border-nomos-refuse/30 bg-nomos-refuse/5 p-3 text-xs text-nomos-refuse">
