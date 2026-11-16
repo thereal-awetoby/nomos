@@ -1,0 +1,117 @@
+pragma cashscript ^0.10.0;
+
+// Nomos — On-chain spend mandate (covenant) for Bitcoin Cash
+// Rules: daily limit, allowlist, agent key, rescue
+// Violate → refuse on-chain. Obey → pay + receipt.
+
+contract NomosVault(
+    pubkey ownerPk,
+    pubkey agentPk,
+    int dailyLimitSats,
+    int spentTodaySats,
+    int dayMarker,
+    bool allowlistEnabled,
+    bytes20 allowedAddr1,
+    bytes20 allowedAddr2,
+    bytes20 allowedAddr3,
+    bytes20 allowedAddr4,
+    bytes20 allowedAddr5,
+    pubkey rescuePk
+) {
+    // ── Spend: Owner or Agent, under mandate rules ──────────────
+    function spend(sig spenderSig, pubkey spenderPk, int amount) {
+        // Caller must be owner or agent
+        require(spenderPk == ownerPk || spenderPk == agentPk);
+        require(checkSig(spenderSig, spenderPk));
+
+        // Positive amount
+        require(amount > 0);
+
+        // ── Day reset logic ──
+        // tx.locktime must be set to current unix time by the caller
+        // (locktime >= 500_000_000 is interpreted as unix seconds)
+        require(tx.locktime >= 500000000);
+        int currentDay = tx.locktime / 86400;
+
+        // If new day, reset spent counter
+        int effectiveSpent = 0;
+        if (currentDay == dayMarker) {
+            effectiveSpent = spentTodaySats;
+        }
+
+        // ── Daily limit check ──
+        require(effectiveSpent + amount <= dailyLimitSats);
+
+        // ── Allowlist check ──
+        if (allowlistEnabled) {
+            bytes20 destHash = bytes20(tx.outputs[1].lockingBytecode.split(3)[1].split(20)[0]);
+            require(
+                destHash == allowedAddr1 ||
+                destHash == allowedAddr2 ||
+                destHash == allowedAddr3 ||
+                destHash == allowedAddr4 ||
+                destHash == allowedAddr5
+            );
+        }
+
+        // ── Covenant continuation ──
+        int minerFee = 1000;
+        int newSpent = effectiveSpent + amount;
+        int changeAmount = tx.inputs[this.activeInputIndex].value - amount - minerFee;
+        require(changeAmount >= 546);
+
+        // Output 0: new vault with updated state
+        bytes newContract = new LockingBytecodeP2SH32(hash256(
+            new NomosVault(
+                ownerPk, agentPk, dailyLimitSats, newSpent, currentDay,
+                allowlistEnabled, allowedAddr1, allowedAddr2, allowedAddr3,
+                allowedAddr4, allowedAddr5, rescuePk
+            )
+        ));
+        require(tx.outputs[0].lockingBytecode == newContract);
+        require(tx.outputs[0].value == changeAmount);
+
+        // Output 1: payment to destination (built by caller)
+        require(tx.outputs[1].value == amount);
+    }
+
+    // ── Set Mandate: Owner only ─────────────────────────────────
+    function setMandate(
+        sig ownerSig,
+        pubkey newAgentPk,
+        int newDailyLimit,
+        bool newAllowlistEnabled,
+        bytes20 newAddr1,
+        bytes20 newAddr2,
+        bytes20 newAddr3,
+        bytes20 newAddr4,
+        bytes20 newAddr5,
+        pubkey newRescuePk
+    ) {
+        require(checkSig(ownerSig, ownerPk));
+        require(newDailyLimit > 0);
+
+        int minerFee = 1000;
+        int changeAmount = tx.inputs[this.activeInputIndex].value - minerFee;
+        require(changeAmount >= 546);
+
+        // Output 0: vault with new mandate params, same spent/day state
+        bytes newContract = new LockingBytecodeP2SH32(hash256(
+            new NomosVault(
+                ownerPk, newAgentPk, newDailyLimit, spentTodaySats, dayMarker,
+                newAllowlistEnabled, newAddr1, newAddr2, newAddr3, newAddr4, newAddr5,
+                newRescuePk
+            )
+        ));
+        require(tx.outputs[0].lockingBytecode == newContract);
+        require(tx.outputs[0].value == changeAmount);
+    }
+
+    // ── Rescue: Owner + rescue co-signer ────────────────────────
+    // Bypasses daily limit. Emergency only.
+    function rescue(sig ownerSig, sig rescueSig) {
+        require(checkSig(ownerSig, ownerPk));
+        require(checkSig(rescueSig, rescuePk));
+        // No covenant constraint — funds go wherever owner directs
+    }
+}

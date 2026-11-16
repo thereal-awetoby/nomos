@@ -1,0 +1,14 @@
+{
+  "name": "nomos-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "compile": "cashc NomosVault.cash -o artifacts/NomosVault.json",
+    "test": "node test/vault.test.mjs"
+  },
+  "dependencies": {
+    "cashscript": "^0.10.0",
+    "@cashscript/utils": "^0.10.0",
+    "cashc": "^0.10.0"
+  }
+}
