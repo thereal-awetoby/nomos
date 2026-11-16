@@ -58,12 +58,15 @@ export default function Pay() {
       )
       addReceipt(receipt)
       setResult({ type: 'success', message: 'Paid under mandate', txHash: receipt.txHash })
-      await refreshVault()
     } catch (err: any) {
       setResult({ type: 'refused', message: err.message || 'Transaction failed' })
     } finally {
       setSubmitting(false)
     }
+
+    // Refresh vault state separately so a refresh failure
+    // doesn't overwrite a successful payment result.
+    try { await refreshVault() } catch { /* best-effort */ }
   }
 
   return (
