@@ -50,8 +50,6 @@ export default function SetMandate() {
       }
     }
 
-    setSubmitting(true)
-
     const newConfig = {
       ownerPk: wallet.pubkey,
       agentPk: agentPk || '',
@@ -60,6 +58,20 @@ export default function SetMandate() {
       allowedAddrs: parsedAddrs,
       rescuePk: rescuePk || '',
     }
+
+    // Skip on-chain tx if nothing actually changed
+    if (vaultConfig &&
+      vaultConfig.dailyLimitSats === newConfig.dailyLimitSats &&
+      vaultConfig.allowlistEnabled === newConfig.allowlistEnabled &&
+      vaultConfig.agentPk === newConfig.agentPk &&
+      vaultConfig.rescuePk === newConfig.rescuePk &&
+      JSON.stringify(vaultConfig.allowedAddrs) === JSON.stringify(newConfig.allowedAddrs)
+    ) {
+      navigate('/vault')
+      return
+    }
+
+    setSubmitting(true)
 
     try {
       if (vaultConfig) {

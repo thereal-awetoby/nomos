@@ -202,6 +202,11 @@ function findNftUtxo(utxos: Utxo[]): Utxo {
   return nft
 }
 
+/** Plain (non-NFT) UTXOs sitting at the contract address — top-ups. */
+function findPlainUtxos(utxos: Utxo[]): Utxo[] {
+  return utxos.filter((u: any) => !u.token?.nft)
+}
+
 // ── Helper: build WC tx object, sign, and broadcast ────────
 
 async function buildSignAndBroadcast(
@@ -244,6 +249,7 @@ export async function executeSpend(
   const provider = getProvider()
   const utxos = await contract.getUtxos()
   const nftUtxo = findNftUtxo(utxos)
+  const plainUtxos = findPlainUtxos(utxos)
 
   const locktime = Math.floor(Date.now() / 1000)
   const amount = BigInt(amountSats)
@@ -259,8 +265,15 @@ export async function executeSpend(
     ),
   )
 
-  // Output 0: covenant continuation
-  const inputSats = nftUtxo.satoshis
+  // Consolidate plain UTXOs (top-ups) via the unconstrained setMandate unlock
+  let extraSats = 0n
+  for (const pu of plainUtxos) {
+    txBuilder.addInput(pu, contract.unlock.setMandate(placeholderSignature()))
+    extraSats += pu.satoshis
+  }
+
+  // Output 0: covenant continuation (NFT sats + top-up sats − spend − fee)
+  const inputSats = nftUtxo.satoshis + extraSats
   const changeSats = inputSats - amount - MINER_FEE
   if (changeSats < DUST_LIMIT) throw new Error('Insufficient vault balance')
 
@@ -319,6 +332,7 @@ export async function executeSetMandate(
   const provider = getProvider()
   const utxos = await oldContract.getUtxos()
   const nftUtxo = findNftUtxo(utxos)
+  const plainUtxos = findPlainUtxos(utxos)
 
   const txBuilder = new TransactionBuilder({ provider })
 
@@ -327,8 +341,15 @@ export async function executeSetMandate(
     oldContract.unlock.setMandate(placeholderSignature()),
   )
 
-  // Send NFT + funds to the NEW contract (with updated params)
-  const changeSats = nftUtxo.satoshis - MINER_FEE
+  // Consolidate plain UTXOs (top-ups) via the same unconstrained setMandate
+  let extraSats = 0n
+  for (const pu of plainUtxos) {
+    txBuilder.addInput(pu, oldContract.unlock.setMandate(placeholderSignature()))
+    extraSats += pu.satoshis
+  }
+
+  // Send NFT + all funds to the NEW contract (with updated params)
+  const changeSats = nftUtxo.satoshis + extraSats - MINER_FEE
   txBuilder.addOutput({
     to: newContract.tokenAddress,
     amount: changeSats,
@@ -361,6 +382,7 @@ export async function executeRescue(
   const provider = getProvider()
   const utxos = await contract.getUtxos()
   const nftUtxo = findNftUtxo(utxos)
+  const plainUtxos = findPlainUtxos(utxos)
 
   const txBuilder = new TransactionBuilder({ provider })
 
@@ -369,7 +391,14 @@ export async function executeRescue(
     contract.unlock.rescue(placeholderSignature(), placeholderSignature()),
   )
 
-  const sweepAmount = nftUtxo.satoshis - MINER_FEE
+  // Consolidate plain UTXOs (top-ups) via the unconstrained setMandate unlock
+  let extraSats = 0n
+  for (const pu of plainUtxos) {
+    txBuilder.addInput(pu, contract.unlock.setMandate(placeholderSignature()))
+    extraSats += pu.satoshis
+  }
+
+  const sweepAmount = nftUtxo.satoshis + extraSats - MINER_FEE
   txBuilder.addOutput({ to: destination, amount: sweepAmount })
 
   const result = await buildSignAndBroadcast(
