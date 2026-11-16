@@ -27,17 +27,21 @@ import {
   Contract,
   ElectrumNetworkProvider,
   SignatureTemplate,
-  HashType,
 } from 'cashscript';
-import { hexToBin, binToHex } from '@bitauth/libauth';
+import {
+  hexToBin,
+  binToHex,
+  privateKeyToP2pkhCashAddress,
+  decodePrivateKeyWif,
+} from '@bitauth/libauth';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ── Config ──────────────────────────────────────────────────
-const PRIVATE_KEY = process.env.PRIVATE_KEY;
-if (!PRIVATE_KEY) {
+const PRIVATE_KEY_WIF = process.env.PRIVATE_KEY;
+if (!PRIVATE_KEY_WIF) {
   console.error('Set PRIVATE_KEY env var to a chipnet WIF key');
   process.exit(1);
 }
@@ -63,6 +67,19 @@ function encodeCommitment(spentTodaySats, dayMarker) {
   return buf;
 }
 
+/** Derive a P2PKH address from the test WIF key (used as payment destination) */
+function deriveP2pkhAddress(wif) {
+  const decoded = decodePrivateKeyWif(wif);
+  if (typeof decoded === 'string') throw new Error(`Invalid WIF: ${decoded}`);
+  const result = privateKeyToP2pkhCashAddress({
+    privateKey: decoded.privateKey,
+    prefix: 'bchtest', // chipnet/testnet CashAddress prefix
+    throwErrors: false,
+  });
+  if (typeof result === 'string') throw new Error(`Address derivation failed: ${result}`);
+  return result.address;
+}
+
 function log(label, msg) {
   const pad = Math.max(1, 40 - label.length);
   console.log(`\n[${'='.repeat(3)} ${label} ${'='.repeat(pad)}]`);
@@ -77,12 +94,14 @@ async function main() {
   const artifact = compileFile(resolve(__dirname, '..', 'NomosVault.cash'));
   log('COMPILE', `✓ Compiled — ${artifact.contractName}`);
 
-  // 2. Provider + signer
+  // 2. Provider + signer + destination address
   const provider = new ElectrumNetworkProvider(NETWORK);
-  const sigTemplate = new SignatureTemplate(PRIVATE_KEY);
+  const sigTemplate = new SignatureTemplate(PRIVATE_KEY_WIF);
   const ownerPk = sigTemplate.getPublicKey();
+  const destAddress = deriveP2pkhAddress(PRIVATE_KEY_WIF);
 
   log('WALLET', `Owner pubkey: ${binToHex(ownerPk)}`);
+  log('WALLET', `Payment destination (P2PKH): ${destAddress}`);
 
   // 3. Build contract (immutable params only — state is in NFT)
   const contractParams = [
@@ -126,9 +145,10 @@ async function main() {
     if (plainUtxos.length > 0) {
       log('TEST: setMandate', 'Owner migrates vault (sig check only)...');
       try {
+        const currentBalance = await contract.getBalance();
         const tx = await contract.functions
           .setMandate(sigTemplate)
-          .to(contract.address, balance - BigInt(MINER_FEE))
+          .to(contract.address, currentBalance - BigInt(MINER_FEE))
           .send();
         log('TEST ✓', `setMandate succeeded — tx: ${tx.txid}`);
         log('EXPLORER', `https://chipnet.chaingraph.cash/tx/${tx.txid}`);
@@ -138,13 +158,13 @@ async function main() {
     }
 
     // ── TEST: rescue (owner + rescue sig) ──
-    const balanceAfter = await contract.getBalance();
-    if (balanceAfter > 0n) {
+    const balanceAfterMandate = await contract.getBalance();
+    if (balanceAfterMandate > 0n) {
       log('TEST: rescue', 'Owner + cosigner rescue funds...');
       try {
         const tx = await contract.functions
           .rescue(sigTemplate, sigTemplate) // same key for both in test
-          .to(contract.address, balanceAfter - BigInt(MINER_FEE))
+          .to(destAddress, balanceAfterMandate - BigInt(MINER_FEE))
           .send();
         log('TEST ✓', `rescue succeeded — tx: ${tx.txid}`);
         log('EXPLORER', `https://chipnet.chaingraph.cash/tx/${tx.txid}`);
@@ -167,15 +187,18 @@ async function main() {
   try {
     const locktime = Math.floor(Date.now() / 1000);
     const newCommitment = encodeCommitment(SPEND_UNDER, currentDay());
+    const changeAmount = nftUtxo.satoshis - BigInt(SPEND_UNDER) - BigInt(MINER_FEE);
 
     const tx = await contract.functions
       .spend(sigTemplate, ownerPk, BigInt(SPEND_UNDER))
       .from(nftUtxo)
-      .to(contract.tokenAddress, nftUtxo.satoshis - BigInt(SPEND_UNDER) - BigInt(MINER_FEE), {
+      // Output 0: covenant continuation with updated NFT
+      .to(contract.tokenAddress, changeAmount, {
         category: nftUtxo.token.category,
         nft: { capability: 'mutable', commitment: binToHex(newCommitment) },
       })
-      .to(contract.address, BigInt(SPEND_UNDER))
+      // Output 1: payment to a normal P2PKH address
+      .to(destAddress, BigInt(SPEND_UNDER))
       .withTime(locktime)
       .send();
 
@@ -189,7 +212,6 @@ async function main() {
   log('TEST 2', `Spend ${SPEND_OVER} sats (OVER limit of ${DAILY_LIMIT_SATS})...`);
   try {
     const locktime = Math.floor(Date.now() / 1000);
-    const newCommitment = encodeCommitment(SPEND_OVER, currentDay());
 
     // Re-fetch UTXOs after test 1
     const freshUtxos = await contract.getUtxos();
@@ -198,14 +220,23 @@ async function main() {
     if (!freshNft) {
       log('TEST 2 ✗', 'No NFT UTXO available (test 1 may have consumed it)');
     } else {
+      // Read current spent from the NFT commitment after test 1
+      const currentCommitment = freshNft.token.nft.commitment;
+      const spentBuf = Buffer.from(currentCommitment.slice(0, 16), 'hex');
+      const currentSpent = Number(spentBuf.readBigInt64LE(0));
+
+      // The over-limit commitment would claim we spent this much
+      const overCommitment = encodeCommitment(currentSpent + SPEND_OVER, currentDay());
+      const overChange = freshNft.satoshis - BigInt(SPEND_OVER) - BigInt(MINER_FEE);
+
       const tx = await contract.functions
         .spend(sigTemplate, ownerPk, BigInt(SPEND_OVER))
         .from(freshNft)
-        .to(contract.tokenAddress, freshNft.satoshis - BigInt(SPEND_OVER) - BigInt(MINER_FEE), {
+        .to(contract.tokenAddress, overChange, {
           category: freshNft.token.category,
-          nft: { capability: 'mutable', commitment: binToHex(newCommitment) },
+          nft: { capability: 'mutable', commitment: binToHex(overCommitment) },
         })
-        .to(contract.address, BigInt(SPEND_OVER))
+        .to(destAddress, BigInt(SPEND_OVER))
         .withTime(locktime)
         .send();
 
