@@ -149,51 +149,31 @@ function findNftUtxo(utxos: Utxo[]): Utxo {
 }
 
 // ── Helper: build WC tx object, sign, and broadcast ────────
-//
-// Uses generateWcTransactionObject() (available in cashscript 0.11.1+).
-// generateWizardConnectTransactionObject does NOT exist in 0.11.x.
-// For WizardConnect we wrap the WcTransactionObject with inputPaths manually.
 
 async function buildSignAndBroadcast(
   txBuilder: TransactionBuilder,
-  walletProvider: WalletProviderType,
+  provider: WalletProviderType,
   prompt: string,
 ): Promise<{ txid: string; signedTransaction: string }> {
-  // Generate the standard WC transaction object
+  // CashScript 0.11.x: generateWcTransactionObject (NOT generateWizardConnectTransactionObject)
   const wcTxObj = (txBuilder as any).generateWcTransactionObject({
-    broadcast: true,   // ask the wallet to broadcast
+    broadcast: true,
     userPrompt: prompt,
   })
 
-  if (!wcTxObj) {
-    throw new Error(
-      'Could not generate WC transaction object. ' +
-      'Connect a wallet that supports WizardConnect or BCH WalletConnect.',
-    )
+  const result = await signWcTransaction(provider, wcTxObj)
+
+  // If wallet broadcast (broadcast:true) returned a txid, we're done
+  if (result.txid) return result
+
+  // Fallback: wallet didn't broadcast — do it ourselves
+  if (result.signedTransaction) {
+    const electrum = getProvider() as ElectrumNetworkProvider
+    const txid = await electrum.sendRawTransaction(result.signedTransaction)
+    return { txid, signedTransaction: result.signedTransaction }
   }
 
-  // For WizardConnect, the signing API takes { transaction, inputPaths }
-  // where inputPaths describes which P2PKH inputs the wallet should sign.
-  // Contract inputs (which use placeholderSignature) don't need inputPaths
-  // entries — the wallet fills in signatures for its own keys.
-  // Since all our inputs are contract inputs (not user P2PKH), inputPaths is [].
-
-  const result = await signWcTransaction(walletProvider, wcTxObj, [])
-
-  // If the wallet didn't broadcast (no txid), broadcast manually
-  if (!result.txid && result.signedTransaction) {
-    try {
-      const provider = getProvider()
-      const txid = await (provider as any).sendRawTransaction(
-        result.signedTransaction,
-      )
-      return { txid: txid ?? '', signedTransaction: result.signedTransaction }
-    } catch (err: any) {
-      throw new Error(`Broadcast failed: ${err.message}`)
-    }
-  }
-
-  return result
+  throw new Error('Wallet returned neither txid nor signed transaction')
 }
 
 // ── Spend ──────────────────────────────────────────────────

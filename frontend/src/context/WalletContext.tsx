@@ -23,7 +23,10 @@ interface WalletCtx {
   receipts: Receipt[]
   connecting: boolean
   error: string | null
-  connect: (provider: WalletProviderType) => Promise<void>
+  /** Connect a WC2 wallet (WizardConnect is handled by the hook in Connect.tsx) */
+  connectWc2: () => Promise<void>
+  /** Set wallet directly (used by WizardConnect hook flow) */
+  setWalletDirect: (conn: WalletConnection | null) => void
   disconnect: () => void
   setVaultConfig: (c: VaultConfig) => void
   refreshVault: () => Promise<void>
@@ -74,12 +77,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const connect = useCallback(async (provider: WalletProviderType) => {
+  /** Connect via BCH WalletConnect v2 */
+  const connectWc2 = useCallback(async () => {
     setConnecting(true)
     setError(null)
     try {
-      const { connectWallet } = await import('../lib/wallet')
-      const conn = await connectWallet(provider)
+      const { connectWc2: doConnect } = await import('../lib/wallet')
+      const conn = await doConnect()
       setWallet(conn)
       save(WALLET_KEY, conn)
     } catch (err: any) {
@@ -90,11 +94,25 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const disconnect = useCallback(() => {
+  /** Set wallet directly — used by WizardConnect hook flow in Connect.tsx */
+  const setWalletDirect = useCallback((conn: WalletConnection | null) => {
+    setWallet(conn)
+    save(WALLET_KEY, conn)
+    if (!conn) setError(null)
+  }, [])
+
+  const disconnect = useCallback(async () => {
+    const prev = wallet
     setWallet(null)
     setVault(null)
     save(WALLET_KEY, null)
-  }, [])
+    // Clean up WC2 session if that was the provider
+    if (prev?.provider === 'wc2') {
+      const { disconnectWc2 } = await import('../lib/wallet')
+      await disconnectWc2()
+    }
+    // WizardConnect disconnect is handled by the hook's disconnect() in Connect.tsx
+  }, [wallet])
 
   const setVaultConfig = useCallback((c: VaultConfig) => {
     setVaultConfigState(c)
@@ -132,8 +150,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     <WalletContext.Provider
       value={{
         wallet, vault, vaultConfig, receipts, connecting, error,
-        connect, disconnect, setVaultConfig, refreshVault,
-        addReceipt, updateMandate,
+        connectWc2, setWalletDirect, disconnect, setVaultConfig,
+        refreshVault, addReceipt, updateMandate,
       }}
     >
       {children}
