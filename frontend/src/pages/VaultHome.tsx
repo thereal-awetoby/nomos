@@ -9,8 +9,6 @@ export default function VaultHome() {
   const [showQr, setShowQr] = useState(false)
   const qrRef = useRef<HTMLCanvasElement>(null)
 
-  // Render QR code when toggled on. Keep this hook above early returns so
-  // the number and order of hooks never depends on wallet or vault state.
   useEffect(() => {
     const address = vault?.address
     if (!showQr || !address || !qrRef.current) return
@@ -22,41 +20,35 @@ export default function VaultHome() {
       return QRCode.toCanvas(canvas, address, {
         width: 200,
         margin: 2,
-        color: { dark: '#e0e0e0', light: '#00000000' },
+        color: { dark: '#e8e8f0', light: '#00000000' },
       })
-    }).catch(() => { /* qrcode failed to load */ })
+    }).catch(() => {
+      // Ignore QR rendering failures; the address remains available to copy.
+    })
 
     return () => { cancelled = true }
   }, [showQr, vault?.address])
 
   if (!wallet?.connected) return <Navigate to="/" replace />
 
-  // No vault config yet — send to Set Mandate
   if (!vaultConfig) {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
-        <p className="mb-4 text-nomos-muted">
-          No vault configured yet. Set your mandate to get started.
+        <p className="mb-5 text-sm text-nomos-muted">
+          No vault configured yet.
         </p>
-        <Link
-          to="/mandate"
-          className="rounded-lg bg-nomos-accent px-6 py-3 font-semibold text-nomos-bg transition-all hover:brightness-110"
-        >
+        <Link to="/mandate" className="btn-primary">
           Set Mandate
         </Link>
       </div>
     )
   }
 
-  // Config exists but vault state hasn't loaded yet
   if (!vault) {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
-        <p className="text-nomos-muted">Loading vault…</p>
-        <button
-          onClick={refreshVault}
-          className="mt-4 rounded-lg border border-nomos-border px-4 py-2 text-xs text-nomos-muted hover:border-nomos-accent hover:text-nomos-accent"
-        >
+        <p className="text-sm text-nomos-muted">Loading vault…</p>
+        <button onClick={refreshVault} className="btn-ghost mt-4 text-xs">
           ↻ Retry
         </button>
       </div>
@@ -74,56 +66,49 @@ export default function VaultHome() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Balance + tappable contract address */}
-      <div className="text-center">
-        <p className="text-xs uppercase tracking-widest text-nomos-muted">
-          Vault balance
+    <div className="space-y-5">
+      {/* ── Balance hero ── */}
+      <div className="card px-5 py-6 text-center">
+        <p className="label">Vault Balance</p>
+        <p className="mt-2 mono-value text-4xl font-bold text-nomos-text">
+          {(vault.balanceSats / 1e8).toFixed(8)}
         </p>
-        <p className="mt-1 font-mono text-3xl font-bold">
-          {(vault.balanceSats / 1e8).toFixed(8)}{' '}
-          <span className="text-lg text-nomos-muted">BCH</span>
-        </p>
+        <p className="mt-1 text-xs text-nomos-muted">BCH</p>
+
+        {/* Address */}
         <button
           onClick={copyAddress}
-          className="mt-1 font-mono text-[10px] text-nomos-muted truncate max-w-full hover:text-nomos-accent transition-colors"
+          className="mx-auto mt-4 block max-w-full truncate font-mono text-[10px] text-nomos-muted hover:text-nomos-accent transition-colors duration-200"
           title="Copy contract address"
         >
-          {copied ? '✓ Copied!' : vault.address}
+          {copied ? '✓ Copied' : vault.address}
         </button>
-        <div className="mt-1 flex items-center justify-center gap-2">
-          <p className="text-[9px] text-nomos-muted/50">
-            Tap address to copy
-          </p>
-          <button
-            onClick={() => setShowQr(q => !q)}
-            className="text-[9px] text-nomos-accent/60 hover:text-nomos-accent transition-colors"
-          >
-            {showQr ? 'Hide QR' : 'Show QR'}
-          </button>
-        </div>
+
+        {/* QR toggle */}
+        <button
+          onClick={() => setShowQr(q => !q)}
+          className="mt-2 text-[10px] text-nomos-accent/60 hover:text-nomos-accent transition-colors duration-200"
+        >
+          {showQr ? 'Hide QR' : 'Show QR'}
+        </button>
         {showQr && (
           <div className="mt-3 flex justify-center">
-            <canvas ref={qrRef} className="rounded-lg" />
+            <canvas ref={qrRef} className="rounded-2xl" />
           </div>
         )}
       </div>
 
-      {/* Mandate summary */}
-      <div className="rounded-lg border border-nomos-border bg-nomos-surface p-4 font-mono text-sm">
-        <p className="mb-3 text-xs uppercase tracking-widest text-nomos-muted">
-          Current mandate
-        </p>
-        <div className="space-y-2">
+      {/* ── Mandate summary ── */}
+      <div className="card p-5">
+        <p className="label mb-4">Current Mandate</p>
+        <div className="space-y-3 mono-value text-sm">
           <div className="flex justify-between">
             <span className="text-nomos-muted">Daily limit</span>
             <span>{(vault.mandate.dailyLimitSats / 1e8).toFixed(8)} BCH</span>
           </div>
           <div className="flex justify-between">
             <span className="text-nomos-muted">Spent today</span>
-            <span>
-              {(vault.mandate.spentTodaySats / 1e8).toFixed(8)} BCH
-            </span>
+            <span>{(vault.mandate.spentTodaySats / 1e8).toFixed(8)} BCH</span>
           </div>
           <div className="flex justify-between">
             <span className="text-nomos-muted">Remaining</span>
@@ -131,30 +116,28 @@ export default function VaultHome() {
               {(remaining / 1e8).toFixed(8)} BCH
             </span>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between text-xs">
             <span className="text-nomos-muted">Allowlist</span>
-            <span>
+            <span className="text-nomos-muted-bright">
               {vault.mandate.allowlistEnabled ? 'On' : 'Off'}
             </span>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between text-xs">
             <span className="text-nomos-muted">Agent</span>
-            <span>
-              {vault.mandate.agentPk ? 'Set' : 'Not set'}
+            <span className="text-nomos-muted-bright">
+              {vault.mandate.agentPk ? 'Set' : 'None'}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Allowlist addresses (when enabled) */}
+      {/* ── Allowlist ── */}
       {vault.mandate.allowlistEnabled && vault.mandate.allowlist.length > 0 && (
-        <div className="rounded-lg border border-nomos-border bg-nomos-surface p-4 font-mono text-sm">
-          <p className="mb-2 text-xs uppercase tracking-widest text-nomos-muted">
-            Allowed destinations
-          </p>
-          <div className="space-y-1">
+        <div className="card p-5">
+          <p className="label mb-3">Allowed Destinations</p>
+          <div className="space-y-1.5">
             {vault.mandate.allowlist.map((addr, i) => (
-              <p key={i} className="truncate text-[10px] text-nomos-muted">
+              <p key={i} className="truncate font-mono text-[10px] text-nomos-muted-bright">
                 {addr}
               </p>
             ))}
@@ -162,50 +145,32 @@ export default function VaultHome() {
         </div>
       )}
 
-      {/* Actions */}
+      {/* ── Action grid ── */}
       <div className="grid grid-cols-3 gap-3">
-        <Link
-          to="/mandate"
-          className="rounded-lg border border-nomos-border bg-nomos-surface py-3 text-center text-sm font-medium transition-all hover:border-nomos-accent"
-        >
-          Set Mandate
+        <Link to="/mandate" className="btn-ghost py-3 text-center text-xs">
+          Mandate
         </Link>
-        <Link
-          to="/pay"
-          className="rounded-lg bg-nomos-accent py-3 text-center text-sm font-semibold text-nomos-bg transition-all hover:brightness-110"
-        >
+        <Link to="/pay" className="btn-primary py-3 text-center text-sm">
           Pay
         </Link>
-        <Link
-          to="/activity"
-          className="rounded-lg border border-nomos-border bg-nomos-surface py-3 text-center text-sm font-medium transition-all hover:border-nomos-accent"
-        >
+        <Link to="/activity" className="btn-ghost py-3 text-center text-xs">
           Activity
         </Link>
       </div>
 
-      {/* Rescue (only if rescue co-signer is set) */}
+      {/* ── Rescue ── */}
       {vaultConfig.rescuePk && (
-        <Link
-          to="/rescue"
-          className="block w-full rounded-lg border border-nomos-refuse/30 bg-nomos-refuse/5 py-2 text-center text-xs text-nomos-refuse/60 transition-all hover:border-nomos-refuse hover:text-nomos-refuse"
-        >
-          🚨 Emergency Rescue
+        <Link to="/rescue" className="btn-danger block w-full py-2.5 text-center text-xs">
+          Emergency Rescue
         </Link>
       )}
 
-      {/* Refresh + Disconnect */}
+      {/* ── Bottom controls ── */}
       <div className="flex gap-3">
-        <button
-          onClick={refreshVault}
-          className="flex-1 rounded-lg border border-nomos-border py-2 text-xs text-nomos-muted hover:border-nomos-accent hover:text-nomos-accent"
-        >
+        <button onClick={refreshVault} className="btn-ghost flex-1 py-2 text-xs">
           ↻ Refresh
         </button>
-        <button
-          onClick={disconnect}
-          className="flex-1 rounded-lg border border-nomos-refuse/30 py-2 text-xs text-nomos-refuse/60 hover:border-nomos-refuse hover:text-nomos-refuse"
-        >
+        <button onClick={disconnect} className="btn-danger flex-1 py-2 text-xs">
           Disconnect
         </button>
       </div>

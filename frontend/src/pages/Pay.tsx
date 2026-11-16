@@ -15,14 +15,13 @@ export default function Pay() {
   } | null>(null)
 
   if (!wallet?.connected) return <Navigate to="/" replace />
-  if (!vault) return <p className="text-center text-nomos-muted">Loading…</p>
+  if (!vault) return <p className="py-20 text-center text-sm text-nomos-muted">Loading…</p>
 
   const mandate = vault.mandate
   const remaining = remainingToday(mandate)
   const amountSats = Math.round(parseFloat(amount || '0') * 1e8)
 
   const handlePay = async () => {
-    // Validate destination is a real cashaddr (lenient — any type accepted)
     const addrErr = validateCashAddress(destination)
     if (addrErr) {
       setResult({ type: 'refused', message: `Invalid destination: ${addrErr}` })
@@ -46,7 +45,7 @@ export default function Pay() {
     }
 
     if (!vaultConfig) {
-      setResult({ type: 'refused', message: 'Vault config not set. Go to Set Mandate first.' })
+      setResult({ type: 'refused', message: 'Vault config not set.' })
       return
     }
 
@@ -64,56 +63,80 @@ export default function Pay() {
       setSubmitting(false)
     }
 
-    // Refresh vault state separately so a refresh failure
-    // doesn't overwrite a successful payment result.
+    // Refresh vault state separately so a refresh failure doesn't replace the result.
     try { await refreshVault() } catch { /* best-effort */ }
   }
 
   return (
-    <div className="space-y-6">
-      <Link to="/vault" className="text-xs text-nomos-muted hover:text-nomos-accent">← Vault</Link>
-      <h2 className="font-mono text-xl font-bold">Pay</h2>
+    <div className="space-y-5">
+      {/* Back nav */}
+      <Link to="/vault" className="text-xs text-nomos-muted hover:text-nomos-accent transition-colors duration-200">
+        ← Back to vault
+      </Link>
 
-      <div className="rounded-lg border border-nomos-border bg-nomos-surface p-3 text-center font-mono text-sm">
-        <span className="text-nomos-muted">Remaining today: </span>
-        <span className="text-nomos-accent">{(remaining / 1e8).toFixed(8)} BCH</span>
+      <h2 className="font-mono text-2xl font-bold">Pay</h2>
+
+      {/* Remaining budget */}
+      <div className="card px-5 py-4 text-center">
+        <p className="label">Remaining Today</p>
+        <p className="mt-1 mono-value text-2xl font-bold text-nomos-accent">
+          {(remaining / 1e8).toFixed(8)}
+          <span className="ml-1 text-sm text-nomos-muted">BCH</span>
+        </p>
       </div>
 
+      {/* Amount */}
       <div>
-        <label className="mb-1 block text-xs uppercase tracking-widest text-nomos-muted">Amount (BCH)</label>
-        <input type="number" step="0.00000001" value={amount}
+        <label className="label mb-2 block">Amount (BCH)</label>
+        <input
+          type="number"
+          step="0.00000001"
+          value={amount}
           onChange={(e) => { setAmount(e.target.value); setResult(null) }}
           placeholder="0.0001"
-          className="w-full rounded-lg border border-nomos-border bg-nomos-bg px-4 py-3 font-mono text-sm focus:border-nomos-accent focus:outline-none" />
+          className="input"
+        />
       </div>
 
+      {/* Destination */}
       <div>
-        <label className="mb-1 block text-xs uppercase tracking-widest text-nomos-muted">Destination</label>
-        <input type="text" value={destination}
+        <label className="label mb-2 block">Destination</label>
+        <input
+          type="text"
+          value={destination}
           onChange={(e) => { setDestination(e.target.value); setResult(null) }}
           placeholder="bitcoincash:qr…"
-          className="w-full rounded-lg border border-nomos-border bg-nomos-bg px-4 py-3 font-mono text-xs focus:border-nomos-accent focus:outline-none" />
+          className="input text-xs"
+        />
       </div>
 
-      <button onClick={handlePay} disabled={!amount || !destination || submitting}
-        className="w-full rounded-lg bg-nomos-accent py-3 text-center font-semibold text-nomos-bg transition-all hover:brightness-110 disabled:opacity-40">
+      <button
+        onClick={handlePay}
+        disabled={!amount || !destination || submitting}
+        className="btn-primary w-full"
+      >
         {submitting ? 'Signing…' : 'Pay'}
       </button>
 
+      {/* Result */}
       {result && (
-        <div className={`rounded-lg border p-4 text-center font-mono ${
+        <div className={`card p-5 text-center ${
           result.type === 'success'
-            ? 'border-nomos-accent/40 bg-nomos-accent/10 text-nomos-accent'
-            : 'border-nomos-refuse/40 bg-nomos-refuse/10 text-nomos-refuse'
-        }`}>
-          <p className="text-lg font-bold">
+            ? 'border-nomos-accent/20 bg-nomos-accent/5'
+            : 'border-nomos-refuse/20 bg-nomos-refuse/5'
+        }`} style={{ borderWidth: '1px', borderStyle: 'solid' }}>
+          <p className={`mono-value text-lg font-bold ${
+            result.type === 'success' ? 'text-nomos-accent' : 'text-nomos-refuse'
+          }`}>
             {result.type === 'success' ? 'Paid under mandate' : 'Refused by Nomos'}
           </p>
-          <p className="mt-1 text-sm opacity-80">{result.message}</p>
+          <p className="mt-1 text-xs text-nomos-muted-bright">{result.message}</p>
           {result.txHash && (
-            <a href={`${EXPLORER_TX_URL}${result.txHash}`}
+            <a
+              href={`${EXPLORER_TX_URL}${result.txHash}`}
               target="_blank" rel="noreferrer"
-              className="mt-2 inline-block text-xs underline">
+              className="mt-3 inline-block text-xs text-nomos-accent hover:underline"
+            >
               View on explorer →
             </a>
           )}

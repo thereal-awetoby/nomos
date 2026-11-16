@@ -8,15 +8,22 @@ export default function Activity() {
   if (!wallet?.connected) return <Navigate to="/" replace />
 
   return (
-    <div className="space-y-6">
-      <Link to="/vault" className="text-xs text-nomos-muted hover:text-nomos-accent">← Vault</Link>
-      <h2 className="font-mono text-xl font-bold">Activity</h2>
+    <div className="space-y-5">
+      {/* Back nav */}
+      <Link to="/vault" className="text-xs text-nomos-muted hover:text-nomos-accent transition-colors duration-200">
+        ← Back to vault
+      </Link>
+
+      <h2 className="font-mono text-2xl font-bold">Activity</h2>
 
       {receipts.length === 0 ? (
-        <div className="text-center">
+        <div className="card flex flex-col items-center py-12 text-center">
           <p className="text-sm text-nomos-muted">No transactions yet.</p>
-          <Link to="/pay" className="mt-2 inline-block text-xs text-nomos-accent hover:underline">
-            Make your first payment →
+          <p className="mt-2 text-xs text-nomos-muted/60">
+            Payments and refusals will appear here with on-chain receipts.
+          </p>
+          <Link to="/pay" className="btn-primary mt-6 text-sm">
+            Make a Payment
           </Link>
         </div>
       ) : (

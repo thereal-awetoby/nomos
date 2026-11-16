@@ -6,4 +6,81 @@
   body {
     @apply min-h-screen;
   }
+
+  /* Smoother font rendering */
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer components {
+  /* Glass card surface — the workhorse container */
+  .card {
+    @apply rounded-2xl bg-nomos-surface/80 shadow-card backdrop-blur-sm;
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+  .card:hover {
+    border-color: rgba(255,255,255,0.07);
+  }
+
+  /* Primary pill button */
+  .btn-primary {
+    @apply rounded-pill bg-nomos-accent px-6 py-3 text-center font-semibold
+           text-nomos-bg shadow-glow-sm transition-all duration-200;
+  }
+  .btn-primary:hover {
+    @apply brightness-110 shadow-glow;
+  }
+  .btn-primary:disabled {
+    @apply opacity-30 shadow-none;
+  }
+
+  /* Ghost/outline button */
+  .btn-ghost {
+    @apply rounded-2xl bg-nomos-surface-raised/60 px-5 py-3 text-center text-sm
+           font-medium text-nomos-text shadow-card transition-all duration-200;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .btn-ghost:hover {
+    @apply shadow-card-hover;
+    border-color: rgba(255,255,255,0.10);
+    background: rgba(22,22,37,0.9);
+  }
+  .btn-ghost:disabled {
+    @apply opacity-30;
+  }
+
+  /* Danger ghost button */
+  .btn-danger {
+    @apply rounded-2xl bg-nomos-refuse-soft px-5 py-2.5 text-center text-sm
+           font-medium text-nomos-refuse transition-all duration-200;
+    border: 1px solid rgba(255,59,92,0.15);
+  }
+  .btn-danger:hover {
+    @apply shadow-glow-refuse;
+    border-color: rgba(255,59,92,0.30);
+  }
+
+  /* Section label */
+  .label {
+    @apply text-[11px] font-medium uppercase tracking-wider text-nomos-muted;
+  }
+
+  /* Mono number display */
+  .mono-value {
+    @apply font-mono tabular-nums;
+  }
+
+  /* Subtle input */
+  .input {
+    @apply w-full rounded-2xl bg-nomos-surface-raised/60 px-4 py-3 font-mono text-sm
+           text-nomos-text placeholder:text-nomos-muted/40 transition-all duration-200
+           focus:outline-none;
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+  .input:focus {
+    border-color: rgba(0,229,153,0.3);
+    box-shadow: 0 0 0 3px rgba(0,229,153,0.08);
+  }
 }
