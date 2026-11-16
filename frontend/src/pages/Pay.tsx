@@ -22,7 +22,7 @@ export default function Pay() {
   const amountSats = Math.round(parseFloat(amount || '0') * 1e8)
 
   const handlePay = async () => {
-    // Validate destination address before anything else
+    // Validate destination is a real cashaddr (lenient — any type accepted)
     const addrErr = validateCashAddress(destination)
     if (addrErr) {
       setResult({ type: 'refused', message: `Invalid destination: ${addrErr}` })
