@@ -259,35 +259,42 @@ export async function executeSpend(
 }
 
 // ── Set Mandate ────────────────────────────────────────────
+// Owner sweeps NFT + funds from old contract to a NEW contract
+// built with updated params. The contract's setMandate() only
+// checks the owner sig — no covenant on outputs — so the
+// destination can be any address (the new contract).
 
 export async function executeSetMandate(
   config: VaultConfig,
-  _newMandate: Partial<Mandate>,
+  newConfig: VaultConfig,
   _ownerAddress: string,
   walletProvider: WalletProviderType,
-): Promise<string> {
-  const contract = await getContract(config)
+): Promise<{ txid: string; newConfig: VaultConfig }> {
+  const oldContract = await getContract(config)
+  const newContract = await getContract(newConfig)
   const provider = getProvider()
-  const utxos = await contract.getUtxos()
+  const utxos = await oldContract.getUtxos()
   const nftUtxo = findNftUtxo(utxos)
 
   const txBuilder = new TransactionBuilder({ provider })
 
   txBuilder.addInput(
     nftUtxo,
-    contract.unlock.setMandate(placeholderSignature()),
+    oldContract.unlock.setMandate(placeholderSignature()),
   )
 
+  // Send NFT + funds to the NEW contract (with updated params)
   const changeSats = nftUtxo.satoshis - MINER_FEE
   txBuilder.addOutput({
-    to: contract.address,
+    to: newContract.tokenAddress,
     amount: changeSats,
     token: {
       amount: 0n,
       category: (nftUtxo as any).token.category,
       nft: {
         capability: (nftUtxo as any).token.nft.capability,
-        commitment: (nftUtxo as any).token.nft.commitment,
+        // Reset state: spentToday=0, dayMarker=0 (fresh mandate)
+        commitment: '00000000000000000000000000000000',
       },
     },
   })
@@ -295,7 +302,7 @@ export async function executeSetMandate(
   const result = await buildSignAndBroadcast(
     txBuilder, walletProvider, 'Nomos: update mandate',
   )
-  return result.txid
+  return { txid: result.txid, newConfig }
 }
 
 // ── Rescue ─────────────────────────────────────────────────

@@ -42,22 +42,19 @@ export default function SetMandate() {
 
     try {
       if (vaultConfig) {
-        // Existing vault — call setMandate on-chain
-        await executeSetMandate(
+        // Existing vault — redeploy to new contract on-chain
+        const result = await executeSetMandate(
           vaultConfig,
-          {
-            dailyLimitSats: newConfig.dailyLimitSats,
-            allowlistEnabled,
-            allowlist: newConfig.allowedAddrs,
-            agentPk: agentPk || null,
-            rescuePk: rescuePk || null,
-          },
+          newConfig,
           wallet.address,
           wallet.provider,
         )
+        // Save the config that matches the NEW on-chain contract
+        setVaultConfig(result.newConfig)
+      } else {
+        // First time — just save locally
+        setVaultConfig(newConfig)
       }
-      // Save config locally (used to instantiate the contract)
-      setVaultConfig(newConfig)
       navigate('/vault')
     } catch (err: any) {
       setError(err.message || 'Failed to set mandate')
