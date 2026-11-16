@@ -116,6 +116,16 @@ export default function VaultHome() {
         </Link>
       </div>
 
+      {/* Rescue (only if rescue co-signer is set) */}
+      {vaultConfig.rescuePk && (
+        <Link
+          to="/rescue"
+          className="block w-full rounded-lg border border-nomos-refuse/30 bg-nomos-refuse/5 py-2 text-center text-xs text-nomos-refuse/60 transition-all hover:border-nomos-refuse hover:text-nomos-refuse"
+        >
+          🚨 Emergency Rescue
+        </Link>
+      )}
+
       {/* Refresh + Disconnect */}
       <div className="flex gap-3">
         <button
