@@ -16,7 +16,18 @@ export default function SetMandate() {
 
   if (!wallet?.connected) return <Navigate to="/" replace />
 
+  // Warn if pubkey is missing (WC2 wallet didn't support bch_getAddresses)
+  const noPubkey = !wallet.pubkey
+
   const handleConfirm = async () => {
+    if (noPubkey) {
+      setError(
+        'Your wallet did not provide a public key. ' +
+        'Try connecting with WizardConnect, or paste your owner public key manually.',
+      )
+      return
+    }
+
     setSubmitting(true)
     setError(null)
 
@@ -31,6 +42,7 @@ export default function SetMandate() {
 
     try {
       if (vaultConfig) {
+        // Existing vault — call setMandate on-chain
         await executeSetMandate(
           vaultConfig,
           {
@@ -44,6 +56,7 @@ export default function SetMandate() {
           wallet.provider,
         )
       }
+      // Save config locally (used to instantiate the contract)
       setVaultConfig(newConfig)
       navigate('/vault')
     } catch (err: any) {
@@ -56,6 +69,22 @@ export default function SetMandate() {
   return (
     <div className="space-y-6">
       <h2 className="font-mono text-xl font-bold">Set Mandate</h2>
+
+      {!vaultConfig && (
+        <div className="rounded-lg border border-nomos-accent/30 bg-nomos-accent/5 p-3 text-xs text-nomos-accent">
+          <strong>First time?</strong> This saves your mandate config locally.
+          To deploy the vault on-chain, you'll also need to mint the genesis
+          NFT using the <code>mint-nft.mjs</code> script and fund the
+          contract address.
+        </div>
+      )}
+
+      {noPubkey && (
+        <div className="rounded-lg border border-nomos-refuse/30 bg-nomos-refuse/5 p-3 text-xs text-nomos-refuse">
+          Your wallet didn't provide a public key.
+          Reconnect with WizardConnect for full support.
+        </div>
+      )}
 
       <div>
         <label className="mb-1 block text-xs uppercase tracking-widest text-nomos-muted">Daily limit (BCH)</label>
@@ -95,7 +124,7 @@ export default function SetMandate() {
 
       <button onClick={handleConfirm} disabled={submitting}
         className="w-full rounded-lg bg-nomos-accent py-3 text-center font-semibold text-nomos-bg transition-all hover:brightness-110 disabled:opacity-40">
-        {submitting ? 'Signing…' : 'Confirm Mandate (sign on-chain)'}
+        {submitting ? 'Signing…' : vaultConfig ? 'Update Mandate (sign on-chain)' : 'Save Mandate Config'}
       </button>
     </div>
   )

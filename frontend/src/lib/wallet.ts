@@ -56,12 +56,14 @@ async function connectWc2(): Promise<WalletConnection> {
     },
   })
 
+  // Emit URI so Connect.tsx can render QR code
   if (uri) {
     window.dispatchEvent(new CustomEvent('nomos:wc2:uri', { detail: uri }))
   }
 
   wc2Session = await approval()
 
+  // Parse address from WC v2 session accounts
   const accounts: string[] = wc2Session.namespaces?.bch?.accounts ?? []
   const rawAccount = accounts[0] ?? ''
   const parts = rawAccount.split(':')
@@ -70,7 +72,33 @@ async function connectWc2(): Promise<WalletConnection> {
 
   if (!address) throw new Error('WalletConnect: no address received')
 
-  return { provider: 'wc2', address, pubkey: '', connected: true }
+  // Fetch pubkey via bch_getAddresses (needed for ownerPk in contract)
+  let pubkey = ''
+  try {
+    const addrResult = await wc2SignClient.request({
+      topic: wc2Session.topic,
+      chainId: 'bch:bitcoincash',
+      request: {
+        method: 'bch_getAddresses',
+        params: {},
+      },
+    })
+    // Response shape varies by wallet; try common patterns
+    if (Array.isArray(addrResult)) {
+      const entry = addrResult.find((a: any) => a.pubkey || a.publicKey)
+      pubkey = entry?.pubkey ?? entry?.publicKey ?? ''
+    } else if (addrResult?.pubkey) {
+      pubkey = addrResult.pubkey
+    } else if (addrResult?.publicKey) {
+      pubkey = addrResult.publicKey
+    }
+  } catch {
+    // Some wallets may not support bch_getAddresses — pubkey stays empty.
+    // SetMandate will warn the user.
+    console.warn('[nomos] bch_getAddresses not supported by this wallet')
+  }
+
+  return { provider: 'wc2', address, pubkey, connected: true }
 }
 
 // ── Public API ─────────────────────────────────────────────
@@ -85,7 +113,6 @@ export async function connectWallet(
 
 /**
  * Sign a WC transaction object via the active wallet session.
- * Works for both WizardConnect and BCH WalletConnect v2.
  */
 export async function signWcTransaction(
   provider: WalletProviderType,

@@ -1,11 +1,5 @@
 // ── Contract interaction layer ──────────────────────────────
 // CashScript 0.11.x SDK: new TransactionBuilder + WC transaction objects.
-//
-// Why 0.11.x:
-//   0.10 — no placeholders, no generateWcTransactionObject
-//   0.11 — has both; contract.functions still works (deprecated)
-//   0.12 — removed contract.functions (breaking)
-//   0.13 — changed bytes8(int) casting (breaks our contract)
 
 import {
   Contract,
@@ -87,10 +81,6 @@ function padBytes20(hex: string): string {
 
 // ── Instantiate contract ───────────────────────────────────
 
-export function getProvider_(): NetworkProvider {
-  return getProvider()
-}
-
 export async function getContract(config: VaultConfig): Promise<Contract> {
   const artifact = await getArtifact()
   const provider = getProvider()
@@ -160,13 +150,12 @@ function findNftUtxo(utxos: Utxo[]): Utxo {
 
 async function buildAndSign(
   txBuilder: TransactionBuilder,
-  provider: WalletProviderType,
+  walletProvider: WalletProviderType,
   prompt: string,
 ): Promise<{ txid: string; signedTransaction: string }> {
-  // Try WizardConnect-specific format first, then generic WC
   let wcTxObj: any
 
-  if (provider === 'wizardconnect') {
+  if (walletProvider === 'wizardconnect') {
     wcTxObj = (txBuilder as any).generateWizardConnectTransactionObject?.({
       broadcast: false,
       userPrompt: prompt,
@@ -181,18 +170,13 @@ async function buildAndSign(
   }
 
   if (!wcTxObj) {
-    // Fallback: build and broadcast directly (for WIF key testing)
-    const result = await txBuilder.build()
-    // If we have a provider, send it
-    const hex = typeof result === 'string' ? result : (result as any)?.hex
-    if (hex) {
-      const txid = await getProvider().sendRawTransaction(hex)
-      return { txid, signedTransaction: hex }
-    }
-    throw new Error('Could not build or sign transaction')
+    throw new Error(
+      'Could not generate WC transaction object. ' +
+      'Connect a wallet that supports WizardConnect or BCH WalletConnect.',
+    )
   }
 
-  return signWcTransaction(provider, wcTxObj)
+  return signWcTransaction(walletProvider, wcTxObj)
 }
 
 // ── Spend ──────────────────────────────────────────────────
@@ -213,11 +197,8 @@ export async function executeSpend(
   const locktime = Math.floor(Date.now() / 1000)
   const amount = BigInt(amountSats)
 
-  // ── New TransactionBuilder (CashScript 0.11.x) ──
   const txBuilder = new TransactionBuilder({ provider })
 
-  // Contract input: spend(sig, pubkey, amount)
-  // Use placeholders — the wallet fills them at sign time
   txBuilder.addInput(
     nftUtxo,
     contract.unlock.spend(
@@ -227,12 +208,11 @@ export async function executeSpend(
     ),
   )
 
-  // Output 0: covenant continuation (same contract address + updated NFT)
+  // Output 0: covenant continuation
   const inputSats = nftUtxo.satoshis
   const changeSats = inputSats - amount - MINER_FEE
   if (changeSats < DUST_LIMIT) throw new Error('Insufficient vault balance')
 
-  // Updated NFT commitment: spentToday + dayMarker (16 bytes total)
   const today = currentDayMarker()
   const prevSpent = today === mandate.dayMarker ? mandate.spentTodaySats : 0
   const newSpent = prevSpent + amountSats
@@ -253,9 +233,7 @@ export async function executeSpend(
     },
   })
 
-  // Output 1: payment to destination
   txBuilder.addOutput({ to: destination, amount })
-
   txBuilder.setLocktime(locktime)
 
   const result = await buildAndSign(txBuilder, walletProvider, `Nomos: pay ${amountSats} sats`)
@@ -291,7 +269,6 @@ export async function executeSetMandate(
     contract.unlock.setMandate(placeholderSignature()),
   )
 
-  // Continuation output: same contract, same NFT, minus fee
   const changeSats = nftUtxo.satoshis - MINER_FEE
   txBuilder.addOutput({
     to: contract.address,
@@ -325,7 +302,6 @@ export async function executeRescue(
 
   const txBuilder = new TransactionBuilder({ provider })
 
-  // rescue(sig ownerSig, sig rescueSig)
   txBuilder.addInput(
     nftUtxo,
     contract.unlock.rescue(placeholderSignature(), placeholderSignature()),

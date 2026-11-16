@@ -3,10 +3,41 @@ import { useWallet } from '../context/WalletContext'
 import { remainingToday } from '../lib/contract'
 
 export default function VaultHome() {
-  const { wallet, vault, refreshVault, disconnect } = useWallet()
+  const { wallet, vault, vaultConfig, refreshVault, disconnect } = useWallet()
 
   if (!wallet?.connected) return <Navigate to="/" replace />
-  if (!vault) return <p className="text-center text-nomos-muted">Loading vault...</p>
+
+  // No vault config yet — send to Set Mandate
+  if (!vaultConfig) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
+        <p className="mb-4 text-nomos-muted">
+          No vault configured yet. Set your mandate to get started.
+        </p>
+        <Link
+          to="/mandate"
+          className="rounded-lg bg-nomos-accent px-6 py-3 font-semibold text-nomos-bg transition-all hover:brightness-110"
+        >
+          Set Mandate
+        </Link>
+      </div>
+    )
+  }
+
+  // Config exists but vault state hasn't loaded yet
+  if (!vault) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
+        <p className="text-nomos-muted">Loading vault…</p>
+        <button
+          onClick={refreshVault}
+          className="mt-4 rounded-lg border border-nomos-border px-4 py-2 text-xs text-nomos-muted hover:border-nomos-accent hover:text-nomos-accent"
+        >
+          ↻ Retry
+        </button>
+      </div>
+    )
+  }
 
   const remaining = remainingToday(vault.mandate)
 
