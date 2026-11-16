@@ -43,7 +43,16 @@ function getProvider(): NetworkProvider {
 }
 
 export const DUST_LIMIT = 546n
-export const MINER_FEE = 1000n
+
+// The contract's spend() hardcodes `int minerFee = 1000` as the floor.
+// For setMandate/rescue (no contract constraint) we still use this as minimum.
+const CONTRACT_FEE_FLOOR = 1000n
+
+/** Estimate fee at ~1 sat/byte. Each input ≈ 150 B, each output ≈ 35 B, overhead ≈ 10 B. */
+function estimateFee(numInputs: number, numOutputs: number): bigint {
+  const bytes = BigInt(10 + numInputs * 150 + numOutputs * 35)
+  return bytes > CONTRACT_FEE_FLOOR ? bytes : CONTRACT_FEE_FLOOR
+}
 
 // ── Helpers ────────────────────────────────────────────────
 
@@ -95,7 +104,8 @@ const EXPECTED_PREFIX = NETWORK === 'mainnet' ? 'bitcoincash' : 'bchtest'
 
 /**
  * Validate a BCH cashaddr for use as a payment destination.
- * Any valid cashaddr is accepted (P2PKH, P2SH20, P2SH32, token-aware).
+ * Any type is accepted (P2PKH, P2SH20, P2SH32, token-aware) but the
+ * network prefix must match (bitcoincash: on mainnet, bchtest: otherwise).
  * Returns null if valid, error string if not.
  */
 export function validateCashAddress(addr: string): string | null {
@@ -277,8 +287,10 @@ export async function executeSpend(
   }
 
   // Output 0: covenant continuation (NFT sats + top-up sats − spend − fee)
+  const numInputs = 1 + plainUtxos.length
+  const fee = estimateFee(numInputs, 2) // 2 outputs: covenant + destination
   const inputSats = nftUtxo.satoshis + extraSats
-  const changeSats = inputSats - amount - MINER_FEE
+  const changeSats = inputSats - amount - fee
   if (changeSats < DUST_LIMIT) throw new Error('Insufficient vault balance')
 
   const today = currentDayMarker()
@@ -353,7 +365,9 @@ export async function executeSetMandate(
   }
 
   // Send NFT + all funds to the NEW contract (with updated params)
-  const changeSats = nftUtxo.satoshis + extraSats - MINER_FEE
+  const numInputs = 1 + plainUtxos.length
+  const fee = estimateFee(numInputs, 1) // 1 output: new contract
+  const changeSats = nftUtxo.satoshis + extraSats - fee
   txBuilder.addOutput({
     to: newContract.tokenAddress,
     amount: changeSats,
@@ -402,7 +416,9 @@ export async function executeRescue(
     extraSats += pu.satoshis
   }
 
-  const sweepAmount = nftUtxo.satoshis + extraSats - MINER_FEE
+  const numInputs = 1 + plainUtxos.length
+  const fee = estimateFee(numInputs, 1) // 1 output: rescue destination
+  const sweepAmount = nftUtxo.satoshis + extraSats - fee
   txBuilder.addOutput({ to: destination, amount: sweepAmount })
 
   const result = await buildSignAndBroadcast(
