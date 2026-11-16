@@ -6,6 +6,7 @@ import VaultHome from './pages/VaultHome'
 import SetMandate from './pages/SetMandate'
 import Pay from './pages/Pay'
 import Activity from './pages/Activity'
+import Rescue from './pages/Rescue'
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
           <Route path="/vault" element={<VaultHome />} />
           <Route path="/mandate" element={<SetMandate />} />
           <Route path="/pay" element={<Pay />} />
+          <Route path="/rescue" element={<Rescue />} />
           <Route path="/activity" element={<Activity />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
