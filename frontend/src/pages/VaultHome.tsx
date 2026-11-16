@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
 import { remainingToday } from '../lib/contract'
 
 export default function VaultHome() {
   const { wallet, vault, vaultConfig, refreshVault, disconnect } = useWallet()
+  const [copied, setCopied] = useState(false)
 
   if (!wallet?.connected) return <Navigate to="/" replace />
 
@@ -41,9 +43,17 @@ export default function VaultHome() {
 
   const remaining = remainingToday(vault.mandate)
 
+  const copyAddress = async () => {
+    try {
+      await navigator.clipboard.writeText(vault.address)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch { /* clipboard may be blocked */ }
+  }
+
   return (
     <div className="space-y-6">
-      {/* Balance */}
+      {/* Balance + tappable contract address */}
       <div className="text-center">
         <p className="text-xs uppercase tracking-widest text-nomos-muted">
           Vault balance
@@ -52,8 +62,15 @@ export default function VaultHome() {
           {(vault.balanceSats / 1e8).toFixed(8)}{' '}
           <span className="text-lg text-nomos-muted">BCH</span>
         </p>
-        <p className="mt-1 font-mono text-[10px] text-nomos-muted truncate">
-          {vault.address}
+        <button
+          onClick={copyAddress}
+          className="mt-1 font-mono text-[10px] text-nomos-muted truncate max-w-full hover:text-nomos-accent transition-colors"
+          title="Copy contract address"
+        >
+          {copied ? '✓ Copied!' : vault.address}
+        </button>
+        <p className="mt-0.5 text-[9px] text-nomos-muted/50">
+          Tap to copy — send BCH here to fund the vault
         </p>
       </div>
 
@@ -93,6 +110,22 @@ export default function VaultHome() {
           </div>
         </div>
       </div>
+
+      {/* Allowlist addresses (when enabled) */}
+      {vault.mandate.allowlistEnabled && vault.mandate.allowlist.length > 0 && (
+        <div className="rounded-lg border border-nomos-border bg-nomos-surface p-4 font-mono text-sm">
+          <p className="mb-2 text-xs uppercase tracking-widest text-nomos-muted">
+            Allowed destinations
+          </p>
+          <div className="space-y-1">
+            {vault.mandate.allowlist.map((addr, i) => (
+              <p key={i} className="truncate text-[10px] text-nomos-muted">
+                {addr}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Actions */}
       <div className="grid grid-cols-3 gap-3">

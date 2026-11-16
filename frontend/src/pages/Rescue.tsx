@@ -35,12 +35,15 @@ export default function Rescue() {
         message: 'Rescue complete — all funds swept',
         txHash: txid,
       })
-      await refreshVault()
     } catch (err: any) {
       setResult({ type: 'error', message: err.message || 'Rescue failed' })
     } finally {
       setSubmitting(false)
     }
+
+    // Refresh vault state separately — a failure here must not
+    // overwrite the success result shown to the user.
+    try { await refreshVault() } catch { /* best-effort */ }
   }
 
   return (
