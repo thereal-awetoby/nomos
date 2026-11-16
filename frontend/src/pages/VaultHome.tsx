@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
 import { remainingToday } from '../lib/contract'
@@ -6,6 +6,28 @@ import { remainingToday } from '../lib/contract'
 export default function VaultHome() {
   const { wallet, vault, vaultConfig, refreshVault, disconnect } = useWallet()
   const [copied, setCopied] = useState(false)
+  const [showQr, setShowQr] = useState(false)
+  const qrRef = useRef<HTMLCanvasElement>(null)
+
+  // Render QR code when toggled on. Keep this hook above early returns so
+  // the number and order of hooks never depends on wallet or vault state.
+  useEffect(() => {
+    const address = vault?.address
+    if (!showQr || !address || !qrRef.current) return
+
+    const canvas = qrRef.current
+    let cancelled = false
+    import('qrcode').then((QRCode) => {
+      if (cancelled) return
+      return QRCode.toCanvas(canvas, address, {
+        width: 200,
+        margin: 2,
+        color: { dark: '#e0e0e0', light: '#00000000' },
+      })
+    }).catch(() => { /* qrcode failed to load */ })
+
+    return () => { cancelled = true }
+  }, [showQr, vault?.address])
 
   if (!wallet?.connected) return <Navigate to="/" replace />
 
@@ -69,9 +91,22 @@ export default function VaultHome() {
         >
           {copied ? '✓ Copied!' : vault.address}
         </button>
-        <p className="mt-0.5 text-[9px] text-nomos-muted/50">
-          Tap to copy — send BCH here to fund the vault
-        </p>
+        <div className="mt-1 flex items-center justify-center gap-2">
+          <p className="text-[9px] text-nomos-muted/50">
+            Tap address to copy
+          </p>
+          <button
+            onClick={() => setShowQr(q => !q)}
+            className="text-[9px] text-nomos-accent/60 hover:text-nomos-accent transition-colors"
+          >
+            {showQr ? 'Hide QR' : 'Show QR'}
+          </button>
+        </div>
+        {showQr && (
+          <div className="mt-3 flex justify-center">
+            <canvas ref={qrRef} className="rounded-lg" />
+          </div>
+        )}
       </div>
 
       {/* Mandate summary */}
