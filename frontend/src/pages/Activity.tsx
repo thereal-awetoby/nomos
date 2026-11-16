@@ -8,7 +8,7 @@ export default function Activity() {
   if (!wallet?.connected) return <Navigate to="/" replace />
 
   return (
-    <div className="space-y-5">
+    <div className="page-enter space-y-5">
       {/* Back nav */}
       <Link to="/vault" className="text-xs text-nomos-muted hover:text-nomos-accent transition-colors duration-200">
         ← Back to vault

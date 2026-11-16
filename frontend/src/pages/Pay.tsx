@@ -68,7 +68,7 @@ export default function Pay() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="page-enter space-y-5">
       {/* Back nav */}
       <Link to="/vault" className="text-xs text-nomos-muted hover:text-nomos-accent transition-colors duration-200">
         ← Back to vault
@@ -115,7 +115,7 @@ export default function Pay() {
         disabled={!amount || !destination || submitting}
         className="btn-primary w-full"
       >
-        {submitting ? 'Signing…' : 'Pay'}
+        {submitting ? <><span className="spinner mr-2" /> Signing…</> : 'Pay'}
       </button>
 
       {/* Result */}

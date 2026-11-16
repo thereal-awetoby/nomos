@@ -46,7 +46,7 @@ export default function Rescue() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="page-enter space-y-5">
       {/* Back nav */}
       <Link to="/vault" className="text-xs text-nomos-muted hover:text-nomos-accent transition-colors duration-200">
         ← Back to vault
@@ -100,7 +100,7 @@ export default function Rescue() {
         disabled={!destination || submitting || !hasRescuePk}
         className="btn-danger w-full py-3 font-semibold"
       >
-        {submitting ? 'Signing…' : 'Rescue — Sweep All Funds'}
+        {submitting ? <><span className="spinner mr-2" /> Signing…</> : 'Rescue — Sweep All Funds'}
       </button>
 
       {/* Result */}
