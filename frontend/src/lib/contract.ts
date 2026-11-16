@@ -103,6 +103,10 @@ export function validateCashAddress(addr: string): string | null {
   try {
     const decoded = decodeCashAddress(addr)
     if (typeof decoded === 'string') return decoded
+    // Reject wrong-network addresses (e.g. bchtest: on mainnet)
+    if (decoded.prefix !== EXPECTED_PREFIX) {
+      return `Wrong network: expected ${EXPECTED_PREFIX}, got ${decoded.prefix}`
+    }
     return null
   } catch (e: any) {
     return e.message || 'Invalid address'

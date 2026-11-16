@@ -61,6 +61,7 @@ export default function SetMandate() {
 
     // Skip on-chain tx if nothing actually changed
     if (vaultConfig &&
+      vaultConfig.ownerPk === newConfig.ownerPk &&
       vaultConfig.dailyLimitSats === newConfig.dailyLimitSats &&
       vaultConfig.allowlistEnabled === newConfig.allowlistEnabled &&
       vaultConfig.agentPk === newConfig.agentPk &&
