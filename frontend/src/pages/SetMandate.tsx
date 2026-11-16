@@ -6,11 +6,18 @@ import { executeSetMandate, validateAllowlistAddress } from '../lib/contract'
 export default function SetMandate() {
   const navigate = useNavigate()
   const { wallet, vaultConfig, setVaultConfig } = useWallet()
-  const [dailyLimit, setDailyLimit] = useState('')
-  const [allowlistEnabled, setAllowlistEnabled] = useState(false)
-  const [allowlistInput, setAllowlistInput] = useState('')
-  const [agentPk, setAgentPk] = useState('')
-  const [rescuePk, setRescuePk] = useState('')
+  // Pre-fill from existing config when editing an active mandate
+  const [dailyLimit, setDailyLimit] = useState(
+    vaultConfig ? (vaultConfig.dailyLimitSats / 1e8).toString() : '',
+  )
+  const [allowlistEnabled, setAllowlistEnabled] = useState(
+    vaultConfig?.allowlistEnabled ?? false,
+  )
+  const [allowlistInput, setAllowlistInput] = useState(
+    vaultConfig?.allowedAddrs.filter(Boolean).join('\n') ?? '',
+  )
+  const [agentPk, setAgentPk] = useState(vaultConfig?.agentPk ?? '')
+  const [rescuePk, setRescuePk] = useState(vaultConfig?.rescuePk ?? '')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -81,12 +88,17 @@ export default function SetMandate() {
     <div className="space-y-6">
       <h2 className="font-mono text-xl font-bold">Set Mandate</h2>
 
-      {!vaultConfig && (
+      {!vaultConfig ? (
         <div className="rounded-lg border border-nomos-accent/30 bg-nomos-accent/5 p-3 text-xs text-nomos-accent">
           <strong>First time?</strong> This saves your mandate config locally.
           To deploy the vault on-chain, you'll also need to mint the genesis
           NFT using the <code>mint-nft.mjs</code> script and fund the
           contract address.
+        </div>
+      ) : (
+        <div className="rounded-lg border border-nomos-accent/30 bg-nomos-accent/5 p-3 text-xs text-nomos-accent">
+          <strong>Updating mandate.</strong> This will redeploy your vault to
+          a new contract address. The NFT and funds move automatically.
         </div>
       )}
 
