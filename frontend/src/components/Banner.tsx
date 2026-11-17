@@ -2,7 +2,8 @@
 
 const WIDGET_FACTORY_URL = '#' // TODO: fill after submission
 const GITHUB_URL = 'https://github.com/thereal-awetoby/nomos'
-const EMBER_ADDRESS = 'bitcoincash:TODO_EMBER2026_ADDRESS'
+// CashTokens address for EMBER2026 community-choice votes
+const EMBER_ADDRESS = 'bitcoincash:zqz0cjlclvk6909mctktqsk77d7z6gev0cqejwlp4h'
 
 export default function Banner() {
   return (

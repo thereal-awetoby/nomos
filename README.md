@@ -3,7 +3,7 @@
 Pay or withdraw BCH only under rules the chain itself enforces.
 Violate → refuse on-chain. Obey → pay + receipt.
 
-Built for BCH BLAZE 2026.
+Built for BCH BLAZE 2026 · [Live demo](https://nomos.asgaya.org/) · EMBER2026 votes: `bitcoincash:zqz0cjlclvk6909mctktqsk77d7z6gev0cqejwlp4h`
 
 ## What it is
 
@@ -12,7 +12,7 @@ covenant, and the rules you set (a daily limit, an allowlist, an agent key)
 are checked by every node on the network, not by a server or by the app.
 A payment that breaks the rules is not a transaction anyone can mine.
 
-That makes it possible to delegate spending power, including to an AI
+That makes it safe to hand spending power to someone else, including an AI
 agent: give it the agent key, and it can pay up to the limit, to the
 addresses you chose, and nothing more.
 
@@ -66,7 +66,7 @@ Vault genesis (state NFT minted into the covenant):
 
 ## Try it
 
-1. Open the live demo (URL TBD) and connect with WizardConnect or a
+1. Open the [live demo](https://nomos.asgaya.org/) and connect with WizardConnect or a
    WalletConnect wallet (XO).
 2. Set a mandate with a low daily limit.
 3. Fund the vault and pay under the limit → **Paid**, with a receipt and
@@ -139,9 +139,9 @@ nomos/
 
 ## Links
 
-- Live demo: TBD
-- Widget Factory: TBD
-- EMBER2026 address: TBD
+- Live demo: https://nomos.asgaya.org/
+- Widget Factory deck: TBD
+- EMBER2026 votes (CashTokens address): `bitcoincash:zqz0cjlclvk6909mctktqsk77d7z6gev0cqejwlp4h`
 
 ## License
 
