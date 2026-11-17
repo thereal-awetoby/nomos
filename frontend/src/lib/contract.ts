@@ -9,6 +9,7 @@ import {
   TransactionBuilder,
   placeholderSignature,
   placeholderPublicKey,
+  placeholderP2PKHUnlocker,
 } from 'cashscript'
 import type { Network, NetworkProvider, Utxo } from 'cashscript'
 import type {
@@ -19,7 +20,7 @@ import type {
   WalletProviderType,
 } from './types'
 import { signWcTransaction } from './wallet'
-import { decodeCashAddress, binToHex as libBinToHex, hexToBin, hash160 } from '@bitauth/libauth'
+import { decodeCashAddress, binToHex as libBinToHex, hexToBin, hash160, hashTransaction } from '@bitauth/libauth'
 
 // ── Artifact ───────────────────────────────────────────────
 let artifactCache: any = null
@@ -229,12 +230,14 @@ export async function readVaultState(config: VaultConfig): Promise<VaultState> {
   let balanceSats = 0
   let spentTodaySats = 0
   let dayMarker = 0
+  let deployed = false
 
   for (const utxo of utxos) {
     balanceSats += Number(utxo.satoshis)
 
     const commitment = (utxo as any).token?.nft?.commitment as string | undefined
     if (commitment && commitment.length === 32) {
+      deployed = true
       spentTodaySats = Number(BigInt('0x' + reverseHex(commitment.slice(0, 16))))
       dayMarker = Number(BigInt('0x' + reverseHex(commitment.slice(16, 32))))
     }
@@ -244,6 +247,7 @@ export async function readVaultState(config: VaultConfig): Promise<VaultState> {
     address: contract.address,
     tokenAddress: contract.tokenAddress,
     balanceSats,
+    deployed,
     mandate: {
       dailyLimitSats: config.dailyLimitSats,
       spentTodaySats,
@@ -284,15 +288,21 @@ async function buildSignAndBroadcast(
 
   const result = await signWcTransaction(provider, wcTxObj)
 
-  // If wallet broadcast (broadcast:true) returned a txid, we're done
-  if (result.txid) return result
-
-  // Fallback: wallet didn't broadcast — do it ourselves
   if (result.signedTransaction) {
-    const electrum = getProvider() as ElectrumNetworkProvider
-    const txid = await electrum.sendRawTransaction(result.signedTransaction)
+    // Always broadcast the signed hex ourselves. If the wallet already did,
+    // the node reports it as known and we carry on with the txid we compute.
+    const txid = hashTransaction(hexToBin(result.signedTransaction))
+    try {
+      await getProvider().sendRawTransaction(result.signedTransaction)
+    } catch (err: any) {
+      const msg = String(err?.message ?? err)
+      if (!/already|known|txn-mempool-conflict/i.test(msg)) throw err
+    }
     return { txid, signedTransaction: result.signedTransaction }
   }
+
+  // Wallet broadcast and only returned the hash
+  if (result.txid) return result
 
   throw new Error('Wallet returned neither txid nor signed transaction')
 }
@@ -389,6 +399,89 @@ export async function executeSpend(
     mandate,
     timestamp: Date.now(),
   }
+}
+
+// ── Create vault (genesis) ─────────────────────────────────
+// Mints the vault's mutable state NFT (commitment = 16 zero bytes) straight
+// into the covenant, funded from the connected wallet. CashTokens genesis must
+// spend a coin at output index 0 (the new token category is that coin's
+// txid), so if the wallet has none big enough we first merge its coins into
+// one — a second signature request.
+
+const P2PKH_INPUT_BYTES = 150
+export const MIN_VAULT_DEPOSIT_SATS = 2000
+
+function p2pkhFee(inputs: number, tokenOutputs: number, plainOutputs: number): bigint {
+  const bytes =
+    TX_OVERHEAD_BYTES +
+    inputs * P2PKH_INPUT_BYTES +
+    tokenOutputs * TOKEN_OUTPUT_BYTES +
+    plainOutputs * PLAIN_OUTPUT_BYTES
+  return BigInt(Math.ceil(bytes * FEE_RATE_SATS_PER_BYTE * FEE_MARGIN))
+}
+
+export async function executeCreateVault(
+  config: VaultConfig,
+  depositSats: number,
+  walletAddress: string,
+  walletProvider: WalletProviderType,
+  onStep?: (message: string) => void,
+): Promise<{ txid: string }> {
+  if (!Number.isFinite(depositSats) || depositSats < MIN_VAULT_DEPOSIT_SATS) {
+    throw new Error(`Deposit at least ${MIN_VAULT_DEPOSIT_SATS} sats (${MIN_VAULT_DEPOSIT_SATS / 1e8} BCH)`)
+  }
+
+  const contract = await getContract(config)
+  const alreadyDeployed = (await contract.getUtxos()).some((u: any) => u.token?.nft)
+  if (alreadyDeployed) throw new Error('This vault is already deployed')
+
+  const provider = getProvider()
+  const walletUtxos = (await provider.getUtxos(walletAddress)).filter((u: any) => !u.token)
+  const deposit = BigInt(depositSats)
+  const genesisFee = p2pkhFee(1, 1, 1)
+  const needed = deposit + genesisFee + DUST_LIMIT
+
+  let genesisUtxo: Utxo | undefined = walletUtxos
+    .filter((u) => u.vout === 0 && u.satoshis >= needed)
+    .sort((a, b) => (a.satoshis < b.satoshis ? -1 : 1))[0]
+
+  if (!genesisUtxo) {
+    const total = walletUtxos.reduce((sum, u) => sum + u.satoshis, 0n)
+    const mergeFee = p2pkhFee(walletUtxos.length, 0, 1)
+    const merged = total - mergeFee
+    if (walletUtxos.length === 0 || merged < needed) {
+      const need = needed + mergeFee
+      throw new Error(`Your wallet needs at least ${Number(need) / 1e8} BCH (deposit + fees)`)
+    }
+
+    onStep?.('Step 1 of 2: preparing a coin for the vault. Confirm in your wallet.')
+    const mergeTx = new TransactionBuilder({ provider })
+    for (const u of walletUtxos) mergeTx.addInput(u, placeholderP2PKHUnlocker(walletAddress))
+    mergeTx.addOutput({ to: walletAddress, amount: merged })
+    const mergeResult = await buildSignAndBroadcast(mergeTx, walletProvider, 'Nomos: prepare vault coin')
+    genesisUtxo = { txid: mergeResult.txid, vout: 0, satoshis: merged }
+
+    onStep?.('Step 2 of 2: creating your vault. Confirm in your wallet.')
+  } else {
+    onStep?.('Creating your vault. Confirm in your wallet.')
+  }
+
+  const genesisTx = new TransactionBuilder({ provider })
+  genesisTx.addInput(genesisUtxo, placeholderP2PKHUnlocker(walletAddress))
+  genesisTx.addOutput({
+    to: contract.tokenAddress,
+    amount: deposit,
+    token: {
+      amount: 0n,
+      category: genesisUtxo.txid, // genesis: category = txid of the input at vout 0
+      nft: { capability: 'mutable', commitment: '0'.repeat(32) },
+    },
+  })
+  const change = genesisUtxo.satoshis - deposit - genesisFee
+  if (change >= DUST_LIMIT) genesisTx.addOutput({ to: walletAddress, amount: change })
+
+  const result = await buildSignAndBroadcast(genesisTx, walletProvider, 'Nomos: create vault')
+  return { txid: result.txid }
 }
 
 // ── Set Mandate ────────────────────────────────────────────
