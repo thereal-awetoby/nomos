@@ -28,6 +28,8 @@ export interface Receipt {
   status: TxStatus
   amount: number
   destination: string
+  /** who the destination is, when paid by Nostr name */
+  destinationLabel?: string
   reason?: string
   txHash?: string
   mandate: Mandate

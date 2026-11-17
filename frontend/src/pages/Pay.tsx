@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
 import { wouldRefuse, remainingToday, executeSpend, validateCashAddress, EXPLORER_TX_URL } from '../lib/contract'
+import { isNostrIdentifier, resolveNostrPayee, payeeLabel, type NostrPayee } from '../lib/nostr'
 
 export default function Pay() {
   const { wallet, vault, vaultConfig, addReceipt, refreshVault } = useWallet()
@@ -14,6 +15,32 @@ export default function Pay() {
     txHash?: string
   } | null>(null)
 
+  // Nostr pay-by-name: resolve npub / nprofile / name@domain to the BCH
+  // address the person published (debounced while typing).
+  const [payee, setPayee] = useState<NostrPayee | null>(null)
+  const [resolving, setResolving] = useState(false)
+  const [resolveError, setResolveError] = useState<string | null>(null)
+  const isNostr = isNostrIdentifier(destination)
+
+  useEffect(() => {
+    setPayee(null)
+    setResolveError(null)
+    if (!isNostr) return
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      setResolving(true)
+      try {
+        const p = await resolveNostrPayee(destination, validateCashAddress)
+        if (!cancelled) setPayee(p)
+      } catch (err: any) {
+        if (!cancelled) setResolveError(err?.message || 'Could not resolve this Nostr identity')
+      } finally {
+        if (!cancelled) setResolving(false)
+      }
+    }, 500)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [destination, isNostr])
+
   if (!wallet?.connected) return <Navigate to="/" replace />
   if (!vault) return <p className="py-20 text-center text-sm text-nomos-muted">Loading…</p>
 
@@ -22,19 +49,27 @@ export default function Pay() {
   const amountSats = Math.round(parseFloat(amount || '0') * 1e8)
 
   const handlePay = async () => {
-    const addrErr = validateCashAddress(destination)
+    if (isNostr && !payee) {
+      setResult({ type: 'refused', message: resolveError || 'Still looking up that Nostr identity…' })
+      return
+    }
+    const payTo = payee?.address ?? destination.trim()
+    const label = payee ? payeeLabel(payee) : undefined
+
+    const addrErr = validateCashAddress(payTo)
     if (addrErr) {
       setResult({ type: 'refused', message: `Invalid destination: ${addrErr}` })
       return
     }
 
-    const check = wouldRefuse(mandate, amountSats, destination)
+    const check = wouldRefuse(mandate, amountSats, payTo)
     if (check.refused) {
       const receipt = {
         id: Date.now().toString(),
         status: 'refused' as const,
         amount: amountSats,
-        destination,
+        destination: payTo,
+        destinationLabel: label,
         reason: check.reason,
         mandate,
         timestamp: Date.now(),
@@ -52,8 +87,8 @@ export default function Pay() {
     setSubmitting(true)
     try {
       const receipt = await executeSpend(
-        vaultConfig, mandate, amountSats, destination,
-        wallet.address, wallet.provider,
+        vaultConfig, mandate, amountSats, payTo,
+        wallet.address, wallet.provider, label,
       )
       addReceipt(receipt)
       setResult({ type: 'success', message: 'Paid under mandate', txHash: receipt.txHash })
@@ -105,14 +140,39 @@ export default function Pay() {
           type="text"
           value={destination}
           onChange={(e) => { setDestination(e.target.value); setResult(null) }}
-          placeholder="bitcoincash:qr…"
+          placeholder="bitcoincash:qr…  or  npub… / name@domain"
           className="input text-xs"
         />
+
+        {/* Nostr resolution */}
+        {isNostr && (
+          <div className="mt-2 rounded-2xl px-3 py-2.5 text-xs" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            {resolving && <p className="pulse-text text-nomos-muted">Looking up on Nostr…</p>}
+            {resolveError && <p className="text-nomos-refuse">{resolveError}</p>}
+            {payee && (
+              <div className="flex items-center gap-3">
+                {payee.picture && (
+                  <img src={payee.picture} alt="" referrerPolicy="no-referrer" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+                )}
+                <div className="min-w-0">
+                  <p className="truncate text-nomos-text">
+                    {payee.displayName || payeeLabel(payee)}
+                    <span className="ml-1.5 text-[10px] text-nomos-accent">✓ signed by this key</span>
+                  </p>
+                  <p className="truncate font-mono text-[10px] text-nomos-muted">{payee.address}</p>
+                  <p className="text-[10px] text-nomos-muted/70">
+                    Published {new Date(payee.publishedAt * 1000).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <button
         onClick={handlePay}
-        disabled={!amount || !destination || submitting}
+        disabled={!amount || !destination || submitting || (isNostr && !payee)}
         className="btn-primary w-full"
       >
         {submitting ? <><span className="spinner mr-2" /> Signing…</> : 'Pay'}

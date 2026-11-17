@@ -114,10 +114,17 @@ export function wouldRefuse(
   if (amountSats > remaining) {
     return { refused: true, reason: `Exceeds daily limit (${remaining} sats remaining)` }
   }
-  if (mandate.allowlistEnabled && !mandate.allowlist.includes(destination)) {
+  // Compare by key hash so q… and token-aware z… forms of one address match,
+  // exactly as the contract does (it reads the 20-byte hash from the output).
+  if (mandate.allowlistEnabled && !mandate.allowlist.some((a) => sameHash160(a, destination))) {
     return { refused: true, reason: 'Destination not allowlisted' }
   }
   return { refused: false }
+}
+
+function sameHash160(a: string, b: string): boolean {
+  const ha = addrToHash160(a)
+  return ha !== '0'.repeat(40) && ha === addrToHash160(b)
 }
 
 function reverseHex(hex: string): string {
@@ -178,8 +185,10 @@ export function validateAllowlistAddress(addr: string): string | null {
     if (decoded.payload.length !== 20) {
       return 'Only 20-byte P2PKH addresses work with the allowlist'
     }
-    if ((decoded as any).type && (decoded as any).type !== 'p2pkh') {
-      return `Only P2PKH addresses work with the allowlist (got ${(decoded as any).type})`
+    // Token-aware (z…) P2PKH has the same locking script as q…, so it works too
+    const type = (decoded as any).type
+    if (type && type !== 'p2pkh' && type !== 'p2pkhWithTokens') {
+      return `Only P2PKH addresses work with the allowlist (got ${type})`
     }
     return null
   } catch (e: any) {
@@ -316,6 +325,7 @@ export async function executeSpend(
   destination: string,
   signerAddress: string,
   walletProvider: WalletProviderType,
+  destinationLabel?: string,
 ): Promise<Receipt> {
   const contract = await getContract(config)
   const provider = getProvider()
@@ -395,6 +405,7 @@ export async function executeSpend(
     status: 'paid',
     amount: amountSats,
     destination,
+    destinationLabel,
     txHash: result.txid,
     mandate,
     timestamp: Date.now(),

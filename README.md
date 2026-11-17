@@ -56,13 +56,53 @@ Vault genesis (state NFT minted into the covenant):
 - **Changing the rules** (`setMandate`) needs the owner's signature and
   moves the vault to a new address with the new parameters.
 
+## SolidCash edition
+
+`contracts/solidcash/` has the same vault written in
+[SolidCash](https://solidcash.org), Solidity syntax for Bitcoin Cash. There,
+`spentToday` is a plain state variable and the compiler generates the NFT
+covenant; BCH sits in a satoshi container. 14 tests on SolidCash's mock
+network (real BCH VM) cover paid, refused by limit, refused stranger,
+allowlist, day reset, deposit and rescue, each refusal failing on its exact
+`require`. A chipnet demo script is included. Details in
+[`contracts/solidcash/README.md`](contracts/solidcash/README.md).
+
+## XO template
+
+`xo/nomos.template.json` describes the vault as an [XO](https://xo.cash)
+template with four actions: pay (owner or agent), top up, withdraw, and a
+two-party emergency rescue. Rescue needs owner **and** co-signer signatures,
+which one wallet connection can't provide, and an XO invitation can. The
+template does the state math itself (new commitment, remaining today). 14
+offline checks with XO's own parser and compiler show every script matches
+CashScript byte for byte inside transactions the covenant accepts, and that
+an over-limit payment is refused. Details in [`xo/README.md`](xo/README.md).
+
 ## Mandate rules
 
 - **Daily limit** — max sats per locktime-derived day (UTC seconds, with the
   same three-hour backdate used for transactions), enforced on-chain
-- **Allowlist** — restrict destinations to up to 5 P2PKH addresses
+- **Allowlist** — restrict destinations to up to 5 P2PKH addresses (or Nostr names)
 - **Agent key** — spend-only access under the same rules
 - **Rescue** — emergency sweep with owner + rescue co-signer
+
+## Pay by Nostr name
+
+No more pasting addresses. In **Pay**, type a Nostr identity (`npub…`,
+`nprofile…`, `nostr:` link or `name@domain`) instead of a BCH address:
+
+1. The name resolves to a Nostr key through NIP-05 (the person's own domain)
+   or straight from the npub. No Nomos server is involved.
+2. Nomos reads the BCH address that key published, using the format Paytaca
+   and OPTN wallets already write: kind `30078`, `d = paytaca:bch-address`.
+3. The event's signature is checked in the browser, so a relay can't swap in
+   a different address. If the person removed their address, the newest event
+   wins and the payment is blocked.
+4. The payment still goes through the covenant, so the daily limit and the
+   allowlist apply to Nostr payees too. Allowlist entries can also be Nostr
+   names; they're resolved once when you save the mandate.
+
+Receipts show who you paid by name as well as the address.
 
 ## Try it
 
@@ -113,9 +153,9 @@ node test/vault.test.mjs
 
 ## Known limitations
 
-- **Rescue needs two signatures** (owner + co-signer). Current wallet
-  connections sign for one key at a time, so rescue isn't usable from the
-  app yet.
+- **Rescue needs two signatures** (owner + co-signer). A wallet connection
+  signs with one key, so in the app rescue only works when both are the same
+  key; for separate keys, use the XO template's rescue action.
 - **Top-ups and agents.** BCH sent straight to the vault (outside the NFT
   coin) can only be merged by the owner. An agent pays from the main vault
   coin; the owner merges top-ups by paying once or updating the mandate.
@@ -128,12 +168,14 @@ node test/vault.test.mjs
 nomos/
 ├── contracts/
 │   ├── NomosVault.cash      # the covenant
+│   ├── solidcash/           # same vault in SolidCash (Solidity syntax)
 │   └── test/                # chipnet mint + paid/refused tests
 ├── frontend/
 │   └── src/
 │       ├── pages/           # Connect, VaultHome, SetMandate, Pay, Activity, Rescue
 │       ├── components/      # Banner, Layout, Receipt
-│       └── lib/             # contract, wallet, types
+│       └── lib/             # contract, wallet, nostr, types
+├── xo/                      # XO template + offline checks
 └── README.md
 ```
 

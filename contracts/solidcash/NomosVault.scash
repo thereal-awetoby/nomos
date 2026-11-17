@@ -1,0 +1,71 @@
+pragma solidcash ^0.51.0;
+
+// Nomos — on-chain spend mandate, SolidCash edition.
+//
+// Same rules as the CashScript vault (contracts/NomosVault.cash), written the
+// SolidCash way: today's spending is ordinary contract state, and the
+// compiler turns every state change into a covenant on the vault's NFTs.
+// The BCH lives in the contract's satoshi container; `pay` moves it out.
+
+event Paid(bytes20 indexed to, int amount, int spentToday);
+event Rescued(bytes20 indexed to, int amount);
+
+contract NomosVault(
+    pubkey ownerPk,
+    pubkey agentPk,
+    int dailyLimitSats,
+    bool allowlistEnabled,
+    bytes20 allowedAddr1,
+    bytes20 allowedAddr2,
+    bytes20 allowedAddr3,
+    bytes20 allowedAddr4,
+    bytes20 allowedAddr5,
+    pubkey rescuePk
+) {
+    int public spentToday;
+    int public dayMarker;
+
+    // Owner or agent pays `amount` sats to the P2PKH address `to`, within the
+    // daily limit and (if enabled) only to an allowlisted address.
+    function pay(bytes20 to, int amount, pubkey spenderPk, sig s) {
+        require(spenderPk == ownerPk || spenderPk == agentPk, "Not the owner or agent");
+        require(checkSig(s, spenderPk));
+        require(amount > 0, "Amount must be positive");
+
+        // "Today" comes from the transaction's own locktime (a unix time)
+        require(tx.locktime >= 500000000, "Locktime must be a timestamp");
+        int today = tx.locktime / 86400;
+
+        int spent = 0;
+        if (this.dayMarker == today) {
+            spent = this.spentToday;
+        }
+        require(spent + amount <= dailyLimitSats, "Refused by Nomos: daily limit");
+
+        if (allowlistEnabled) {
+            require(
+                to == allowedAddr1 || to == allowedAddr2 || to == allowedAddr3 ||
+                to == allowedAddr4 || to == allowedAddr5,
+                "Refused by Nomos: destination not allowlisted"
+            );
+        }
+
+        this.spentToday = spent + amount;
+        this.dayMarker = today;
+        this.transfer(new LockingBytecodeP2PKH(to), amount);
+        emit Paid(to, amount, spent + amount);
+    }
+
+    // Anyone can add BCH to the vault.
+    function deposit() payable {
+        require(msg.value > 0, "Deposit something");
+    }
+
+    // Emergency: owner + rescue co-signer move funds without the daily limit.
+    function rescue(bytes20 to, int amount, sig ownerSig, sig rescueSig) {
+        require(checkSig(ownerSig, ownerPk));
+        require(checkSig(rescueSig, rescuePk));
+        this.transfer(new LockingBytecodeP2PKH(to), amount);
+        emit Rescued(to, amount);
+    }
+}

@@ -35,8 +35,10 @@ export default function ReceiptCard({ receipt }: { receipt: ReceiptType }) {
         </div>
         <div className="flex justify-between">
           <span className="text-nomos-muted">To</span>
-          <span className="max-w-[180px] truncate text-xs text-nomos-muted-bright">
-            {receipt.destination}
+          <span className="max-w-[180px] truncate text-right text-xs text-nomos-muted-bright" title={receipt.destination}>
+            {receipt.destinationLabel
+              ? <><span className="text-nomos-accent">{receipt.destinationLabel}</span><br /><span className="text-[10px] text-nomos-muted">{receipt.destination}</span></>
+              : receipt.destination}
           </span>
         </div>
         {receipt.reason && (

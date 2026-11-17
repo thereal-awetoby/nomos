@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate, Navigate, Link } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
-import { executeSetMandate, executeCreateVault, validateAllowlistAddress, MIN_VAULT_DEPOSIT_SATS } from '../lib/contract'
+import { executeSetMandate, executeCreateVault, validateAllowlistAddress, validateCashAddress, MIN_VAULT_DEPOSIT_SATS } from '../lib/contract'
+import { isNostrIdentifier, resolveNostrPayee } from '../lib/nostr'
 
 export default function SetMandate() {
   const navigate = useNavigate()
@@ -43,7 +44,27 @@ export default function SetMandate() {
 
     setError(null)
 
-    const parsedAddrs = allowlistInput.split('\n').map(s => s.trim()).filter(Boolean).slice(0, 5)
+    const rawEntries = allowlistInput.split('\n').map(s => s.trim()).filter(Boolean).slice(0, 5)
+
+    // Allowlist entries may be Nostr names; resolve each to the address its
+    // owner published. The contract stores the address, so this happens once.
+    const parsedAddrs: string[] = []
+    if (allowlistEnabled) {
+      for (const entry of rawEntries) {
+        if (!isNostrIdentifier(entry)) { parsedAddrs.push(entry); continue }
+        try {
+          setStep(`Looking up ${entry.slice(0, 24)} on Nostr…`)
+          const p = await resolveNostrPayee(entry, validateCashAddress)
+          parsedAddrs.push(p.address)
+        } catch (err: any) {
+          setStep(null)
+          setError(`${entry.slice(0, 24)}: ${err.message}`)
+          return
+        } finally {
+          setStep(null)
+        }
+      }
+    }
 
     // Validate allowlist addresses (strict: P2PKH only, correct network)
     if (allowlistEnabled && parsedAddrs.length > 0) {
@@ -180,7 +201,7 @@ export default function SetMandate() {
           <textarea
             value={allowlistInput}
             onChange={(e) => setAllowlistInput(e.target.value)}
-            placeholder={'bitcoincash:qr…\nbitcoincash:qp…'}
+            placeholder={'bitcoincash:qr…\nnpub1… or name@domain'}
             rows={4}
             className="input text-xs resize-none"
           />
