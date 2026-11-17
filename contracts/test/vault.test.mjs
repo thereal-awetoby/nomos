@@ -49,15 +49,12 @@ if (!PRIVATE_KEY_WIF) {
 const NETWORK = 'chipnet';
 const DAILY_LIMIT_SATS = 10_000;
 const SPEND_UNDER = 3_000;
-const SPEND_OVER = 15_000;
 const MINER_FEE = 1000;
+const DUST_SATS = 1000;
 
 const ZERO_HASH20 = '0000000000000000000000000000000000000000';
 
 // ── Helpers ─────────────────────────────────────────────────
-function currentDay() {
-  return Math.floor(Date.now() / 1000 / 86400);
-}
 
 /** Encode vault state as NFT commitment (16 bytes) */
 function encodeCommitment(spentTodaySats, dayMarker) {
@@ -65,6 +62,12 @@ function encodeCommitment(spentTodaySats, dayMarker) {
   buf.writeBigInt64LE(BigInt(spentTodaySats), 0);
   buf.writeBigInt64LE(BigInt(dayMarker), 8);
   return buf;
+}
+
+/** Decode the 16-byte state commitment (hex) */
+function decodeCommitment(hex) {
+  const buf = Buffer.from(hex, 'hex');
+  return { spentTodaySats: Number(buf.readBigInt64LE(0)), dayMarker: Number(buf.readBigInt64LE(8)) };
 }
 
 /** Derive a P2PKH address from the test WIF key (used as payment destination) */
@@ -180,70 +183,105 @@ async function main() {
 
   // ── We have an NFT — test the spend path ──
   const nftUtxo = nftUtxos[0];
-  log('NFT FOUND', `Category: ${nftUtxo.token.category}, commitment: ${binToHex(nftUtxo.token.nft.commitment)}`);
+  // CashScript 0.11 returns the commitment as a hex string already
+  log('NFT FOUND', `Category: ${nftUtxo.token.category}, commitment: ${nftUtxo.token.nft.commitment}`);
 
-  // 4. TEST: Spend UNDER limit → should succeed
+  // Nodes reject a tx whose locktime is later than the chain's median time past
+  // (non-final), so back-date it. The contract derives "today" from tx.locktime,
+  // so the commitment's day marker must be computed from the same value.
+  const locktime = Math.floor(Date.now() / 1000) - 3 * 3600;
+  const day = Math.floor(locktime / 86400);
+
+  const state = decodeCommitment(nftUtxo.token.nft.commitment);
+  const effectiveSpent = state.dayMarker === day ? state.spentTodaySats : 0;
+  log('STATE', `spentToday=${state.spentTodaySats}, dayMarker=${state.dayMarker}, counted today=${effectiveSpent}`);
+
+  // 4. TEST: Spend UNDER limit → should be PAID
   log('TEST 1', `Spend ${SPEND_UNDER} sats (under limit of ${DAILY_LIMIT_SATS})...`);
-  try {
-    const locktime = Math.floor(Date.now() / 1000);
-    const newCommitment = encodeCommitment(SPEND_UNDER, currentDay());
-    const changeAmount = nftUtxo.satoshis - BigInt(SPEND_UNDER) - BigInt(MINER_FEE);
-
-    const tx = await contract.functions
-      .spend(sigTemplate, ownerPk, BigInt(SPEND_UNDER))
-      .from(nftUtxo)
-      // Output 0: covenant continuation with updated NFT
-      .to(contract.tokenAddress, changeAmount, {
-        category: nftUtxo.token.category,
-        nft: { capability: 'mutable', commitment: binToHex(newCommitment) },
-      })
-      // Output 1: payment to a normal P2PKH address
-      .to(destAddress, BigInt(SPEND_UNDER))
-      .withTime(locktime)
-      .send();
-
-    log('TEST 1 ✓', `PAID under mandate — tx: ${tx.txid}`);
-    log('EXPLORER', `https://chipnet.chaingraph.cash/tx/${tx.txid}`);
-  } catch (err) {
-    log('TEST 1 ✗', `Unexpected failure: ${err.message}`);
-  }
-
-  // 5. TEST: Spend OVER limit → should REFUSE
-  log('TEST 2', `Spend ${SPEND_OVER} sats (OVER limit of ${DAILY_LIMIT_SATS})...`);
-  try {
-    const locktime = Math.floor(Date.now() / 1000);
-
-    // Re-fetch UTXOs after test 1
-    const freshUtxos = await contract.getUtxos();
-    const freshNft = freshUtxos.find(u => u.token);
-
-    if (!freshNft) {
-      log('TEST 2 ✗', 'No NFT UTXO available (test 1 may have consumed it)');
-    } else {
-      // Read current spent from the NFT commitment after test 1
-      const currentCommitment = freshNft.token.nft.commitment;
-      const spentBuf = Buffer.from(currentCommitment.slice(0, 16), 'hex');
-      const currentSpent = Number(spentBuf.readBigInt64LE(0));
-
-      // The over-limit commitment would claim we spent this much
-      const overCommitment = encodeCommitment(currentSpent + SPEND_OVER, currentDay());
-      const overChange = freshNft.satoshis - BigInt(SPEND_OVER) - BigInt(MINER_FEE);
-
+  const test1Change = nftUtxo.satoshis - BigInt(SPEND_UNDER) - BigInt(MINER_FEE);
+  if (effectiveSpent + SPEND_UNDER > DAILY_LIMIT_SATS) {
+    log('TEST 1 –', `Skipped: ${effectiveSpent} already spent today, another ${SPEND_UNDER} would break the limit. Rerun tomorrow.`);
+  } else if (test1Change < BigInt(DUST_SATS)) {
+    log('TEST 1 –', `Skipped: vault holds ${nftUtxo.satoshis} sats, too little for a ${SPEND_UNDER}-sat spend + fee. Top up ${contract.tokenAddress}`);
+  } else {
+    try {
       const tx = await contract.functions
-        .spend(sigTemplate, ownerPk, BigInt(SPEND_OVER))
-        .from(freshNft)
-        .to(contract.tokenAddress, overChange, {
-          category: freshNft.token.category,
-          nft: { capability: 'mutable', commitment: binToHex(overCommitment) },
+        .spend(sigTemplate, ownerPk, BigInt(SPEND_UNDER))
+        .from(nftUtxo)
+        // Output 0: covenant continuation carrying the updated state NFT
+        .to(contract.tokenAddress, test1Change, {
+          category: nftUtxo.token.category,
+          amount: 0n,
+          nft: { capability: 'mutable', commitment: binToHex(encodeCommitment(effectiveSpent + SPEND_UNDER, day)) },
         })
-        .to(destAddress, BigInt(SPEND_OVER))
+        // Output 1: the payment
+        .to(destAddress, BigInt(SPEND_UNDER))
         .withTime(locktime)
         .send();
 
-      log('TEST 2 ✗', `Should have been refused but got tx: ${tx.txid}`);
+      log('TEST 1 ✓', `PAID under mandate — tx: ${tx.txid}`);
+      log('EXPLORER', `https://chipnet.chaingraph.cash/tx/${tx.txid}`);
+    } catch (err) {
+      log('TEST 1 ✗', `Unexpected failure: ${err.message}`);
+    }
+  }
+
+  // 5. TEST: Spend OVER limit → chain must REFUSE
+  // The vault alone can't fund an over-limit payment, so the owner's wallet adds
+  // a second input. Every other rule is satisfied, so the only thing the
+  // covenant can object to is the daily limit.
+  log('TEST 2', 'Spend over the daily limit — broadcast to chipnet, expect the network to reject it...');
+  try {
+    const freshNft = (await contract.getUtxos()).find((u) => u.token);
+    if (!freshNft) throw new Error('No NFT UTXO on the contract');
+
+    const fresh = decodeCommitment(freshNft.token.nft.commitment);
+    const spentNow = fresh.dayMarker === day ? fresh.spentTodaySats : 0;
+    const overAmount = DAILY_LIMIT_SATS - spentNow + 1; // 1 sat past the limit
+    log('TEST 2', `Already spent today: ${spentNow}. Attempting ${overAmount} → total ${spentNow + overAmount} > ${DAILY_LIMIT_SATS}`);
+
+    const walletUtxos = (await provider.getUtxos(destAddress))
+      .filter((u) => !u.token)
+      .sort((a, b) => (b.satoshis > a.satoshis ? 1 : -1));
+    const funding = walletUtxos[0];
+    const walletChange = funding ? funding.satoshis - BigInt(overAmount) - BigInt(MINER_FEE) : -1n;
+
+    if (!funding || walletChange < BigInt(DUST_SATS)) {
+      log('TEST 2 –', `Skipped: wallet needs at least ${overAmount + MINER_FEE + DUST_SATS} sats in one coin to fund the attempt.`);
+    } else {
+      const overTx = contract.functions
+        .spend(sigTemplate, ownerPk, BigInt(overAmount))
+        .from(freshNft)
+        .fromP2PKH(funding, sigTemplate)
+        .to(contract.tokenAddress, freshNft.satoshis, {
+          category: freshNft.token.category,
+          amount: 0n,
+          nft: { capability: 'mutable', commitment: binToHex(encodeCommitment(spentNow + overAmount, day)) },
+        })
+        .to(destAddress, BigInt(overAmount))
+        .to(destAddress, walletChange)
+        .withoutChange()
+        .withTime(locktime);
+
+      // Local evaluation: shows which rule in NomosVault.cash fails
+      try {
+        await overTx.debug();
+        log('TEST 2', 'Local evaluation unexpectedly passed');
+      } catch (err) {
+        log('TEST 2', `Local evaluation fails: ${String(err.message).split('\n')[0]}`);
+      }
+
+      // Real broadcast: the chipnet node is the judge
+      const raw = await overTx.build();
+      try {
+        const txid = await provider.sendRawTransaction(raw);
+        log('TEST 2 ✗', `NOT REFUSED — chain accepted over-limit tx: ${txid}`);
+      } catch (err) {
+        log('TEST 2 ✓', `REFUSED on-chain by the network: ${err.message ?? err}`);
+      }
     }
   } catch (err) {
-    log('TEST 2 ✓', `REFUSED by Nomos — ${err.message}`);
+    log('TEST 2 ✗', `Test error (not a chain refusal): ${err.message}`);
   }
 
   log('DONE', 'All tests complete.');
