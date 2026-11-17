@@ -1,0 +1,17 @@
+{
+  "name": "nomos-xo",
+  "private": true,
+  "type": "module",
+  "description": "Nomos as an XO template (BCH BLAZE Build with XO bounty)",
+  "scripts": {
+    "export": "node scripts/export.mjs",
+    "test": "node test/xo.test.mjs"
+  },
+  "dependencies": {
+    "@bitauth/libauth": "^3.0.0",
+    "@xo-cash/types": "0.0.8",
+    "@xo-cash/utils": "0.0.10",
+    "cashc": "0.11.5",
+    "cashscript": "0.11.5"
+  }
+}

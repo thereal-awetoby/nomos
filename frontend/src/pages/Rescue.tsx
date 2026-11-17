@@ -62,7 +62,16 @@ export default function Rescue() {
       {/* Multi-party note */}
       {hasRescuePk && (
         <div className="card p-4 text-xs text-nomos-muted">
-          <strong className="text-nomos-muted-bright">Note:</strong> Multi-party signing is not yet supported. Currently rescue works only when the connected wallet holds both the owner key and the rescue co-signer key (e.g. same seed, different derivation path).
+          <strong className="text-nomos-muted-bright">Two signers?</strong> One wallet connection signs with one key, so this button
+          only works if your rescue co-signer key is the same wallet key. For a separate co-signer, use the{' '}
+          <a
+            href="https://github.com/thereal-awetoby/nomos/blob/main/xo/nomos.template.json"
+            target="_blank" rel="noreferrer"
+            className="text-nomos-accent hover:underline"
+          >
+            Nomos XO template
+          </a>
+          's <em>Emergency rescue</em> action: an XO invitation passes the transaction from the owner to the co-signer.
         </div>
       )}
 

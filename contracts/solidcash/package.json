@@ -1,0 +1,17 @@
+{
+  "name": "nomos-solidcash",
+  "private": true,
+  "type": "module",
+  "description": "Nomos spend-mandate vault written in SolidCash (Solidity syntax for Bitcoin Cash)",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "solidc NomosVault.scash -o build/NomosVault.json",
+    "test": "npm run build && node vault.test.mjs",
+    "demo:chipnet": "npm run build && node chipnet-demo.mjs"
+  },
+  "dependencies": {
+    "@noble/curves": "^1.9.0",
+    "@solidcash/solidc": "0.51.1",
+    "@solidcash/solidcash": "0.51.1"
+  }
+}
