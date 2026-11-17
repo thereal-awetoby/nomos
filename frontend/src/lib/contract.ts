@@ -448,6 +448,8 @@ export async function executeCreateVault(
 
   const provider = getProvider()
   const walletUtxos = (await provider.getUtxos(walletAddress)).filter((u: any) => !u.token)
+  console.log('[nomos] Create vault — wallet address:', walletAddress)
+  console.log('[nomos] Create vault — UTXOs found:', walletUtxos.length, 'total sats:', walletUtxos.reduce((s: bigint, u: any) => s + u.satoshis, 0n).toString())
   const deposit = BigInt(depositSats)
   const genesisFee = p2pkhFee(1, 1, 1)
   const needed = deposit + genesisFee + DUST_LIMIT
