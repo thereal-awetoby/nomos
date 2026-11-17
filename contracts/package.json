@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "compile": "cashc NomosVault.cash -o ../frontend/src/lib/NomosVault.json",
-    "test": "node --experimental-vm-modules node_modules/.bin/jest"
+    "test": "node test/vault.test.mjs",
+    "mint": "node test/mint-nft.mjs"
   },
   "dependencies": {
     "cashscript": "^0.11.0",
