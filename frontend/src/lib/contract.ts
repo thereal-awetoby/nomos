@@ -288,6 +288,7 @@ async function buildSignAndBroadcast(
   txBuilder: TransactionBuilder,
   provider: WalletProviderType,
   prompt: string,
+  wcIndex: number = 0,
 ): Promise<{ txid: string; signedTransaction: string }> {
   // CashScript 0.11.x: generateWcTransactionObject (NOT generateWizardConnectTransactionObject)
   const wcTxObj = (txBuilder as any).generateWcTransactionObject({
@@ -295,7 +296,7 @@ async function buildSignAndBroadcast(
     userPrompt: prompt,
   })
 
-  const result = await signWcTransaction(provider, wcTxObj)
+  const result = await signWcTransaction(provider, wcTxObj, undefined, wcIndex)
 
   if (result.signedTransaction) {
     // Always broadcast the signed hex ourselves. If the wallet already did,
@@ -326,6 +327,7 @@ export async function executeSpend(
   signerAddress: string,
   walletProvider: WalletProviderType,
   destinationLabel?: string,
+  wcIndex: number = 0,
 ): Promise<Receipt> {
   const contract = await getContract(config)
   const provider = getProvider()
@@ -397,7 +399,7 @@ export async function executeSpend(
   txBuilder.setLocktime(locktime)
 
   const result = await buildSignAndBroadcast(
-    txBuilder, walletProvider, `Nomos: pay ${amountSats} sats`,
+    txBuilder, walletProvider, `Nomos: pay ${amountSats} sats`, wcIndex,
   )
 
   return {
@@ -437,6 +439,7 @@ export async function executeCreateVault(
   walletAddress: string,
   walletProvider: WalletProviderType,
   onStep?: (message: string) => void,
+  wcIndex: number = 0,
 ): Promise<{ txid: string }> {
   if (!Number.isFinite(depositSats) || depositSats < MIN_VAULT_DEPOSIT_SATS) {
     throw new Error(`Deposit at least ${MIN_VAULT_DEPOSIT_SATS} sats (${MIN_VAULT_DEPOSIT_SATS / 1e8} BCH)`)
@@ -471,7 +474,7 @@ export async function executeCreateVault(
     const mergeTx = new TransactionBuilder({ provider })
     for (const u of walletUtxos) mergeTx.addInput(u, placeholderP2PKHUnlocker(walletAddress))
     mergeTx.addOutput({ to: walletAddress, amount: merged })
-    const mergeResult = await buildSignAndBroadcast(mergeTx, walletProvider, 'Nomos: prepare vault coin')
+    const mergeResult = await buildSignAndBroadcast(mergeTx, walletProvider, 'Nomos: prepare vault coin', wcIndex)
     genesisUtxo = { txid: mergeResult.txid, vout: 0, satoshis: merged }
 
     onStep?.('Step 2 of 2: creating your vault. Confirm in your wallet.')
@@ -493,7 +496,7 @@ export async function executeCreateVault(
   const change = genesisUtxo.satoshis - deposit - genesisFee
   if (change >= DUST_LIMIT) genesisTx.addOutput({ to: walletAddress, amount: change })
 
-  const result = await buildSignAndBroadcast(genesisTx, walletProvider, 'Nomos: create vault')
+  const result = await buildSignAndBroadcast(genesisTx, walletProvider, 'Nomos: create vault', wcIndex)
   return { txid: result.txid }
 }
 
@@ -508,6 +511,7 @@ export async function executeSetMandate(
   newConfig: VaultConfig,
   _ownerAddress: string,
   walletProvider: WalletProviderType,
+  wcIndex: number = 0,
 ): Promise<{ txid: string; newConfig: VaultConfig }> {
   const oldContract = await getContract(config)
   const newContract = await getContract(newConfig)
@@ -548,7 +552,7 @@ export async function executeSetMandate(
   })
 
   const result = await buildSignAndBroadcast(
-    txBuilder, walletProvider, 'Nomos: update mandate',
+    txBuilder, walletProvider, 'Nomos: update mandate', wcIndex,
   )
   return { txid: result.txid, newConfig }
 }
@@ -560,6 +564,7 @@ export async function executeRescue(
   _mandate: Mandate,
   destination: string,
   walletProvider: WalletProviderType,
+  wcIndex: number = 0,
 ): Promise<string> {
   const contract = await getContract(config)
   const provider = getProvider()
@@ -587,7 +592,7 @@ export async function executeRescue(
   txBuilder.addOutput({ to: destination, amount: sweepAmount })
 
   const result = await buildSignAndBroadcast(
-    txBuilder, walletProvider, 'Nomos: rescue funds',
+    txBuilder, walletProvider, 'Nomos: rescue funds', wcIndex,
   )
   return result.txid
 }

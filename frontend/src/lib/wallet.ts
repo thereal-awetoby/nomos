@@ -33,22 +33,51 @@ export function pubkeyToAddress(
   return (result as { address: string }).address
 }
 
-/** Get the hex pubkey from WizardConnect manager (child 0, index 0) */
-export function getWcPubkeyHex(): string {
+/** Get the hex pubkey from WizardConnect manager (child 0, selected receive index) */
+export function getWcPubkeyHex(index: number | bigint = 0): string {
   if (!wcManager) return ''
-  const raw = wcManager.getPubkey(0, 0n)
+  const raw = wcManager.getPubkey(0, BigInt(index))
   if (!raw) return ''
   return binToHex(raw)
 }
 
-/** Get the BCH address from WizardConnect pubkey */
+/** Get the BCH address from WizardConnect pubkey at a given receive index */
 export function getWcAddress(
   network: 'mainnet' | 'chipnet' = 'mainnet',
+  index: number | bigint = 0,
 ): string {
   if (!wcManager) return ''
-  const raw = wcManager.getPubkey(0, 0n)
+  const raw = wcManager.getPubkey(0, BigInt(index))
   if (!raw) return ''
   return pubkeyToAddress(raw, network === 'mainnet' ? 'bitcoincash' : 'bchtest')
+}
+
+/**
+ * Scan WizardConnect receive indices 0..maxIndex and return the first
+ * address that holds UTXOs on-chain. Falls back to index 0.
+ */
+export async function findFundedWcAddress(
+  network: 'mainnet' | 'chipnet' = 'mainnet',
+  maxIndex = 20,
+): Promise<{ address: string; index: number }> {
+  // Lazy-import to avoid circular deps
+  const { ElectrumNetworkProvider } = await import('cashscript')
+  const provider = new ElectrumNetworkProvider(network === 'chipnet' ? 'chipnet' : 'mainnet')
+
+  for (let i = 0; i < maxIndex; i++) {
+    const addr = getWcAddress(network, i)
+    if (!addr) continue
+    try {
+      const utxos = await provider.getUtxos(addr)
+      const bal = utxos.filter((u: any) => !u.token).reduce((s: bigint, u: any) => s + u.satoshis, 0n)
+      console.log(`[nomos] scan index ${i}: ${addr} → ${utxos.length} UTXOs, ${bal} sats`)
+      if (bal > 0n) return { address: addr, index: i }
+    } catch (e) {
+      console.warn(`[nomos] scan index ${i} failed:`, e)
+    }
+  }
+  // Fallback to index 0
+  return { address: getWcAddress(network, 0), index: 0 }
 }
 
 // ── BCH WalletConnect v2 ───────────────────────────────────
@@ -128,15 +157,16 @@ export async function signWcTransaction(
   provider: WalletProviderType,
   wcTxObj: any,
   inputPaths?: [number, string, number][],
+  wcIndex: number = 0,
 ): Promise<{ txid: string; signedTransaction: string }> {
   if (provider === 'wizardconnect') {
     if (!wcManager) throw new Error('No active WizardConnect session')
     // WizardConnect (hdwalletv1) identifies keys by path NAME ('receive',
     // 'change', 'defi') plus address index, not by a derivation string. Nomos
-    // uses the receive key at index 0 (the pubkey we read at connect time) for
-    // every input, so sign them all with it unless told otherwise.
+    // uses the receive key at the index where we found funds for every input,
+    // so sign them all with it unless told otherwise.
     const inputCount: number = wcTxObj?.sourceOutputs?.length ?? 1
-    const paths = inputPaths ?? Array.from({ length: inputCount }, (_, i) => [i, 'receive', 0] as [number, string, number])
+    const paths = inputPaths ?? Array.from({ length: inputCount }, (_, i) => [i, 'receive', wcIndex] as [number, string, number])
     const result = await wcManager.signTransaction({
       transaction: wcTxObj,
       inputPaths: paths,
