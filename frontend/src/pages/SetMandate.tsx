@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useNavigate, Navigate, Link } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
-import { executeSetMandate, validateAllowlistAddress } from '../lib/contract'
+import { executeSetMandate, executeCreateVault, validateAllowlistAddress, MIN_VAULT_DEPOSIT_SATS } from '../lib/contract'
 
 export default function SetMandate() {
   const navigate = useNavigate()
-  const { wallet, vaultConfig, setVaultConfig } = useWallet()
+  const { wallet, vault, vaultConfig, setVaultConfig } = useWallet()
   // Pre-fill from existing config when editing an active mandate
   const [dailyLimit, setDailyLimit] = useState(
     vaultConfig ? (vaultConfig.dailyLimitSats / 1e8).toString() : '',
@@ -18,10 +18,16 @@ export default function SetMandate() {
   )
   const [agentPk, setAgentPk] = useState(vaultConfig?.agentPk ?? '')
   const [rescuePk, setRescuePk] = useState(vaultConfig?.rescuePk ?? '')
+  const [deposit, setDeposit] = useState('0.0001')
   const [submitting, setSubmitting] = useState(false)
+  const [step, setStep] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   if (!wallet?.connected) return <Navigate to="/" replace />
+
+  // No on-chain vault yet: either never configured, or configured but the
+  // state NFT was never minted. Either way this form creates it.
+  const needsDeploy = !vaultConfig || (vault !== null && !vault.deployed)
 
   // Warn if pubkey is missing (WC2 wallet didn't support bch_getAddresses)
   const noPubkey = !wallet.pubkey
@@ -60,7 +66,7 @@ export default function SetMandate() {
     }
 
     // Skip on-chain tx if nothing actually changed
-    if (vaultConfig &&
+    if (!needsDeploy && vaultConfig &&
       vaultConfig.ownerPk === newConfig.ownerPk &&
       vaultConfig.dailyLimitSats === newConfig.dailyLimitSats &&
       vaultConfig.allowlistEnabled === newConfig.allowlistEnabled &&
@@ -75,8 +81,13 @@ export default function SetMandate() {
     setSubmitting(true)
 
     try {
-      if (vaultConfig) {
-        // Existing vault — redeploy to new contract on-chain
+      if (needsDeploy) {
+        // New vault: mint the state NFT into the covenant from the user's wallet
+        const depositSats = Math.round(parseFloat(deposit || '0') * 1e8)
+        await executeCreateVault(newConfig, depositSats, wallet.address, wallet.provider, setStep)
+        setVaultConfig(newConfig)
+      } else if (vaultConfig) {
+        // Existing vault: redeploy to a new contract with the new params
         const result = await executeSetMandate(
           vaultConfig,
           newConfig,
@@ -85,15 +96,13 @@ export default function SetMandate() {
         )
         // Save the config that matches the NEW on-chain contract
         setVaultConfig(result.newConfig)
-      } else {
-        // First time — just save locally
-        setVaultConfig(newConfig)
       }
       navigate('/vault')
     } catch (err: any) {
       setError(err.message || 'Failed to set mandate')
     } finally {
       setSubmitting(false)
+      setStep(null)
     }
   }
 
@@ -107,10 +116,10 @@ export default function SetMandate() {
       <h2 className="font-mono text-2xl font-bold">Set Mandate</h2>
 
       {/* Info banner */}
-      {!vaultConfig ? (
+      {needsDeploy ? (
         <div className="card border-nomos-accent/15 bg-nomos-accent/[0.04] p-4 text-xs text-nomos-accent" style={{ borderWidth: '1px', borderStyle: 'solid' }}>
-          <strong>First time?</strong> This saves your mandate config locally.
-          Deploy the vault on-chain with <code className="text-nomos-accent/80">mint-nft.mjs</code>, then fund the contract address.
+          <strong>Create your vault.</strong> Your wallet funds the vault and mints the NFT
+          that tracks today's spending. You'll confirm one or two transactions.
         </div>
       ) : (
         <div className="card border-nomos-accent/15 bg-nomos-accent/[0.04] p-4 text-xs text-nomos-accent" style={{ borderWidth: '1px', borderStyle: 'solid' }}>
@@ -136,6 +145,25 @@ export default function SetMandate() {
           className="input"
         />
       </div>
+
+      {/* Initial deposit (new vault only) */}
+      {needsDeploy && (
+        <div>
+          <label className="label mb-2 block">Initial Deposit (BCH)</label>
+          <input
+            type="number"
+            step="0.00000001"
+            min={MIN_VAULT_DEPOSIT_SATS / 1e8}
+            value={deposit}
+            onChange={(e) => setDeposit(e.target.value)}
+            placeholder="0.0001"
+            className="input"
+          />
+          <p className="mt-1.5 text-[10px] text-nomos-muted">
+            Moved from your wallet into the vault. You can top up later.
+          </p>
+        </div>
+      )}
 
       {/* Allowlist */}
       <div>
@@ -183,14 +211,15 @@ export default function SetMandate() {
         />
       </div>
 
+      {step && <p className="pulse-text text-xs text-nomos-accent">{step}</p>}
       {error && <p className="text-xs text-nomos-refuse">{error}</p>}
 
       <button onClick={handleConfirm} disabled={submitting} className="btn-primary w-full">
         {submitting
           ? <><span className="spinner mr-2" /> Signing…</>
-          : vaultConfig
-            ? 'Update Mandate'
-            : 'Save Mandate Config'}
+          : needsDeploy
+            ? 'Create Vault'
+            : 'Update Mandate'}
       </button>
     </div>
   )

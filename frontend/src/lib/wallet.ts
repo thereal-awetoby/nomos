@@ -131,14 +131,20 @@ export async function signWcTransaction(
 ): Promise<{ txid: string; signedTransaction: string }> {
   if (provider === 'wizardconnect') {
     if (!wcManager) throw new Error('No active WizardConnect session')
+    // WizardConnect (hdwalletv1) identifies keys by path NAME ('receive',
+    // 'change', 'defi') plus address index, not by a derivation string. Nomos
+    // uses the receive key at index 0 (the pubkey we read at connect time) for
+    // every input, so sign them all with it unless told otherwise.
+    const inputCount: number = wcTxObj?.sourceOutputs?.length ?? 1
+    const paths = inputPaths ?? Array.from({ length: inputCount }, (_, i) => [i, 'receive', 0] as [number, string, number])
     const result = await wcManager.signTransaction({
       transaction: wcTxObj,
-      inputPaths: inputPaths ?? [[0, 'm/44\'/145\'/0\'', 0]],
+      inputPaths: paths,
     })
-    // SignTransactionResponse has signedTransaction (hex) — txid is empty
-    // because the wallet doesn't broadcast; we broadcast ourselves as fallback
+    // hdwalletv1 wallets return only the signed hex and never broadcast;
+    // the caller broadcasts.
     return {
-      txid: (result as any).signedTransactionHash ?? '',
+      txid: '',
       signedTransaction: result.signedTransaction ?? '',
     }
   }

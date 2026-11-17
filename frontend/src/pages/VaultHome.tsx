@@ -35,10 +35,10 @@ export default function VaultHome() {
     return (
       <div className="page-enter flex min-h-[50vh] flex-col items-center justify-center text-center">
         <p className="mb-5 text-sm text-nomos-muted">
-          No vault configured yet.
+          No vault yet.
         </p>
         <Link to="/mandate" className="btn-primary">
-          Set Mandate
+          Create Vault
         </Link>
       </div>
     )
@@ -56,6 +56,23 @@ export default function VaultHome() {
         </div>
         <button onClick={refreshVault} className="btn-ghost mt-4 text-xs">
           ↻ Retry
+        </button>
+      </div>
+    )
+  }
+
+  if (!vault.deployed) {
+    return (
+      <div className="page-enter flex min-h-[50vh] flex-col items-center justify-center text-center">
+        <p className="mb-2 text-sm text-nomos-text">Your vault isn't on-chain yet.</p>
+        <p className="mb-5 max-w-xs text-xs text-nomos-muted">
+          Create it to start paying under your mandate. It takes one or two wallet confirmations.
+        </p>
+        <Link to="/mandate" className="btn-primary">
+          Create Vault
+        </Link>
+        <button onClick={refreshVault} className="btn-ghost mt-3 text-xs">
+          ↻ Refresh
         </button>
       </div>
     )

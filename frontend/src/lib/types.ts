@@ -16,6 +16,8 @@ export interface VaultState {
   address: string
   tokenAddress: string
   balanceSats: number
+  /** true once the vault's state NFT exists on-chain */
+  deployed: boolean
   mandate: Mandate
 }
 
