@@ -34,8 +34,11 @@ export default function VaultHome() {
   if (!vaultConfig) {
     return (
       <div className="page-enter flex min-h-[50vh] flex-col items-center justify-center text-center">
-        <p className="mb-5 text-sm text-nomos-muted">
-          No vault yet.
+        <p className="mb-2 text-sm text-nomos-muted">
+          No vault yet. Connected wallet:
+        </p>
+        <p className="mb-5 max-w-xs truncate font-mono text-[10px] text-nomos-muted">
+          {wallet.address || 'unknown'}
         </p>
         <Link to="/mandate" className="btn-primary">
           Create Vault
@@ -65,6 +68,9 @@ export default function VaultHome() {
     return (
       <div className="page-enter flex min-h-[50vh] flex-col items-center justify-center text-center">
         <p className="mb-2 text-sm text-nomos-text">Your vault isn't on-chain yet.</p>
+        <p className="mb-2 max-w-xs truncate font-mono text-[10px] text-nomos-muted">
+          Wallet: {wallet.address || 'unknown'}
+        </p>
         <p className="mb-5 max-w-xs text-xs text-nomos-muted">
           Create it to start paying under your mandate. It takes one or two wallet confirmations.
         </p>
