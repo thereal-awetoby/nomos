@@ -88,7 +88,7 @@ export default function Pay() {
     try {
       const receipt = await executeSpend(
         vaultConfig, mandate, amountSats, payTo,
-        wallet.address, wallet.provider, label,
+        wallet.address, wallet.provider, label, wallet.wcIndex ?? 0,
       )
       addReceipt(receipt)
       setResult({ type: 'success', message: 'Paid under mandate', txHash: receipt.txHash })

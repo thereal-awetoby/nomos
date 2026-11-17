@@ -105,7 +105,7 @@ export default function SetMandate() {
       if (needsDeploy) {
         // New vault: mint the state NFT into the covenant from the user's wallet
         const depositSats = Math.round(parseFloat(deposit || '0') * 1e8)
-        await executeCreateVault(newConfig, depositSats, wallet.address, wallet.provider, setStep)
+        await executeCreateVault(newConfig, depositSats, wallet.address, wallet.provider, setStep, wallet.wcIndex ?? 0)
         setVaultConfig(newConfig)
       } else if (vaultConfig) {
         // Existing vault: redeploy to a new contract with the new params
@@ -114,6 +114,7 @@ export default function SetMandate() {
           newConfig,
           wallet.address,
           wallet.provider,
+          wallet.wcIndex ?? 0,
         )
         // Save the config that matches the NEW on-chain contract
         setVaultConfig(result.newConfig)

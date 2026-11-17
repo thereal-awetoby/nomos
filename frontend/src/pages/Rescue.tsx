@@ -28,7 +28,7 @@ export default function Rescue() {
     setSubmitting(true)
     try {
       const txid = await executeRescue(
-        vaultConfig, vault.mandate, destination, wallet.provider,
+        vaultConfig, vault.mandate, destination, wallet.provider, wallet.wcIndex ?? 0,
       )
       setResult({
         type: 'success',

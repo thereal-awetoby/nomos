@@ -11,6 +11,7 @@ import {
   setWcManager,
   getWcPubkeyHex,
   getWcAddress,
+  findFundedWcAddress,
 } from '../lib/wallet'
 import type {
   WalletConnection,
@@ -116,21 +117,40 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setWcManager(wcManager ?? null)
   }, [wcManager])
 
-  // When WizardConnect reaches "connected", derive address + pubkey
+  // When WizardConnect reaches "connected", scan for the funded address
   useEffect(() => {
     if (wcState === 'connected' && wcManager) {
-      const address = getWcAddress()
-      const pubkey = getWcPubkeyHex()
-      if (address) {
-        const conn: WalletConnection = {
-          provider: 'wizardconnect',
-          address,
-          pubkey,
-          connected: true,
+      const network = ((import.meta.env.VITE_BCH_NETWORK as string) || 'mainnet') === 'chipnet' ? 'chipnet' : 'mainnet'
+      findFundedWcAddress(network).then(({ address, index }) => {
+        console.log(`[nomos] Using receive index ${index}: ${address}`)
+        const pubkey = getWcPubkeyHex(index)
+        if (address) {
+          const conn: WalletConnection = {
+            provider: 'wizardconnect',
+            address,
+            pubkey,
+            connected: true,
+            wcIndex: index,
+          }
+          setWallet(conn)
+          save(WALLET_KEY, conn)
         }
-        setWallet(conn)
-        save(WALLET_KEY, conn)
-      }
+      }).catch((e) => {
+        console.error('[nomos] Address scan failed, falling back to index 0:', e)
+        const address = getWcAddress(network)
+        const pubkey = getWcPubkeyHex(0)
+        if (address) {
+          const conn: WalletConnection = {
+            provider: 'wizardconnect',
+            address,
+            pubkey,
+            connected: true,
+            wcIndex: 0,
+          }
+          setWallet(conn)
+          save(WALLET_KEY, conn)
+        }
+      })
     }
   }, [wcState, wcManager])
 

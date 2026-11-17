@@ -41,6 +41,8 @@ export interface WalletConnection {
   address: string
   pubkey: string
   connected: boolean
+  /** WizardConnect receive index where funds were found (default 0) */
+  wcIndex?: number
 }
 
 /** Immutable on-chain constructor params for the NomosVault covenant */
