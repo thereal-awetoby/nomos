@@ -19,7 +19,7 @@ import type {
   WalletProviderType,
 } from './types'
 import { signWcTransaction } from './wallet'
-import { decodeCashAddress, binToHex as libBinToHex } from '@bitauth/libauth'
+import { decodeCashAddress, binToHex as libBinToHex, hexToBin, hash160 } from '@bitauth/libauth'
 
 // ── Artifact ───────────────────────────────────────────────
 let artifactCache: any = null
@@ -49,20 +49,52 @@ export const EXPLORER_TX_URL = NETWORK === 'mainnet'
   ? 'https://blockchair.com/bitcoin-cash/transaction/'
   : 'https://chipnet.imaginary.cash/tx/'
 
-// The contract's spend() hardcodes `int minerFee = 1000` as the floor.
-// For setMandate/rescue (no contract constraint) we still use this as minimum.
-const CONTRACT_FEE_FLOOR = 1000n
+// ── Fees ───────────────────────────────────────────────────
+// Sizes measured from real NomosVault transactions (p2sh32, CashScript 0.11):
+// every contract input carries the full redeem script, so it is ~525 bytes,
+// not the ~150 of a normal P2PKH input. Rescue carries a second signature.
+const TX_OVERHEAD_BYTES = 10
+const CONTRACT_INPUT_BYTES = 545
+const RESCUE_EXTRA_BYTES = 75
+const TOKEN_OUTPUT_BYTES = 100
+const PLAIN_OUTPUT_BYTES = 45
+const FEE_RATE_SATS_PER_BYTE = 1
+const FEE_MARGIN = 1.1 // 10% headroom so we never fall under the 1 sat/byte relay minimum
 
-/** Estimate fee at ~1 sat/byte. Each input ≈ 150 B, each output ≈ 35 B, overhead ≈ 10 B. */
-function estimateFee(numInputs: number, numOutputs: number): bigint {
-  const bytes = BigInt(10 + numInputs * 150 + numOutputs * 35)
-  return bytes > CONTRACT_FEE_FLOOR ? bytes : CONTRACT_FEE_FLOOR
+function estimateFee(opts: {
+  contractInputs: number
+  tokenOutputs: number
+  plainOutputs: number
+  rescue?: boolean
+}): bigint {
+  const bytes =
+    TX_OVERHEAD_BYTES +
+    opts.contractInputs * CONTRACT_INPUT_BYTES +
+    (opts.rescue ? RESCUE_EXTRA_BYTES : 0) +
+    opts.tokenOutputs * TOKEN_OUTPUT_BYTES +
+    opts.plainOutputs * PLAIN_OUTPUT_BYTES
+  return BigInt(Math.ceil(bytes * FEE_RATE_SATS_PER_BYTE * FEE_MARGIN))
+}
+
+// spend() lets the NFT input lose at most `amount + 1000` sats; anything above
+// that must come from top-up inputs.
+const CONTRACT_MAX_FEE_FROM_NFT = 1000n
+
+// ── Locktime / day ─────────────────────────────────────────
+// Nodes reject a transaction whose locktime is later than the chain's median
+// time past (non-final). MTP trails wall-clock time by roughly an hour, so we
+// back-date. The contract derives "today" from tx.locktime, so the UI's notion
+// of today must come from the same value or the limit math drifts at midnight.
+const LOCKTIME_BACKDATE_SECS = 3 * 3600
+
+function txLocktime(): number {
+  return Math.floor(Date.now() / 1000) - LOCKTIME_BACKDATE_SECS
 }
 
 // ── Helpers ────────────────────────────────────────────────
 
 export function currentDayMarker(): number {
-  return Math.floor(Date.now() / 1000 / 86400)
+  return Math.floor(txLocktime() / 86400)
 }
 
 export function remainingToday(mandate: Mandate): number {
@@ -151,6 +183,17 @@ export function validateAllowlistAddress(addr: string): string | null {
     return null
   } catch (e: any) {
     return e.message || 'Invalid address'
+  }
+}
+
+/** True if `address` is the P2PKH address of the vault owner's public key. */
+function isOwnerAddress(address: string, ownerPkHex: string): boolean {
+  try {
+    const decoded = decodeCashAddress(address)
+    if (typeof decoded === 'string') return false
+    return libBinToHex(decoded.payload) === libBinToHex(hash160(hexToBin(ownerPkHex)) as Uint8Array)
+  } catch {
+    return false
   }
 }
 
@@ -261,7 +304,7 @@ export async function executeSpend(
   mandate: Mandate,
   amountSats: number,
   destination: string,
-  _signerAddress: string,
+  signerAddress: string,
   walletProvider: WalletProviderType,
 ): Promise<Receipt> {
   const contract = await getContract(config)
@@ -270,7 +313,7 @@ export async function executeSpend(
   const nftUtxo = findNftUtxo(utxos)
   const plainUtxos = findPlainUtxos(utxos)
 
-  const locktime = Math.floor(Date.now() / 1000)
+  const locktime = txLocktime()
   const amount = BigInt(amountSats)
 
   const txBuilder = new TransactionBuilder({ provider })
@@ -284,19 +327,29 @@ export async function executeSpend(
     ),
   )
 
-  // Consolidate plain UTXOs (top-ups) via the unconstrained setMandate unlock
+  // Top-ups (plain UTXOs at the contract) can only be unlocked through
+  // setMandate, which needs the OWNER's signature. Pull them in only when the
+  // owner is paying; an agent pays from the NFT UTXO alone.
+  const signerIsOwner = isOwnerAddress(signerAddress, config.ownerPk)
+  const topUps = signerIsOwner ? plainUtxos : []
   let extraSats = 0n
-  for (const pu of plainUtxos) {
+  for (const pu of topUps) {
     txBuilder.addInput(pu, contract.unlock.setMandate(placeholderSignature()))
     extraSats += pu.satoshis
   }
 
   // Output 0: covenant continuation (NFT sats + top-up sats − spend − fee)
-  const numInputs = 1 + plainUtxos.length
-  const fee = estimateFee(numInputs, 2) // 2 outputs: covenant + destination
-  const inputSats = nftUtxo.satoshis + extraSats
-  const changeSats = inputSats - amount - fee
-  if (changeSats < DUST_LIMIT) throw new Error('Insufficient vault balance')
+  const fee = estimateFee({ contractInputs: 1 + topUps.length, tokenOutputs: 1, plainOutputs: 1 })
+  if (fee > CONTRACT_MAX_FEE_FROM_NFT + extraSats) {
+    throw new Error('Fee too high for this vault layout — update the mandate to merge top-ups first')
+  }
+  const changeSats = nftUtxo.satoshis + extraSats - amount - fee
+  if (changeSats < DUST_LIMIT) {
+    const stranded = plainUtxos.length > 0 && !signerIsOwner
+    throw new Error(stranded
+      ? 'Not enough in the vault for an agent payment. Top-ups need the owner: pay as owner or update the mandate to merge them.'
+      : 'Insufficient vault balance')
+  }
 
   const today = currentDayMarker()
   const prevSpent = today === mandate.dayMarker ? mandate.spentTodaySats : 0
@@ -305,8 +358,10 @@ export async function executeSpend(
   const dayHex = reverseHex(BigInt(today).toString(16).padStart(16, '0'))
   const newCommitment = spentHex + dayHex
 
+  // Must be the token-aware address: CashScript refuses to send an NFT to a
+  // plain p2sh address.
   txBuilder.addOutput({
-    to: contract.address,
+    to: contract.tokenAddress,
     amount: changeSats,
     token: {
       amount: 0n,
@@ -370,8 +425,7 @@ export async function executeSetMandate(
   }
 
   // Send NFT + all funds to the NEW contract (with updated params)
-  const numInputs = 1 + plainUtxos.length
-  const fee = estimateFee(numInputs, 1) // 1 output: new contract
+  const fee = estimateFee({ contractInputs: 1 + plainUtxos.length, tokenOutputs: 1, plainOutputs: 0 })
   const changeSats = nftUtxo.satoshis + extraSats - fee
   txBuilder.addOutput({
     to: newContract.tokenAddress,
@@ -421,8 +475,8 @@ export async function executeRescue(
     extraSats += pu.satoshis
   }
 
-  const numInputs = 1 + plainUtxos.length
-  const fee = estimateFee(numInputs, 1) // 1 output: rescue destination
+  // The NFT is burned here (no token output), which is allowed.
+  const fee = estimateFee({ contractInputs: 1 + plainUtxos.length, tokenOutputs: 0, plainOutputs: 1, rescue: true })
   const sweepAmount = nftUtxo.satoshis + extraSats - fee
   txBuilder.addOutput({ to: destination, amount: sweepAmount })
 
