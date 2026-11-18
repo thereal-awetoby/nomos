@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
 import { remainingToday } from '../lib/contract'
+import { qrColors, THEME_CHANGE_EVENT } from '../lib/theme'
 
 export default function VaultHome() {
   const { wallet, vault, vaultConfig, refreshVault, disconnect } = useWallet()
@@ -9,8 +10,15 @@ export default function VaultHome() {
   const [depositCopied, setDepositCopied] = useState(false)
   const [showQr, setShowQr] = useState(false)
   const [showDepositQr, setShowDepositQr] = useState(false)
+  const [qrThemeVersion, setQrThemeVersion] = useState(0)
   const qrRef = useRef<HTMLCanvasElement>(null)
   const depositQrRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const onThemeChange = () => setQrThemeVersion((version) => version + 1)
+    window.addEventListener(THEME_CHANGE_EVENT, onThemeChange)
+    return () => window.removeEventListener(THEME_CHANGE_EVENT, onThemeChange)
+  }, [])
 
   useEffect(() => {
     const address = vault?.address
@@ -23,14 +31,14 @@ export default function VaultHome() {
       return QRCode.toCanvas(canvas, address, {
         width: 200,
         margin: 2,
-        color: { dark: '#111827', light: '#ffffff' },
+        color: qrColors(),
       })
     }).catch(() => {
       // Ignore QR rendering failures; the address remains available to copy.
     })
 
     return () => { cancelled = true }
-  }, [showQr, vault?.address])
+  }, [showQr, vault?.address, qrThemeVersion])
 
   // QR for the token-aware deposit address
   useEffect(() => {
@@ -44,11 +52,11 @@ export default function VaultHome() {
       return QRCode.toCanvas(canvas, tokenAddr, {
         width: 200,
         margin: 2,
-        color: { dark: '#111827', light: '#ffffff' },
+        color: qrColors(),
       })
     }).catch(() => {})
     return () => { cancelled = true }
-  }, [showDepositQr, vault?.tokenAddress])
+  }, [showDepositQr, vault?.tokenAddress, qrThemeVersion])
 
   if (!wallet?.connected) return <Navigate to="/" replace />
 

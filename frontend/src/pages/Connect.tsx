@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useWallet } from '../context/WalletContext'
 import { WizardConnectQRDialog } from '@wizardconnect/react'
+import { qrColors, THEME_CHANGE_EVENT } from '../lib/theme'
 
 export default function Connect() {
   const navigate = useNavigate()
@@ -14,7 +15,14 @@ export default function Connect() {
   const [localError, setLocalError] = useState<string | null>(null)
   const [showQr, setShowQr] = useState(false)
   const [wc2Uri, setWc2Uri] = useState<string | null>(null)
+  const [qrThemeVersion, setQrThemeVersion] = useState(0)
   const qrCanvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const onThemeChange = () => setQrThemeVersion((version) => version + 1)
+    window.addEventListener(THEME_CHANGE_EVENT, onThemeChange)
+    return () => window.removeEventListener(THEME_CHANGE_EVENT, onThemeChange)
+  }, [])
 
   useEffect(() => {
     if (wallet?.connected) navigate('/vault', { replace: true })
@@ -30,17 +38,22 @@ export default function Connect() {
   }, [])
 
   useEffect(() => {
-    if (!wc2Uri || !qrCanvasRef.current) return
+    const canvas = qrCanvasRef.current
+    if (!wc2Uri || !canvas) return
+
+    let cancelled = false
     import('qrcode').then((QRCode) => {
-      QRCode.toCanvas(qrCanvasRef.current!, wc2Uri, {
+      if (cancelled) return
+      return QRCode.toCanvas(canvas, wc2Uri, {
         width: 220,
         margin: 2,
-        color: { dark: '#111827', light: '#ffffff' },
+        color: qrColors(),
       })
     }).catch(() => {
       // QR generation failure leaves the pairing URI available to copy.
     })
-  }, [wc2Uri])
+    return () => { cancelled = true }
+  }, [wc2Uri, qrThemeVersion])
 
   const handleWizardConnect = useCallback(() => {
     setLocalError(null)
