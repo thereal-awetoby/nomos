@@ -1,0 +1,23 @@
+{
+  "name": "Nomos — The Law of the Payment",
+  "short_name": "Nomos",
+  "description": "A Bitcoin Cash spend-mandate covenant with daily limits, allowlists, and agent keys checked by BCH nodes.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080810",
+  "theme_color": "#00e599",
+  "icons": [
+    {
+      "src": "/icon-192.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
