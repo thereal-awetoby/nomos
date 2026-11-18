@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
+import PaySuccess from '../components/PaySuccess'
 import { wouldRefuse, remainingToday, executeSpend, validateCashAddress, EXPLORER_TX_URL } from '../lib/contract'
 import { isNostrIdentifier, resolveNostrPayee, payeeLabel, type NostrPayee } from '../lib/nostr'
 
@@ -14,6 +15,8 @@ export default function Pay() {
     message: string
     txHash?: string
   } | null>(null)
+  const [showSuccessAnim, setShowSuccessAnim] = useState(false)
+  const onAnimationDone = useCallback(() => setShowSuccessAnim(false), [])
 
   // Nostr pay-by-name: resolve npub / nprofile / name@domain to the BCH
   // address the person published (debounced while typing).
@@ -92,6 +95,7 @@ export default function Pay() {
       )
       addReceipt(receipt)
       setResult({ type: 'success', message: 'Paid under mandate', txHash: receipt.txHash })
+      setShowSuccessAnim(true)
     } catch (err: any) {
       setResult({ type: 'refused', message: err.message || 'Transaction failed' })
     } finally {
@@ -104,6 +108,7 @@ export default function Pay() {
 
   return (
     <div className="page-enter space-y-5">
+      {showSuccessAnim && <PaySuccess onDone={onAnimationDone} />}
       {/* Back nav */}
       <Link to="/vault" className="text-xs text-nomos-muted hover:text-nomos-accent transition-colors duration-200">
         ← Back to vault

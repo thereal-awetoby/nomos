@@ -204,6 +204,8 @@ node test/vault.test.mjs
   adapt to the active theme.
 - Activity shows paid/refused counts and total BCH sent; receipts can be
   downloaded as PNG images with clipboard text as a fallback.
+- The vault mandate card visualizes today’s effective spend against its daily
+  limit, and successful payments show a brief confirmation animation.
 - The Bridge route is a disabled preview with Swap, Bridge In, and Bridge Out
   tabs. Mercar and Asgaya are external links only; they are not integrated
   bridge providers. Do not send funds based on this preview.
@@ -225,6 +227,8 @@ or awards:
 
 ## Documentation
 
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — setup, package commands, and
+  contribution guidelines.
 - [`docs/JUDGE_PATH.md`](docs/JUDGE_PATH.md) — local test and UI walkthrough.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — application components,
   routes, contract surfaces, and current scope.
@@ -252,7 +256,7 @@ nomos/
 │   └── test/                    # chipnet mint + paid/refused tests
 ├── frontend/src/
 │   ├── pages/                   # Connect, Vault, Pay, Activity, Bridge, …
-│   ├── components/              # layout, banner, theme, receipts
+│   ├── components/              # layout, banner, theme, receipts, gauge, payment success
 │   └── lib/                     # wallet, covenant, Nostr, theme, and app types
 ├── docs/                        # judge path, bridge design, proof checklist
 ├── xo/                          # XO template + offline checks

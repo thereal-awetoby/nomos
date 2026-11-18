@@ -213,3 +213,36 @@
     background-size: 200% 100%;
   }
 }
+
+.spend-gauge-progress {
+  transition: stroke-dashoffset 0.8s ease-out, stroke 0.4s ease;
+}
+
+@keyframes particle-fly {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.4);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translateY(-28px) scale(0.25);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pay-success-overlay *,
+  .spend-gauge-progress {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  .pay-success-particle {
+    display: none !important;
+  }
+}
