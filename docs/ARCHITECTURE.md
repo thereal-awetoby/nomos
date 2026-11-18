@@ -14,7 +14,7 @@ disabled.
 ┌──────────────────────── Browser ───────────────────────────┐
 │ React Router pages                                         │
 │ Connect · Vault · Mandate · Pay · Activity · Rescue · Bridge│
-│ Identity · Simulate                                       │
+│ Identity · Simulate · Architecture                         │
 │                           │                                │
 │                     WalletContext                          │
 │              wallet · vault config · receipts               │
@@ -57,11 +57,14 @@ address is used. The Simulator is local-only and does not execute a covenant.
 | `/bridge` | `Bridge` | Disabled Swap / Bridge In / Bridge Out preview. |
 | `/identity` | `Identity` | Resolve a Nostr identity through external NIP-05/relay services and verify the signed BCH-address event. |
 | `/simulate` | `Simulate` | Local illustration of daily-limit and exact-text allowlist rules; no wallet, contract execution, or transaction. |
+| `/architecture` | `Architecture` | In-app overview of the system stack, contract surfaces, security boundaries, repository coverage, and validation entry points. |
 
 `WalletContext` coordinates the wallet session, vault configuration, receipts,
 and periodic vault refresh. The `wallet.ts` module adapts wallet providers;
 `contract.ts` handles BCH covenant interactions; `nostr.ts` resolves Nostr
-identifiers and verifies address events. Wallet configuration and receipts
+identifiers and verifies address events. `KeyboardShortcuts` provides optional
+single-key navigation that can be disabled from its help palette and does not
+intercept keystrokes in editable fields. Wallet configuration and receipts
 are stored locally in the browser, not as an application-server database.
 
 ## Contract surfaces

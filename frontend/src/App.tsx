@@ -10,10 +10,13 @@ import Rescue from './pages/Rescue'
 import Bridge from './pages/Bridge'
 import Identity from './pages/Identity'
 import Simulate from './pages/Simulate'
+import Architecture from './pages/Architecture'
+import KeyboardShortcuts from './components/KeyboardShortcuts'
 
 export default function App() {
   return (
     <WalletProvider>
+      <KeyboardShortcuts />
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Connect />} />
@@ -25,6 +28,7 @@ export default function App() {
           <Route path="/bridge" element={<Bridge />} />
           <Route path="/identity" element={<Identity />} />
           <Route path="/simulate" element={<Simulate />} />
+          <Route path="/architecture" element={<Architecture />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
