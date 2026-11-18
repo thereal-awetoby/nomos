@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Navigate, Link } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
-import { executeSetMandate, executeCreateVault, validateAllowlistAddress, validateCashAddress, MIN_VAULT_DEPOSIT_SATS } from '../lib/contract'
+import { executeSetMandate, executeCreateVault, validateAllowlistAddress, validateCashAddress, getWalletBalance, MIN_VAULT_DEPOSIT_SATS } from '../lib/contract'
 import { isNostrIdentifier, resolveNostrPayee } from '../lib/nostr'
 
 export default function SetMandate() {
@@ -23,6 +23,15 @@ export default function SetMandate() {
   const [submitting, setSubmitting] = useState(false)
   const [step, setStep] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [walletBal, setWalletBal] = useState<number | null>(null)
+
+  // Fetch wallet balance on mount so the user can see it before creating
+  useEffect(() => {
+    if (!wallet?.address) return
+    getWalletBalance(wallet.address)
+      .then(setWalletBal)
+      .catch(() => setWalletBal(null))
+  }, [wallet?.address])
 
   if (!wallet?.connected) return <Navigate to="/" replace />
 
@@ -184,6 +193,11 @@ export default function SetMandate() {
           <p className="mt-1.5 text-[10px] text-nomos-muted">
             Moved from your wallet into the vault. You can top up later.
           </p>
+          {walletBal !== null && (
+            <p className="mt-1 text-[10px] text-nomos-muted-bright">
+              Wallet balance: <span className="font-mono text-nomos-accent">{(walletBal / 1e8).toFixed(8)} BCH</span>
+            </p>
+          )}
         </div>
       )}
 

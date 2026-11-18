@@ -6,8 +6,11 @@ import { remainingToday } from '../lib/contract'
 export default function VaultHome() {
   const { wallet, vault, vaultConfig, refreshVault, disconnect } = useWallet()
   const [copied, setCopied] = useState(false)
+  const [depositCopied, setDepositCopied] = useState(false)
   const [showQr, setShowQr] = useState(false)
+  const [showDepositQr, setShowDepositQr] = useState(false)
   const qrRef = useRef<HTMLCanvasElement>(null)
+  const depositQrRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     const address = vault?.address
@@ -28,6 +31,24 @@ export default function VaultHome() {
 
     return () => { cancelled = true }
   }, [showQr, vault?.address])
+
+  // QR for the token-aware deposit address
+  useEffect(() => {
+    const tokenAddr = vault?.tokenAddress
+    if (!showDepositQr || !tokenAddr || !depositQrRef.current) return
+
+    const canvas = depositQrRef.current
+    let cancelled = false
+    import('qrcode').then((QRCode) => {
+      if (cancelled) return
+      return QRCode.toCanvas(canvas, tokenAddr, {
+        width: 200,
+        margin: 2,
+        color: { dark: '#e8e8f0', light: '#00000000' },
+      })
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [showDepositQr, vault?.tokenAddress])
 
   if (!wallet?.connected) return <Navigate to="/" replace />
 
@@ -123,6 +144,38 @@ export default function VaultHome() {
         {showQr && (
           <div className="mt-3 flex justify-center">
             <canvas ref={qrRef} className="rounded-2xl" />
+          </div>
+        )}
+      </div>
+
+      {/* ── Top Up ── */}
+      <div className="card p-5">
+        <p className="label mb-3">Top Up Vault</p>
+        <p className="text-xs text-nomos-muted mb-3">
+          Send BCH to this address to add funds. Use the token-aware (z…) address so the wallet includes the vault's NFT correctly.
+        </p>
+        <button
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(vault.tokenAddress)
+              setDepositCopied(true)
+              setTimeout(() => setDepositCopied(false), 1500)
+            } catch {}
+          }}
+          className="w-full truncate rounded-2xl bg-nomos-surface-raised/60 px-4 py-3 font-mono text-[10px] text-nomos-muted-bright hover:text-nomos-accent transition-colors duration-200 text-left"
+          title="Copy deposit address"
+        >
+          {depositCopied ? '✓ Copied' : vault.tokenAddress}
+        </button>
+        <button
+          onClick={() => setShowDepositQr(q => !q)}
+          className="mt-2 text-[10px] text-nomos-accent/60 hover:text-nomos-accent transition-colors duration-200"
+        >
+          {showDepositQr ? 'Hide QR' : 'Show QR'}
+        </button>
+        {showDepositQr && (
+          <div className="mt-3 flex justify-center">
+            <canvas ref={depositQrRef} className="rounded-2xl" />
           </div>
         )}
       </div>

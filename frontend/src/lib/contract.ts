@@ -424,6 +424,13 @@ export async function executeSpend(
 const P2PKH_INPUT_BYTES = 150
 export const MIN_VAULT_DEPOSIT_SATS = 2000
 
+/** Query the connected wallet's spendable (non-token) balance on-chain. */
+export async function getWalletBalance(walletAddress: string): Promise<number> {
+  const provider = getProvider()
+  const utxos = (await provider.getUtxos(walletAddress)).filter((u: any) => !u.token)
+  return Number(utxos.reduce((s: bigint, u: any) => s + u.satoshis, 0n))
+}
+
 function p2pkhFee(inputs: number, tokenOutputs: number, plainOutputs: number): bigint {
   const bytes =
     TX_OVERHEAD_BYTES +
@@ -467,7 +474,13 @@ export async function executeCreateVault(
     const merged = total - mergeFee
     if (walletUtxos.length === 0 || merged < needed) {
       const need = needed + mergeFee
-      throw new Error(`Your wallet needs at least ${Number(need) / 1e8} BCH (deposit + fees)`)
+      const have = Number(total)
+      const short = Number(need) - have
+      throw new Error(
+        walletUtxos.length === 0
+          ? `No funds found at your wallet address. Send at least ${Number(need) / 1e8} BCH to ${walletAddress.slice(0, 28)}…`
+          : `Need ${Number(need) / 1e8} BCH (deposit + fees) but your wallet has ${have / 1e8} BCH — short by ${short / 1e8} BCH`,
+      )
     }
 
     onStep?.('Step 1 of 2: preparing a coin for the vault. Confirm in your wallet.')
