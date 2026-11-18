@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
 import { remainingToday } from '../lib/contract'
 import { qrColors, THEME_CHANGE_EVENT } from '../lib/theme'
+import SpendGauge from '../components/SpendGauge'
 
 export default function VaultHome() {
   const { wallet, vault, vaultConfig, refreshVault, disconnect } = useWallet()
@@ -114,6 +115,7 @@ export default function VaultHome() {
   }
 
   const remaining = remainingToday(vault.mandate)
+  const spentToday = Math.max(0, vault.mandate.dailyLimitSats - remaining)
   const isLowBalance = vault.balanceSats < 10_000
 
   const copyAddress = async () => {
@@ -201,35 +203,35 @@ export default function VaultHome() {
         </div>
       )}
 
-      {/* ── Mandate summary ── */}
+      {/* ── Mandate summary with spend gauge ── */}
       <div className="card p-5">
         <p className="label mb-4">Current Mandate</p>
-        <div className="space-y-3 mono-value text-sm">
-          <div className="flex justify-between">
-            <span className="text-nomos-muted">Daily limit</span>
-            <span>{(vault.mandate.dailyLimitSats / 1e8).toFixed(8)} BCH</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-nomos-muted">Spent today</span>
-            <span>{(vault.mandate.spentTodaySats / 1e8).toFixed(8)} BCH</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-nomos-muted">Remaining</span>
-            <span className="text-nomos-accent">
-              {(remaining / 1e8).toFixed(8)} BCH
-            </span>
-          </div>
-          <div className="flex justify-between text-xs">
-            <span className="text-nomos-muted">Allowlist</span>
-            <span className="text-nomos-muted-bright">
-              {vault.mandate.allowlistEnabled ? 'On' : 'Off'}
-            </span>
-          </div>
-          <div className="flex justify-between text-xs">
-            <span className="text-nomos-muted">Agent</span>
-            <span className="text-nomos-muted-bright">
-              {vault.mandate.agentPk ? 'Set' : 'None'}
-            </span>
+        <div className="flex flex-col items-center gap-5 sm:flex-row">
+          <SpendGauge
+            spentSats={spentToday}
+            limitSats={vault.mandate.dailyLimitSats}
+          />
+          <div className="w-full flex-1 space-y-2.5 mono-value text-sm">
+            <div className="flex justify-between gap-3">
+              <span className="text-nomos-muted">Daily limit</span>
+              <span className="text-right">{(vault.mandate.dailyLimitSats / 1e8).toFixed(8)} BCH</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-nomos-muted">Spent today</span>
+              <span className="text-right">{(spentToday / 1e8).toFixed(8)} BCH</span>
+            </div>
+            <div className="flex justify-between gap-3 text-xs">
+              <span className="text-nomos-muted">Allowlist</span>
+              <span className="text-nomos-muted-bright">
+                {vault.mandate.allowlistEnabled ? 'On' : 'Off'}
+              </span>
+            </div>
+            <div className="flex justify-between gap-3 text-xs">
+              <span className="text-nomos-muted">Agent</span>
+              <span className="text-nomos-muted-bright">
+                {vault.mandate.agentPk ? 'Set' : 'None'}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -249,7 +251,7 @@ export default function VaultHome() {
       )}
 
       {/* ── Action grid ── */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
         <Link to="/mandate" className="btn-ghost py-3 text-center text-xs">
           Mandate
         </Link>
@@ -258,6 +260,9 @@ export default function VaultHome() {
         </Link>
         <Link to="/activity" className="btn-ghost py-3 text-center text-xs">
           Activity
+        </Link>
+        <Link to="/bridge" className="btn-ghost py-3 text-center text-xs">
+          Bridge preview
         </Link>
       </div>
 
