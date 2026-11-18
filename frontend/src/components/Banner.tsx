@@ -13,7 +13,10 @@ const isChipnet = NETWORK === 'chipnet'
 
 export default function Banner() {
   return (
-    <div className="site-banner relative w-full border-b border-nomos-border/10 px-5 py-2.5">
+    <nav
+      aria-label="Site navigation"
+      className="site-banner relative w-full border-b border-nomos-border/10 px-5 py-2.5"
+    >
       <div className="mx-auto flex max-w-lg items-center justify-between gap-2 text-[10px] text-nomos-muted/70 sm:gap-3">
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           {/* Network badge */}
@@ -72,6 +75,6 @@ export default function Banner() {
           <ThemeToggle />
         </div>
       </div>
-    </div>
+    </nav>
   )
 }
