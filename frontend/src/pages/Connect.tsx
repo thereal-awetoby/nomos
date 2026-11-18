@@ -171,14 +171,20 @@ export default function Connect() {
         </p>
         <div className="space-y-2 pt-2">
           <p className="label text-center">Explore without a wallet</p>
-          <div className="flex gap-2">
-            <Link to="/simulate" className="btn-ghost flex-1 py-2.5 text-center text-[10px]">
+          <div className="grid grid-cols-2 gap-2">
+            <Link to="/simulate" className="btn-ghost py-2.5 text-center text-[10px]">
               Try the simulator
             </Link>
-            <Link to="/identity" className="btn-ghost flex-1 py-2.5 text-center text-[10px]">
+            <Link to="/identity" className="btn-ghost py-2.5 text-center text-[10px]">
               Nostr lookup
             </Link>
+            <Link to="/architecture" className="btn-ghost py-2.5 text-center text-[10px]">
+              Architecture
+            </Link>
           </div>
+          <p className="pt-1 text-center text-[10px] text-nomos-muted/60">
+            Use the help button or press <kbd className="font-mono">?</kbd> for keyboard shortcuts.
+          </p>
         </div>
       </section>
     </div>

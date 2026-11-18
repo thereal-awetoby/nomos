@@ -34,16 +34,30 @@ configured BCH network. Vault balances can be refreshed manually and are
 refreshed periodically while connected; the top-up section includes the
 token-aware deposit address and QR. The theme control switches between dark
 and light modes; vault and WalletConnect QR codes adapt to the active theme.
-Activity shows paid/refused counts and total sent, and receipts can be
-downloaded as PNGs with clipboard text as a fallback. The Bridge route has
-Swap, Bridge In, and Bridge Out preview tabs, but all transaction actions are
-disabled. Mercar and Asgaya are external links only; no pool or cross-chain
-transaction can be submitted from the app.
+Activity shows paid/refused counts and total sent. Receipts can be downloaded
+as PNGs, copied as text, or shared with the native share sheet where the
+browser supports it. The Bridge route has Swap, Bridge In, and Bridge Out
+preview tabs, but all transaction actions are disabled. Mercar and Asgaya are
+external links only; no pool or cross-chain transaction can be submitted from
+the app.
 
-No wallet is needed to explore the `/simulate` page, which is a local-only
-illustration of limit and allowlist checks rather than a contract execution.
-The `/identity` page also works without a wallet, but contacts the entered
-NIP-05 domain when applicable and queries public Nostr relays.
+### No-wallet tools
+
+These pages work without connecting a wallet:
+
+- **`/simulate`** — Adjust a local daily limit, try illustrative payments, and
+  see accept/refuse results. It does not execute the covenant, validate BCH
+  addresses, or create transactions.
+- **`/identity`** — Look up a Nostr identity and its published BCH address.
+  The browser contacts the entered NIP-05 domain when applicable and public
+  relays; signatures are checked locally, but relays may withhold or serve
+  stale events.
+- **`/architecture`** — In-app overview of the application stack, contract
+  surfaces, security boundaries, repository coverage, and validation commands.
+  It distinguishes chipnet/mock evidence from mainnet deployment claims.
+
+Use the fixed help button or press `?` for keyboard shortcuts. Single-key
+shortcuts can be disabled in the palette.
 
 For static validation:
 

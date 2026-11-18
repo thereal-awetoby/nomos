@@ -39,6 +39,13 @@ export default function Banner() {
           >
             Identity
           </Link>
+          <Link
+            to="/architecture"
+            title="Architecture"
+            className="hidden transition-colors duration-200 hover:text-nomos-accent sm:inline"
+          >
+            Arch
+          </Link>
           <a
             href={WIDGET_FACTORY_URL}
             target="_blank"

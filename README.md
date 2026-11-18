@@ -203,13 +203,19 @@ node test/vault.test.mjs
 - A dark/light theme toggle is available. Vault and WalletConnect QR codes
   adapt to the active theme.
 - Activity shows paid/refused counts and total BCH sent; receipts can be
-  downloaded as PNG images with clipboard text as a fallback.
+  downloaded as PNG images, copied as text, or shared with the native share
+  sheet where the browser supports it.
 - The vault mandate card visualizes today’s effective spend against its daily
   limit, and successful payments show a brief confirmation animation.
 - The Identity page resolves Nostr names without a connected wallet, using
-  external NIP-05/relay services and verifying the address event signature.
-  The local Simulator illustrates only limit and allowlist rules; it does not
-  execute the contract or create transactions.
+  external NIP-05/relay services and verifying the address event signature;
+  relays may withhold or serve stale events. The local Simulator illustrates
+  limit and allowlist rules only; it does not execute the covenant, validate
+  BCH addresses, or create transactions. The in-app Architecture page explains
+  the system layers and evidence boundaries.
+- Use the fixed help button or press `?` for keyboard shortcuts. Single-key
+  shortcuts can be disabled in the palette and do not intercept keystrokes in
+  editable fields.
 - The Bridge route is a disabled preview with Swap, Bridge In, and Bridge Out
   tabs. Mercar and Asgaya are external links only; they are not integrated
   bridge providers. Do not send funds based on this preview.
