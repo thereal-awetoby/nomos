@@ -226,6 +226,10 @@ or awards:
 ## Documentation
 
 - [`docs/JUDGE_PATH.md`](docs/JUDGE_PATH.md) — local test and UI walkthrough.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — application components,
+  routes, contract surfaces, and current scope.
+- [`docs/SECURITY.md`](docs/SECURITY.md) — trust boundaries, prototype risks,
+  and verification gaps; not an audit.
 - [`docs/BRIDGE_DESIGN.md`](docs/BRIDGE_DESIGN.md) — StableSwap and HTLC
   scope, assumptions, and production gaps.
 - [`docs/MAINNET_PROOFS.md`](docs/MAINNET_PROOFS.md) — evidence still required

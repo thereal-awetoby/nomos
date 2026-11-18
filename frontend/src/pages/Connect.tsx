@@ -146,6 +146,30 @@ export default function Connect() {
           subtitle="Scan with your BCH wallet to connect"
         />
       )}
+
+      <section className="mt-12 w-full max-w-xs space-y-4 text-left" aria-labelledby="how-nomos-works">
+        <h2 id="how-nomos-works" className="label text-center">How Nomos works</h2>
+        <ol className="space-y-3">
+          {[
+            { step: '1', title: 'Connect a BCH wallet', desc: 'Pair with WizardConnect or WalletConnect.' },
+            { step: '2', title: 'Set your mandate', desc: 'Choose a daily limit, optional allowlist, and agent key.' },
+            { step: '3', title: 'Pay within the rules', desc: 'The BCH covenant checks spends; Activity keeps receipts.' },
+          ].map(({ step, title, desc }) => (
+            <li key={step} className="flex items-start gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-nomos-accent/15 text-sm font-bold text-nomos-accent">
+                {step}
+              </span>
+              <div>
+                <p className="text-xs font-medium text-nomos-text">{title}</p>
+                <p className="text-[10px] text-nomos-muted">{desc}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+        <p className="text-center text-[10px] text-nomos-muted/60">
+          The Bridge route is a preview; swap and cross-chain actions are disabled.
+        </p>
+      </section>
     </div>
   )
 }
