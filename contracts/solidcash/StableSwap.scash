@@ -1,0 +1,134 @@
+pragma solidcash ^0.51.0;
+
+// Minimal constant-product market-maker for BCH and one configured CashToken
+// category. This is an unaudited prototype: admin-only liquidity operations,
+// no transferable LP shares, no oracle, and no emergency pause.
+
+event Swapped(bytes20 indexed trader, int bchDelta, int pusdDelta);
+event LiquidityAdded(bytes20 indexed provider, int bchAmount, int pusdAmount);
+event LiquidityRemoved(bytes20 indexed to, int bchAmount, int pusdAmount);
+
+contract StableSwap(
+    bytes32 pusdCategory,
+    pubkey adminPk
+) {
+    int public reserveBch;
+    int public reservePusd;
+
+    // Keep every intermediate multiplication below the signed 64-bit VM limit.
+    int constant MAX_SAFE = 9000000000000000000;
+
+    // Swap BCH for PUSD. The pool keeps the 0.3% fee; callers supply a minimum
+    // output to bound slippage. PUSD is sent from the configured token container.
+    function swapBchToPusd(bytes20 trader, int minPusdOut) payable {
+        int bchIn = msg.value;
+        require(bchIn > 0, "Send BCH to swap");
+        require(minPusdOut >= 0, "Minimum output cannot be negative");
+        require(this.reserveBch > 0 && this.reservePusd > 0, "Pool is empty");
+        require(this.tokens[pusdCategory].tokenAmount == this.reservePusd, "PUSD reserve mismatch");
+        require(this.reserveBch <= MAX_SAFE / 1000, "BCH reserve too large");
+        require(this.reservePusd <= MAX_SAFE / 1000, "PUSD reserve too large");
+        require(bchIn <= MAX_SAFE / 997, "Swap amount too large");
+        require(bchIn <= MAX_SAFE - this.reserveBch, "BCH reserve overflow");
+
+        int bchInWithFee = bchIn * 997;
+        require(bchInWithFee <= MAX_SAFE / this.reservePusd, "Swap amount too large");
+        int numerator = bchInWithFee * this.reservePusd;
+        int reserveBchScaled = this.reserveBch * 1000;
+        require(bchInWithFee <= MAX_SAFE - reserveBchScaled, "Swap denominator overflow");
+        int denominator = reserveBchScaled + bchInWithFee;
+        int pusdOut = numerator / denominator;
+
+        require(pusdOut > 0, "Output too small");
+        require(pusdOut >= minPusdOut, "Slippage: PUSD output below minimum");
+        require(pusdOut < this.reservePusd, "Insufficient PUSD liquidity");
+
+        this.reserveBch = this.reserveBch + bchIn;
+        this.reservePusd = this.reservePusd - pusdOut;
+        this.tokens[pusdCategory].transfer(new LockingBytecodeP2PKH(trader), pusdOut);
+
+        emit Swapped(trader, bchIn, -pusdOut);
+    }
+
+    // Swap PUSD for BCH. The transaction must add the stated PUSD amount to
+    // this pool's CashToken container; the contract then pays BCH to `trader`.
+    function swapPusdToBch(bytes20 trader, int pusdIn, int minBchOut) {
+        require(pusdIn > 0, "Send PUSD to swap");
+        require(minBchOut >= 0, "Minimum output cannot be negative");
+        require(this.reserveBch > 0 && this.reservePusd > 0, "Pool is empty");
+        require(this.tokens[pusdCategory].tokenAmount == this.reservePusd, "PUSD reserve mismatch");
+        require(this.reservePusd <= MAX_SAFE / 1000, "PUSD reserve too large");
+        require(pusdIn <= MAX_SAFE / 997, "Swap amount too large");
+        require(pusdIn <= MAX_SAFE - this.reservePusd, "PUSD reserve overflow");
+
+        int pusdInWithFee = pusdIn * 997;
+        require(pusdInWithFee <= MAX_SAFE / this.reserveBch, "Swap amount too large");
+        int numerator = pusdInWithFee * this.reserveBch;
+        int reservePusdScaled = this.reservePusd * 1000;
+        require(pusdInWithFee <= MAX_SAFE - reservePusdScaled, "Swap denominator overflow");
+        int denominator = reservePusdScaled + pusdInWithFee;
+        int bchOut = numerator / denominator;
+
+        require(bchOut > 0, "Output too small");
+        require(bchOut >= minBchOut, "Slippage: BCH output below minimum");
+        require(bchOut < this.reserveBch, "Insufficient BCH liquidity");
+        require(this.outState.tokens[pusdCategory].tokenAmount == this.reservePusd + pusdIn, "PUSD input reserve mismatch");
+
+        this.reserveBch = this.reserveBch - bchOut;
+        this.reservePusd = this.reservePusd + pusdIn;
+        this.transfer(new LockingBytecodeP2PKH(trader), bchOut);
+
+        emit Swapped(trader, -bchOut, pusdIn);
+    }
+
+    // Bootstrap or rebalance liquidity. Only the configured admin may change
+    // reserves in this prototype; deposits must remain within 1% of the pool's
+    // current BCH:PUSD ratio. LP shares are not issued.
+    function addLiquidity(bytes20 provider, int pusdAmount, sig adminSig) payable {
+        require(checkSig(adminSig, adminPk), "Admin signature required");
+        require(msg.value > 0, "Send BCH");
+        require(pusdAmount > 0, "Send PUSD");
+        require(this.tokens[pusdCategory].tokenAmount == this.reservePusd, "PUSD reserve mismatch");
+        require(pusdAmount <= MAX_SAFE - this.reservePusd, "PUSD reserve overflow");
+        require(msg.value <= MAX_SAFE - this.reserveBch, "BCH reserve overflow");
+        require(this.outState.tokens[pusdCategory].tokenAmount == this.reservePusd + pusdAmount, "PUSD deposit mismatch");
+
+        if (this.reserveBch > 0) {
+            require(this.reservePusd > 0, "Pool reserves are inconsistent");
+            require(msg.value <= MAX_SAFE / this.reservePusd, "Deposit too large");
+            int expectedPusd = msg.value * this.reservePusd / this.reserveBch;
+            int diff = pusdAmount - expectedPusd;
+            if (diff < 0) { diff = -diff; }
+            require(diff <= expectedPusd / 100, "Deposit must be proportional to pool");
+        } else {
+            require(this.reservePusd == 0, "Pool reserves are inconsistent");
+        }
+
+        this.reserveBch = this.reserveBch + msg.value;
+        this.reservePusd = this.reservePusd + pusdAmount;
+        emit LiquidityAdded(provider, msg.value, pusdAmount);
+    }
+
+    // Admin-only exit. There is deliberately no public LP accounting yet, so
+    // this operation is restricted to the configured pool administrator.
+    function removeLiquidity(bytes20 to, int bchAmount, int pusdAmount, sig adminSig) {
+        require(checkSig(adminSig, adminPk), "Admin signature required");
+        require(bchAmount >= 0 && pusdAmount >= 0, "Removal amounts cannot be negative");
+        require(bchAmount > 0 || pusdAmount > 0, "Nothing to remove");
+        require(bchAmount <= this.reserveBch, "Not enough BCH in pool");
+        require(pusdAmount <= this.reservePusd, "Not enough PUSD in pool");
+        require(this.tokens[pusdCategory].tokenAmount == this.reservePusd, "PUSD reserve mismatch");
+
+        this.reserveBch = this.reserveBch - bchAmount;
+        this.reservePusd = this.reservePusd - pusdAmount;
+
+        if (bchAmount > 0) {
+            this.transfer(new LockingBytecodeP2PKH(to), bchAmount);
+        }
+        if (pusdAmount > 0) {
+            this.tokens[pusdCategory].transfer(new LockingBytecodeP2PKH(to), pusdAmount);
+        }
+
+        emit LiquidityRemoved(to, bchAmount, pusdAmount);
+    }
+}

@@ -2,9 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: dark;
+  --nomos-bg: 8 8 16;
+  --nomos-bg-deep: 5 5 8;
+  --nomos-surface: 15 15 26;
+  --nomos-surface-raised: 22 22 37;
+  --nomos-border: 255 255 255;
+  --nomos-border-bright: 255 255 255;
+  --nomos-accent: 0 229 153;
+  --nomos-refuse: 255 59 92;
+  --nomos-text: 232 232 240;
+  --nomos-muted: 92 92 114;
+  --nomos-muted-bright: 136 136 160;
+  --nomos-on-accent: 8 8 16;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --nomos-bg: 246 248 251;
+  --nomos-bg-deep: 235 240 246;
+  --nomos-surface: 255 255 255;
+  --nomos-surface-raised: 239 243 248;
+  --nomos-border: 30 42 56;
+  --nomos-border-bright: 22 34 48;
+  --nomos-accent: 0 128 89;
+  --nomos-refuse: 190 29 65;
+  --nomos-text: 23 31 42;
+  --nomos-muted: 91 104 119;
+  --nomos-muted-bright: 65 78 93;
+  --nomos-on-accent: 255 255 255;
+}
+
 @layer base {
   body {
-    @apply min-h-screen;
+    @apply min-h-screen bg-nomos-bg text-nomos-text;
   }
 
   /* Smoother font rendering */
@@ -44,7 +76,8 @@
   /* Primary pill button */
   .btn-primary {
     @apply rounded-pill bg-nomos-accent px-6 py-3 text-center font-semibold
-           text-nomos-bg shadow-glow-sm transition-all duration-200;
+           shadow-glow-sm transition-all duration-200;
+    color: rgb(var(--nomos-on-accent));
   }
   .btn-primary:hover {
     @apply brightness-110 shadow-glow;
@@ -146,5 +179,37 @@
   /* Pulse text (for "Loading…" / "Signing…" states) */
   .pulse-text {
     animation: pulseGlow 1.5s ease-in-out infinite;
+  }
+
+  :root[data-theme='light'] .card {
+    border-color: rgba(23,31,42,0.09);
+  }
+  :root[data-theme='light'] .card:hover {
+    border-color: rgba(23,31,42,0.14);
+  }
+  :root[data-theme='light'] .btn-ghost {
+    border-color: rgba(23,31,42,0.12);
+  }
+  :root[data-theme='light'] .btn-ghost:hover {
+    border-color: rgba(23,31,42,0.2);
+    background: rgba(23,31,42,0.06);
+  }
+  :root[data-theme='light'] .input {
+    border-color: rgba(23,31,42,0.12);
+  }
+  :root[data-theme='light'] .spinner {
+    border-color: rgba(23,31,42,0.15);
+  }
+  :root[data-theme='light'] .site-banner {
+    border-bottom-color: rgba(23,31,42,0.10) !important;
+  }
+  :root[data-theme='light'] .skeleton {
+    background: linear-gradient(
+      90deg,
+      rgba(216,224,234,0.55) 25%,
+      rgba(226,232,240,0.95) 50%,
+      rgba(216,224,234,0.55) 75%
+    );
+    background-size: 200% 100%;
   }
 }

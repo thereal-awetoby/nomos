@@ -20,11 +20,13 @@ for Bitcoin Cash). Same mandate as the CashScript covenant in
 ## Tests (mock network, real BCH VM)
 
 ```bash
-npm install
+npm ci
 npm test
 ```
 
-14 checks, including refusals that fail on the exact rule:
+The suite compiles both SolidCash contracts and runs the vault rules plus the
+StableSwap mock-network test. The vault test reports 14 checks, including
+refusals that fail on the exact rule:
 
 ```
 ✓ owner pays 3,000 (under limit)
@@ -35,6 +37,18 @@ npm test
 ✓ rescue 20,000 (over the limit) with both keys
 ✓ non-allowlisted payee refused — failing require in NomosVault:46 (Refused by Nomos: destination not allowlisted)
 ```
+
+## StableSwap prototype
+
+`StableSwap.scash` is an experimental BCH ↔ configured PUSD CashToken AMM with
+a 0.3% constant-product fee, minimum-output checks, and admin-only liquidity
+management. The mock test seeds test tokens, deploys the contract, exercises
+both swap directions, and verifies reserve transitions and slippage refusal.
+
+It has no LP-share accounting, oracle, audit, or claimed mainnet deployment.
+See [`docs/BRIDGE_DESIGN.md`](../../docs/BRIDGE_DESIGN.md) and
+[`docs/MAINNET_PROOFS.md`](../../docs/MAINNET_PROOFS.md) before treating it as
+anything other than a local prototype.
 
 ## Chipnet demo
 

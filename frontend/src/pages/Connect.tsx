@@ -35,7 +35,7 @@ export default function Connect() {
       QRCode.toCanvas(qrCanvasRef.current!, wc2Uri, {
         width: 220,
         margin: 2,
-        color: { dark: '#e8e8f0', light: '#00000000' },
+        color: { dark: '#111827', light: '#ffffff' },
       })
     }).catch(() => {
       // QR generation failure leaves the pairing URI available to copy.
