@@ -33,10 +33,12 @@ Connect a BCH wallet to explore the vault screens. The banner shows the
 configured BCH network. Vault balances can be refreshed manually and are
 refreshed periodically while connected; the top-up section includes the
 token-aware deposit address and QR. The theme control switches between dark
-and light modes, and Activity receipts can be downloaded as PNG images (with a
-clipboard-text fallback). The Bridge route has Swap, Bridge In, and Bridge Out
-preview tabs, but all transaction actions are disabled. Mercar and Asgaya are
-external links only; no pool or cross-chain transaction can be submitted from the app.
+and light modes; vault and WalletConnect QR codes adapt to the active theme.
+Activity shows paid/refused counts and total sent, and receipts can be
+downloaded as PNGs with clipboard text as a fallback. The Bridge route has
+Swap, Bridge In, and Bridge Out preview tabs, but all transaction actions are
+disabled. Mercar and Asgaya are external links only; no pool or cross-chain
+transaction can be submitted from the app.
 
 For static validation:
 

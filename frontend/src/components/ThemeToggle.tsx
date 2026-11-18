@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { THEME_CHANGE_EVENT } from '../lib/theme'
 
 type Theme = 'dark' | 'light'
 
@@ -12,6 +13,7 @@ export default function ThemeToggle() {
     try {
       window.localStorage.setItem('nomos-theme', theme)
     } catch { /* theme still applies when storage is unavailable */ }
+    window.dispatchEvent(new Event(THEME_CHANGE_EVENT))
   }, [theme])
 
   const nextTheme = theme === 'dark' ? 'light' : 'dark'

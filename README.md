@@ -68,7 +68,7 @@ the StableSwap and BCH-only HTLC prototypes on the mock network. A chipnet demo
 script is included. Details in
 [`contracts/solidcash/README.md`](contracts/solidcash/README.md).
 
-## StableSwap prototype
+## StableSwap — BCH ↔ PUSD AMM
 
 `contracts/solidcash/StableSwap.scash` is an experimental BCH ↔ one configured
 CashToken-category pool using a constant-product quote and a proposed 0.3% fee.
@@ -176,6 +176,7 @@ node test/vault.test.mjs
 | Layer | Choice |
 |-------|--------|
 | Contract | CashScript 0.11 covenant + CashTokens NFT state |
+| SolidCash | Vault, StableSwap, and BCH-side HTLC prototypes (mock tests) |
 | Frontend | Vite + React + TypeScript, Tailwind |
 | Wallets | WizardConnect, WalletConnect v2 (XO) |
 | Network | BCH mainnet (chipnet for tests) |
@@ -193,14 +194,16 @@ node test/vault.test.mjs
 
 ## UX and features
 
-- The banner identifies the configured BCH network; vault balances can be
-  refreshed manually and are refreshed periodically while connected.
+- The banner identifies the configured BCH network. The vault-creation form
+  shows the wallet balance and reports an estimated funding shortfall; vault
+  balances can also be refreshed manually and every 30 seconds while connected.
 - The vault screen provides copyable addresses and a token-aware top-up
   address/QR code, plus a low-balance notice. Use the token-aware address when
   funding the vault so the NFT is preserved.
-- A dark/light theme toggle is available. Activity receipts can be downloaded
-  as PNG images; if image export is unavailable, the app offers to copy the
-  receipt details to the clipboard.
+- A dark/light theme toggle is available. Vault and WalletConnect QR codes
+  adapt to the active theme.
+- Activity shows paid/refused counts and total BCH sent; receipts can be
+  downloaded as PNG images with clipboard text as a fallback.
 - The Bridge route is a disabled preview with Swap, Bridge In, and Bridge Out
   tabs. Mercar and Asgaya are external links only; they are not integrated
   bridge providers. Do not send funds based on this preview.
@@ -213,9 +216,11 @@ or awards:
 | Area | Repository coverage | Status boundary |
 |------|---------------------|-----------------|
 | BCH BLAZE 2026 | Nomos BCH spend-mandate project and linked chipnet proof | No prize or audit claim |
-| XO | `xo/nomos.template.json` plus offline parser/compiler checks | Not yet run in XO's live engine |
+| Build with XO / Migrate to XO | `xo/nomos.template.json` plus offline parser/compiler checks | Not yet run in XO's live engine |
 | SolidCash | Vault, StableSwap, and BCH HTLC contracts with mock-network tests | Prototypes only; no StableSwap/HTLC deployment |
+| Stablecoin Bridge ($750 PUSD) | StableSwap and BCH-side HTLC prototypes plus preview UI | No mainnet pool or cross-chain integration |
 | Nostr identity | Payee resolution and name labels in the app | No server-side custody or payment processing |
+| Community Choice | EMBER2026 vote address listed in the README and banner | No vote result claimed |
 | Mercar / Asgaya | External links in the interface | No transaction or bridge integration |
 
 ## Documentation
@@ -244,7 +249,7 @@ nomos/
 ├── frontend/src/
 │   ├── pages/                   # Connect, Vault, Pay, Activity, Bridge, …
 │   ├── components/              # layout, banner, theme, receipts
-│   └── lib/                     # wallet, covenant, Nostr, and app types
+│   └── lib/                     # wallet, covenant, Nostr, theme, and app types
 ├── docs/                        # judge path, bridge design, proof checklist
 ├── xo/                          # XO template + offline checks
 └── README.md
@@ -254,6 +259,7 @@ nomos/
 
 - Live demo: https://nomos.asgaya.org/
 - Widget Factory deck: TBD
+- External BCH ecosystem links: [Mercar](https://www.mercar.app/) · [Asgaya](https://asgaya.org/)
 - EMBER2026 votes (CashTokens address): `bitcoincash:zqz0cjlclvk6909mctktqsk77d7z6gev0cqejwlp4h`
 
 ## License
