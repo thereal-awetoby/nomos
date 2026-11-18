@@ -127,6 +127,21 @@ test('StableSwap enforces reserves, slippage and the 0.3% swap fee', async () =>
   assert.equal(await pool.state.reserveBch(), finalBchReserve)
   assert.equal(await pool.state.reservePusd(), finalPusdReserve)
 
+  const withdrawnBch = 10_000n
+  const withdrawnPusd = 1_000_000n
+  const withdrawal = await pool.call
+    .removeLiquidity(pkh(admin), withdrawnBch, withdrawnPusd, sig(admin))
+    .transfer(admin.getLockingBytecode(), withdrawnBch)
+    .tokenContainerTransfer(pusdCategory, admin.getLockingBytecode(), withdrawnPusd)
+    .send()
+  assert.ok(withdrawal.txid)
+  assert.equal(await pool.state.reserveBch(), finalBchReserve - withdrawnBch)
+  assert.equal(await pool.state.reservePusd(), finalPusdReserve - withdrawnPusd)
+  const adminPusdAfterWithdrawal = (await provider.getUtxos(admin.address))
+    .filter((utxo) => utxo.token?.category === pusdCategory)
+    .reduce((total, utxo) => total + (utxo.token?.amount ?? 0n), 0n)
+  assert.equal(adminPusdAfterWithdrawal, withdrawnPusd)
+
   // Exact quote sanity check for fee retention / invariant behavior.
   const oldK = INITIAL_BCH * INITIAL_PUSD
   const newK = (INITIAL_BCH + BCH_IN) * (INITIAL_PUSD - expectedPusdOut)

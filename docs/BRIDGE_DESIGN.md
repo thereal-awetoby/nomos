@@ -26,17 +26,32 @@ wrapped asset on another chain.
 - Arithmetic is bounded to keep the constant-product intermediate values in
   the signed 64-bit integer range used by the target VM.
 
+## BCH-side HTLC prototype
+
+[`contracts/solidcash/HashedTimeLock.scash`](../contracts/solidcash/HashedTimeLock.scash)
+is a separate BCH-only primitive. A sender locks BCH against a SHA-256 hash
+and timestamp; the receiver claims before the deadline by revealing the
+preimage, while the sender can refund at or after the deadline. It tracks the
+BCH explicitly locked through its `lock` method and does not hold PUSD.
+
+This does not verify an event on another chain and is not a bridge. A
+cross-chain flow would require a separately implemented and reviewed
+counterpart on the other chain, matching hash semantics, safely ordered
+refund deadlines, monitoring, and a recovery procedure. No counterpart,
+deployment, or end-to-end integration is configured in this repository.
+
 ## Not production-ready
 
-`StableSwap.scash` is an experimental mock-network implementation. It has not
-been audited or deployed and is not claimed safe for production. Before
-deployment, the project must identify and verify the intended PUSD category,
-review decimal and supply metadata, independently audit the covenant and
-transaction-building path, add
-LP ownership/redemption accounting (or clearly limit a custodial pilot), test
-adversarial token deposits and fee/dust behavior, and publish a deployment
-manifest. The UI intentionally disables swap inputs until those steps are
-complete. Do not send funds based on this prototype.
+`StableSwap.scash` and `HashedTimeLock.scash` are experimental
+mock-network implementations. Neither has been independently audited or
+claimed as deployed. Before any pool deployment, the project must identify and
+verify the intended PUSD category, review decimal and supply metadata, audit
+the covenant and transaction-building path, add LP ownership/redemption
+accounting (or clearly limit a custodial pilot), test adversarial token
+and fee/dust behavior, and publish a deployment manifest. Before a bridge,
+the other-chain contract, timeout ordering, monitoring, and end-to-end recovery
+must also be reviewed and proven. The UI intentionally disables swap and
+bridge actions. Do not send funds based on these prototypes.
 
 ## Test
 
@@ -47,8 +62,10 @@ npm ci
 npm test
 ```
 
-`swap.test.mjs` compiles the contract, seeds test CashToken UTXOs, deploys to a
-mock network, initializes reserves, executes both swap directions, checks
-reserve transitions, exercises slippage rejection, and checks the fee/invariant
-math. It uses no live network or funds. A passing mock test is not a security
-audit or a mainnet deployment proof.
+`swap.test.mjs` seeds test CashToken UTXOs, deploys to a mock network,
+initializes reserves, exercises both swap directions, verifies reserve
+transitions and slippage rejection, checks fee/invariant math, and tests
+admin-only liquidity withdrawal. `htlc.test.mjs` runs claim/refund cases and
+checks signer, preimage, and deadline refusals. Both execute compiled covenants
+in the BCH VM without live network access or funds. Passing mock tests are not
+a security audit, mainnet deployment proof, or cross-chain integration proof.

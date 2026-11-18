@@ -31,7 +31,21 @@ export default function ReceiptCard({ receipt }: { receipt: ReceiptType }) {
       link.click()
       link.remove()
     } catch {
-      setExportError('Could not create the image. Please try again.')
+      const receiptText = [
+        `NOMOS RECEIPT — ${isPaid ? 'PAID' : 'REFUSED'}`,
+        `Date: ${dateStr} ${timeStr}`,
+        `Amount: ${(receipt.amount / 1e8).toFixed(8)} BCH`,
+        `To: ${receipt.destinationLabel ? `${receipt.destinationLabel} ` : ''}${receipt.destination}`,
+        receipt.reason ? `Reason: ${receipt.reason}` : '',
+        receipt.txHash ? `TX: ${EXPLORER_TX_URL}${receipt.txHash}` : '',
+      ].filter(Boolean).join('\n')
+
+      try {
+        await navigator.clipboard.writeText(receiptText)
+        setExportError('Image unavailable; receipt details copied to clipboard.')
+      } catch {
+        setExportError('Could not create the image or copy receipt details.')
+      }
     } finally {
       setIsExporting(false)
     }

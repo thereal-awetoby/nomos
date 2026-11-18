@@ -5,8 +5,8 @@
   "description": "Nomos spend-mandate vault written in SolidCash (Solidity syntax for Bitcoin Cash)",
   "engines": { "node": ">=22" },
   "scripts": {
-    "build": "solidc NomosVault.scash -o build/NomosVault.json && solidc StableSwap.scash -o build/StableSwap.json",
-    "test": "npm run build && node vault.test.mjs && node swap.test.mjs",
+    "build": "solidc NomosVault.scash -o build/NomosVault.json && solidc StableSwap.scash -o build/StableSwap.json && solidc HashedTimeLock.scash -o build/HashedTimeLock.json",
+    "test": "npm run build && node vault.test.mjs && node swap.test.mjs && node htlc.test.mjs",
     "demo:chipnet": "npm run build && node chipnet-demo.mjs"
   },
   "dependencies": {

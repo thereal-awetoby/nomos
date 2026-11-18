@@ -106,8 +106,7 @@ export default function VaultHome() {
   }
 
   const remaining = remainingToday(vault.mandate)
-  const lowBalanceThreshold = Math.max(vault.mandate.dailyLimitSats, 100_000)
-  const isLowBalance = vault.balanceSats < lowBalanceThreshold
+  const isLowBalance = vault.balanceSats < 10_000
 
   const copyAddress = async () => {
     try {
@@ -184,12 +183,12 @@ export default function VaultHome() {
 
       {isLowBalance && (
         <div className="card border-amber-400/15 p-4">
-          <p className="text-sm font-semibold text-nomos-text">Vault balance is low</p>
+          <p className="text-sm font-semibold text-nomos-text">⚡ Low balance — Get BCH / Get PUSD</p>
           <p className="mt-1 text-xs leading-relaxed text-nomos-muted">
-            The balance is below the target of one daily allowance (with a 0.001 BCH minimum). The BCH ↔ PUSD bridge is only a preview and cannot be used to fund this vault yet.
+            Your vault has less than 10,000 sats. Swap and bridge options are previews and cannot fund this vault yet.
           </p>
           <Link to="/bridge" className="mt-3 inline-block text-xs font-medium text-nomos-accent hover:underline">
-            Check bridge status →
+            View swap/bridge preview →
           </Link>
         </div>
       )}
