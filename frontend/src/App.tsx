@@ -8,6 +8,8 @@ import Pay from './pages/Pay'
 import Activity from './pages/Activity'
 import Rescue from './pages/Rescue'
 import Bridge from './pages/Bridge'
+import Identity from './pages/Identity'
+import Simulate from './pages/Simulate'
 
 export default function App() {
   return (
@@ -21,6 +23,8 @@ export default function App() {
           <Route path="/rescue" element={<Rescue />} />
           <Route path="/activity" element={<Activity />} />
           <Route path="/bridge" element={<Bridge />} />
+          <Route path="/identity" element={<Identity />} />
+          <Route path="/simulate" element={<Simulate />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

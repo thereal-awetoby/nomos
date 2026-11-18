@@ -14,6 +14,7 @@ disabled.
 ┌──────────────────────── Browser ───────────────────────────┐
 │ React Router pages                                         │
 │ Connect · Vault · Mandate · Pay · Activity · Rescue · Bridge│
+│ Identity · Simulate                                       │
 │                           │                                │
 │                     WalletContext                          │
 │              wallet · vault config · receipts               │
@@ -39,8 +40,9 @@ The application has no server that holds or signs user funds. Wallet
 signatures are requested from the connected wallet. Network selection is
 controlled by `VITE_BCH_NETWORK` (`mainnet` or `chipnet`). The `contract.ts`
 module uses CashScript's `ElectrumNetworkProvider` to read UTXOs and build or
-broadcast transactions. Nostr lookups are client-side; event signatures are
-verified before a published BCH address is used.
+broadcast transactions. Nostr lookups run client-side but contact external
+NIP-05 domains and public relays; event signatures are verified before an
+address is used. The Simulator is local-only and does not execute a covenant.
 
 ## Frontend routes and modules
 
@@ -53,6 +55,8 @@ verified before a published BCH address is used.
 | `/activity` | `Activity` | Show locally saved receipts and summary counts. |
 | `/rescue` | `Rescue` | Present the owner/co-signer emergency path. The current in-app signing flow has limitations for separate keys; see the root README. |
 | `/bridge` | `Bridge` | Disabled Swap / Bridge In / Bridge Out preview. |
+| `/identity` | `Identity` | Resolve a Nostr identity through external NIP-05/relay services and verify the signed BCH-address event. |
+| `/simulate` | `Simulate` | Local illustration of daily-limit and exact-text allowlist rules; no wallet, contract execution, or transaction. |
 
 `WalletContext` coordinates the wallet session, vault configuration, receipts,
 and periodic vault refresh. The `wallet.ts` module adapts wallet providers;
