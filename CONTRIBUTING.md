@@ -128,6 +128,4 @@ Be respectful and constructive. Help keep the project safe and welcoming.
 
 ## License
 
-The root README declares MIT, but this repository currently has no separate
-`LICENSE` file. Please confirm licensing with the maintainers before
-redistributing if you need the formal license text.
+This project is licensed under the MIT License; see [`LICENSE`](LICENSE).
