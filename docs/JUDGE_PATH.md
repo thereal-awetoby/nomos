@@ -13,10 +13,13 @@ npm ci
 npm test
 ```
 
-The SolidCash suite runs `NomosVault` covenant checks and the StableSwap
-mock-network test. The latter seeds a PUSD-like CashToken category, deploys the
-pool, adds initial liquidity, swaps BCH → PUSD and PUSD → BCH, verifies reserve
-updates, and confirms a too-optimistic minimum output is refused.
+The SolidCash suite compiles `NomosVault`, `StableSwap`, and
+`HashedTimeLock`, then runs 14 vault checks plus one StableSwap and one HTLC
+mock-network test. The pool test seeds a synthetic CashToken category,
+initializes reserves, swaps in both directions, checks reserve/fee behavior,
+rejects slippage, and exercises admin-only withdrawal. The HTLC test checks
+claim and refund with wrong preimage/signer and deadline cases. These run in
+the BCH VM through a mock provider; they do not use live BCH or PUSD.
 
 ## 2. Run the wallet UI
 
@@ -27,10 +30,13 @@ npm run dev
 ```
 
 Connect a BCH wallet to explore the vault screens. The banner shows the
-configured BCH network. The theme control switches between dark and light
-modes, and Activity receipts can be downloaded as PNG images. The Bridge route,
-reached from the banner or a low balance prompt, is intentionally a
-non-interactive placeholder: no swap transaction can be submitted from it.
+configured BCH network. Vault balances can be refreshed manually and are
+refreshed periodically while connected; the top-up section includes the
+token-aware deposit address and QR. The theme control switches between dark
+and light modes, and Activity receipts can be downloaded as PNG images (with a
+clipboard-text fallback). The Bridge route has Swap, Bridge In, and Bridge Out
+preview tabs, but all transaction actions are disabled. Mercar and Asgaya are
+external links only; no pool or cross-chain transaction can be submitted from the app.
 
 For static validation:
 
@@ -43,8 +49,10 @@ npm run build
 - `contracts/NomosVault.cash` and `contracts/solidcash/NomosVault.scash`:
   spend-mandate rules and covenant tests.
 - `contracts/solidcash/StableSwap.scash` and
-  `contracts/solidcash/swap.test.mjs`: experimental BCH/PUSD pool and
+  `contracts/solidcash/swap.test.mjs`: experimental BCH/token pool and
   mock-network coverage.
+- `contracts/solidcash/HashedTimeLock.scash` and
+  `contracts/solidcash/htlc.test.mjs`: BCH-only HTLC prototype; not a bridge.
 - `docs/BRIDGE_DESIGN.md`: bridge/swap scope, assumptions, and safety gaps.
 - `docs/MAINNET_PROOFS.md`: mainnet evidence checklist. Empty proof fields mean
   deployment has not been demonstrated here.

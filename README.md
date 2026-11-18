@@ -61,11 +61,40 @@ Vault genesis (state NFT minted into the covenant):
 `contracts/solidcash/` has the same vault written in
 [SolidCash](https://solidcash.org), Solidity syntax for Bitcoin Cash. There,
 `spentToday` is a plain state variable and the compiler generates the NFT
-covenant; BCH sits in a satoshi container. 14 tests on SolidCash's mock
-network (real BCH VM) cover paid, refused by limit, refused stranger,
-allowlist, day reset, deposit and rescue, each refusal failing on its exact
-`require`. A chipnet demo script is included. Details in
+covenant; BCH sits in a satoshi container. Fourteen mock-network checks (real
+BCH VM) cover vault payments, refusals, allowlist, day reset, deposit, and
+rescue, with refusals failing at their exact `require`. The suite also tests
+the StableSwap and BCH-only HTLC prototypes on the mock network. A chipnet demo
+script is included. Details in
 [`contracts/solidcash/README.md`](contracts/solidcash/README.md).
+
+## StableSwap prototype
+
+`contracts/solidcash/StableSwap.scash` is an experimental BCH ↔ one configured
+CashToken-category pool using a constant-product quote and a proposed 0.3% fee.
+The implementation bounds arithmetic, checks the pool's token-container
+reserves and incoming token amounts, enforces caller-supplied minimum outputs,
+and restricts liquidity changes to its configured administrator. It has no LP
+shares, so it is not a permissionless or production-ready market. The intended
+PUSD category and its metadata have not been verified or configured here.
+
+The mock-network test uses seeded test tokens in the BCH VM to cover both swap
+directions, reserve and fee behavior, slippage rejection, and admin-only
+liquidity withdrawal. It does not use live BCH or PUSD. The pool has not been
+audited or deployed; the UI keeps all swap actions disabled. See
+[`docs/BRIDGE_DESIGN.md`](docs/BRIDGE_DESIGN.md) and
+[`docs/MAINNET_PROOFS.md`](docs/MAINNET_PROOFS.md).
+
+## BCH hash-time-lock prototype
+
+`contracts/solidcash/HashedTimeLock.scash` is a BCH-only HTLC primitive: the
+receiver can claim locked BCH before a timestamp deadline by revealing a
+SHA-256 preimage, and the sender can refund at or after the deadline. The mock test
+covers claim, refund, wrong preimage/signer, and deadline cases. This contract
+is a local prototype, not a deployed bridge; it does not hold PUSD or verify an
+other-chain transaction. A real cross-chain flow would also need an independently
+reviewed, deployed contract on the other chain, matching hash and timeout
+parameters, and operational monitoring. No such integration is present.
 
 ## XO template
 
@@ -162,20 +191,62 @@ node test/vault.test.mjs
 - The in-app pay path hasn't yet been run end-to-end with a live wallet; the
   covenant itself is verified by the chipnet tests above.
 
+## UX and features
+
+- The banner identifies the configured BCH network; vault balances can be
+  refreshed manually and are refreshed periodically while connected.
+- The vault screen provides copyable addresses and a token-aware top-up
+  address/QR code, plus a low-balance notice. Use the token-aware address when
+  funding the vault so the NFT is preserved.
+- A dark/light theme toggle is available. Activity receipts can be downloaded
+  as PNG images; if image export is unavailable, the app offers to copy the
+  receipt details to the clipboard.
+- The Bridge route is a disabled preview with Swap, Bridge In, and Bridge Out
+  tabs. Mercar and Asgaya are external links only; they are not integrated
+  bridge providers. Do not send funds based on this preview.
+
+## Bounty and ecosystem coverage
+
+This table describes code in the repository, not bounty eligibility, judging,
+or awards:
+
+| Area | Repository coverage | Status boundary |
+|------|---------------------|-----------------|
+| BCH BLAZE 2026 | Nomos BCH spend-mandate project and linked chipnet proof | No prize or audit claim |
+| XO | `xo/nomos.template.json` plus offline parser/compiler checks | Not yet run in XO's live engine |
+| SolidCash | Vault, StableSwap, and BCH HTLC contracts with mock-network tests | Prototypes only; no StableSwap/HTLC deployment |
+| Nostr identity | Payee resolution and name labels in the app | No server-side custody or payment processing |
+| Mercar / Asgaya | External links in the interface | No transaction or bridge integration |
+
+## Documentation
+
+- [`docs/JUDGE_PATH.md`](docs/JUDGE_PATH.md) — local test and UI walkthrough.
+- [`docs/BRIDGE_DESIGN.md`](docs/BRIDGE_DESIGN.md) — StableSwap and HTLC
+  scope, assumptions, and production gaps.
+- [`docs/MAINNET_PROOFS.md`](docs/MAINNET_PROOFS.md) — evidence still required
+  before any mainnet pool or bridge claim.
+- [`contracts/solidcash/README.md`](contracts/solidcash/README.md) — SolidCash
+  contracts, mock tests, and chipnet demo.
+- [`xo/README.md`](xo/README.md) — XO template structure and offline checks.
+
 ## Project structure
 
 ```
 nomos/
 ├── contracts/
-│   ├── NomosVault.cash      # the covenant
-│   ├── solidcash/           # same vault in SolidCash (Solidity syntax)
-│   └── test/                # chipnet mint + paid/refused tests
-├── frontend/
-│   └── src/
-│       ├── pages/           # Connect, VaultHome, SetMandate, Pay, Activity, Rescue
-│       ├── components/      # Banner, Layout, Receipt
-│       └── lib/             # contract, wallet, nostr, types
-├── xo/                      # XO template + offline checks
+│   ├── NomosVault.cash          # CashScript spend-mandate covenant
+│   ├── solidcash/
+│   │   ├── NomosVault.scash     # SolidCash vault edition
+│   │   ├── StableSwap.scash     # unaudited BCH/token pool prototype
+│   │   ├── HashedTimeLock.scash # BCH-only HTLC prototype
+│   │   └── *.test.mjs           # mock-network contract tests
+│   └── test/                    # chipnet mint + paid/refused tests
+├── frontend/src/
+│   ├── pages/                   # Connect, Vault, Pay, Activity, Bridge, …
+│   ├── components/              # layout, banner, theme, receipts
+│   └── lib/                     # wallet, covenant, Nostr, and app types
+├── docs/                        # judge path, bridge design, proof checklist
+├── xo/                          # XO template + offline checks
 └── README.md
 ```
 

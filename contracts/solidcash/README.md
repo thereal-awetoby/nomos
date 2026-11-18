@@ -24,9 +24,9 @@ npm ci
 npm test
 ```
 
-The suite compiles both SolidCash contracts and runs the vault rules plus the
-StableSwap mock-network test. The vault test reports 14 checks, including
-refusals that fail on the exact rule:
+The suite compiles the vault, StableSwap, and BCH HTLC contracts, then runs
+the vault rules plus one StableSwap and one HTLC mock-network test. The vault
+test reports 14 checks, including refusals that fail on the exact rule:
 
 ```
 ✓ owner pays 3,000 (under limit)
@@ -40,15 +40,29 @@ refusals that fail on the exact rule:
 
 ## StableSwap prototype
 
-`StableSwap.scash` is an experimental BCH ↔ configured PUSD CashToken AMM with
-a 0.3% constant-product fee, minimum-output checks, and admin-only liquidity
-management. The mock test seeds test tokens, deploys the contract, exercises
-both swap directions, and verifies reserve transitions and slippage refusal.
+`StableSwap.scash` is an experimental BCH ↔ one configured CashToken category
+AMM with a 0.3% constant-product fee, bounded arithmetic, token-container
+checks, minimum-output checks, and admin-only liquidity management. The mock
+test seeds test tokens, exercises both swap directions, checks reserves and
+slippage, and verifies that only the admin can withdraw liquidity. The intended
+PUSD category and metadata are not verified or configured in this repository.
 
-It has no LP-share accounting, oracle, audit, or claimed mainnet deployment.
+It has no LP-share accounting or oracle, and has not been audited or deployed.
 See [`docs/BRIDGE_DESIGN.md`](../../docs/BRIDGE_DESIGN.md) and
 [`docs/MAINNET_PROOFS.md`](../../docs/MAINNET_PROOFS.md) before treating it as
 anything other than a local prototype.
+
+## BCH hash-time-lock prototype
+
+`HashedTimeLock.scash` locks BCH against a SHA-256 hash and a timestamp
+deadline. Deploy a fresh instance per swap. The receiver can claim before the
+deadline by revealing the preimage; the sender can refund at or after the
+deadline. The test exercises
+claim and refund paths, wrong preimage/signer refusals, and both sides of the
+claim/refund deadline. It runs only on the mock network; it is not an EVM
+contract, an other-chain contract, or a deployed cross-chain bridge. A genuine
+cross-chain swap needs a separately reviewed contract on the other chain and
+carefully ordered timeouts.
 
 ## Chipnet demo
 
@@ -61,8 +75,8 @@ refused by the daily limit.
 
 ## Notes
 
-- Built and tested with SolidCash **0.51.1** (beta). Compiled size: 2,517 bytes,
-  well under the 10,000-byte input limit.
+- Built and tested with SolidCash **0.51.1** (beta). The NomosVault compiled
+  size is 2,517 bytes, well under the 10,000-byte input limit.
 - In SolidCash 0.51, a call that reads `tx.locktime` and sends BCH can't
   auto-derive its payment output, so callers pass it with `.transfer(lock,
   amount)`. That's a supported SDK override; the covenant still checks the

@@ -34,7 +34,7 @@ export default function Banner() {
             href={WIDGET_FACTORY_URL}
             target="_blank"
             rel="noreferrer"
-            className="hover:text-nomos-accent transition-colors duration-200"
+            className="hidden hover:text-nomos-accent transition-colors duration-200 sm:inline"
           >
             Widget Factory
           </a>
@@ -42,13 +42,31 @@ export default function Banner() {
             href={GITHUB_URL}
             target="_blank"
             rel="noreferrer"
-            className="hover:text-nomos-accent transition-colors duration-200"
+            className="hidden hover:text-nomos-accent transition-colors duration-200 sm:inline"
           >
             GitHub
           </a>
+          <a
+            href="https://www.mercar.app/"
+            target="_blank"
+            rel="noreferrer"
+            title="Mercar"
+            className="hover:text-nomos-accent transition-colors duration-200"
+          >
+            Mercar
+          </a>
+          <a
+            href="https://asgaya.org/"
+            target="_blank"
+            rel="noreferrer"
+            title="Asgaya"
+            className="hover:text-nomos-accent transition-colors duration-200"
+          >
+            Asgaya
+          </a>
         </div>
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          <span className="hidden max-w-[140px] truncate font-mono opacity-40 sm:block">
+          <span className="hidden max-w-[100px] truncate font-mono opacity-40 lg:block">
             {EMBER_ADDRESS}
           </span>
           <ThemeToggle />

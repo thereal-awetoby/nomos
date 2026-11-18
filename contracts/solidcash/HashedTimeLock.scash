@@ -1,0 +1,75 @@
+pragma solidcash ^0.51.0;
+
+// BCH-side Hash Time-Locked Contract (HTLC) primitive.
+//
+// This contract locks native BCH only. A cross-chain swap also requires a
+// separately deployed contract on the other chain that uses the same hash and
+// a shorter timeout; this file alone is not a bridge and does not hold PUSD.
+// Deploy a fresh instance per swap.
+
+event Locked(bytes20 indexed sender, bytes20 indexed receiver, int amount, bytes32 hashLock, int timelock);
+event Claimed(bytes20 indexed receiver, bytes32 preimage);
+event Refunded(bytes20 indexed sender);
+
+contract HashedTimeLock(
+    bytes20 sender,
+    bytes20 receiver,
+    bytes32 hashLock,
+    int timelock
+) {
+    int constant MAX_SAFE = 9000000000000000000;
+
+    int public lockedSats;
+    bool public claimed;
+    bool public refunded;
+
+    // Sender funds this swap before its deadline. Keeping the locked amount in
+    // state prevents unrelated satoshi-container dust from being paid out.
+    function lock(sig senderSig, pubkey senderPk) payable {
+        require(!this.claimed && !this.refunded, "Already settled");
+        require(sender != receiver, "Sender and receiver must differ");
+        require(hash160(senderPk) == sender, "Not the sender");
+        require(checkSig(senderSig, senderPk));
+        require(msg.value > 0, "Send BCH to lock");
+        require(timelock >= 500000000, "Timelock must be a timestamp");
+        require(tx.locktime >= 500000000 && tx.locktime < timelock, "Lock must precede timelock");
+        require(msg.value <= MAX_SAFE - this.lockedSats, "Locked amount overflow");
+
+        this.lockedSats = this.lockedSats + msg.value;
+        emit Locked(sender, receiver, msg.value, hashLock, timelock);
+    }
+
+    // Receiver claims before the deadline by revealing the SHA-256 preimage.
+    function claim(bytes32 preimage, sig receiverSig, pubkey receiverPk) {
+        require(!this.claimed && !this.refunded, "Already settled");
+        require(this.lockedSats > 0, "Nothing is locked");
+        require(hash160(receiverPk) == receiver, "Not the receiver");
+        require(checkSig(receiverSig, receiverPk));
+        require(sha256(preimage) == hashLock, "Wrong preimage");
+        require(timelock >= 500000000, "Timelock must be a timestamp");
+        require(tx.locktime >= 500000000 && tx.locktime < timelock, "Claim window expired");
+
+        int amount = this.lockedSats;
+        this.lockedSats = 0;
+        this.claimed = true;
+        this.transfer(new LockingBytecodeP2PKH(receiver), amount);
+        emit Claimed(receiver, preimage);
+    }
+
+    // Sender can reclaim the locked BCH at or after the timestamp deadline.
+    function refund(sig senderSig, pubkey senderPk) {
+        require(!this.claimed && !this.refunded, "Already settled");
+        require(this.lockedSats > 0, "Nothing is locked");
+        require(hash160(senderPk) == sender, "Not the sender");
+        require(checkSig(senderSig, senderPk));
+        require(timelock >= 500000000, "Timelock must be a timestamp");
+        require(tx.locktime >= 500000000, "Locktime must be a timestamp");
+        require(tx.locktime >= timelock, "Too early — timelock not expired");
+
+        int amount = this.lockedSats;
+        this.lockedSats = 0;
+        this.refunded = true;
+        this.transfer(new LockingBytecodeP2PKH(sender), amount);
+        emit Refunded(sender);
+    }
+}
