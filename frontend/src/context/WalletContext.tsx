@@ -231,9 +231,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setVault(prev => (prev ? { ...prev, mandate: m } : prev))
   }, [])
 
+  // Initial load
   useEffect(() => {
     if (wallet && vaultConfig) refreshVault()
   }, [wallet, vaultConfig, refreshVault])
+
+  // Auto-refresh vault balance every 30s when connected and deployed
+  useEffect(() => {
+    if (!wallet?.connected || !vaultConfig) return
+    const id = setInterval(() => {
+      refreshVault().catch(() => { /* silent — UI shows last good state */ })
+    }, 30_000)
+    return () => clearInterval(id)
+  }, [wallet?.connected, vaultConfig, refreshVault])
 
   return (
     <WalletContext.Provider
