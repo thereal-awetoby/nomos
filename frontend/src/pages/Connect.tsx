@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useWallet } from '../context/WalletContext'
 import { WizardConnectQRDialog } from '@wizardconnect/react'
@@ -169,6 +169,17 @@ export default function Connect() {
         <p className="text-center text-[10px] text-nomos-muted/60">
           The Bridge route is a preview; swap and cross-chain actions are disabled.
         </p>
+        <div className="space-y-2 pt-2">
+          <p className="label text-center">Explore without a wallet</p>
+          <div className="flex gap-2">
+            <Link to="/simulate" className="btn-ghost flex-1 py-2.5 text-center text-[10px]">
+              Try the simulator
+            </Link>
+            <Link to="/identity" className="btn-ghost flex-1 py-2.5 text-center text-[10px]">
+              Nostr lookup
+            </Link>
+          </div>
+        </div>
       </section>
     </div>
   )

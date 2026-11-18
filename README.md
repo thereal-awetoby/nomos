@@ -206,6 +206,10 @@ node test/vault.test.mjs
   downloaded as PNG images with clipboard text as a fallback.
 - The vault mandate card visualizes today’s effective spend against its daily
   limit, and successful payments show a brief confirmation animation.
+- The Identity page resolves Nostr names without a connected wallet, using
+  external NIP-05/relay services and verifying the address event signature.
+  The local Simulator illustrates only limit and allowlist rules; it does not
+  execute the contract or create transactions.
 - The Bridge route is a disabled preview with Swap, Bridge In, and Bridge Out
   tabs. Mercar and Asgaya are external links only; they are not integrated
   bridge providers. Do not send funds based on this preview.
@@ -221,7 +225,7 @@ or awards:
 | Build with XO / Migrate to XO | `xo/nomos.template.json` plus offline parser/compiler checks | Not yet run in XO's live engine |
 | SolidCash | Vault, StableSwap, and BCH HTLC contracts with mock-network tests | Prototypes only; no StableSwap/HTLC deployment |
 | Stablecoin Bridge ($750 PUSD) | StableSwap and BCH-side HTLC prototypes plus preview UI | No mainnet pool or cross-chain integration |
-| Nostr identity | Payee resolution and name labels in the app | No server-side custody or payment processing |
+| Nostr identity | Standalone lookup, payee resolution, and name labels in the app | No Nomos backend custody or payment processing |
 | Community Choice | EMBER2026 vote address listed in the README and banner | No vote result claimed |
 | Mercar / Asgaya | External links in the interface | No transaction or bridge integration |
 
@@ -255,7 +259,7 @@ nomos/
 │   │   └── *.test.mjs           # mock-network contract tests
 │   └── test/                    # chipnet mint + paid/refused tests
 ├── frontend/src/
-│   ├── pages/                   # Connect, Vault, Pay, Activity, Bridge, …
+│   ├── pages/                   # Connect, Vault, Pay, Identity, Simulate, …
 │   ├── components/              # layout, banner, theme, receipts, gauge, payment success
 │   └── lib/                     # wallet, covenant, Nostr, theme, and app types
 ├── docs/                        # judge path, bridge design, proof checklist

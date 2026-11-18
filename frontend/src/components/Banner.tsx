@@ -33,6 +33,12 @@ export default function Banner() {
           >
             Bridge
           </Link>
+          <Link
+            to="/identity"
+            className="hover:text-nomos-accent transition-colors duration-200"
+          >
+            Identity
+          </Link>
           <a
             href={WIDGET_FACTORY_URL}
             target="_blank"

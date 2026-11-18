@@ -40,6 +40,11 @@ Swap, Bridge In, and Bridge Out preview tabs, but all transaction actions are
 disabled. Mercar and Asgaya are external links only; no pool or cross-chain
 transaction can be submitted from the app.
 
+No wallet is needed to explore the `/simulate` page, which is a local-only
+illustration of limit and allowlist checks rather than a contract execution.
+The `/identity` page also works without a wallet, but contacts the entered
+NIP-05 domain when applicable and queries public Nostr relays.
+
 For static validation:
 
 ```bash
