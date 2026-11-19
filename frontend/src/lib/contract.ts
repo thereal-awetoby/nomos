@@ -32,6 +32,8 @@ import {
   encodeTransaction,
   decodeAuthenticationInstructions,
   encodeDataPush,
+  createVirtualMachineBch2025,
+  utf8ToBin,
 } from '@bitauth/libauth'
 
 // ── Artifact ───────────────────────────────────────────────
@@ -840,4 +842,192 @@ export async function executeRescue(
     txBuilder, walletProvider, 'Nomos: rescue funds', wcIndex,
   )
   return { txid: result.txid, amountSats: Number(sweepAmount) }
+}
+
+// ── BCH ↔ Nostr identity link: the BCH side ────────────────
+// The BCH key proves its half of the link with a transaction, because
+// WizardConnect wallets sign transactions, not messages. Two shapes:
+//
+//   anchor:    wallet → wallet, OP_RETURN "NOMOSID1" <32-byte Nostr pubkey>
+//              broadcast once; anyone can verify it from the chain.
+//   challenge: wallet → wallet, OP_RETURN "NOMOSAUTH" <nonce>
+//              signed but never broadcast; checked locally in the BCH VM.
+//
+// Neither reuses a key across the two networks: the Nostr key and the BCH
+// key stay separate, and each signs only on its own network.
+
+const ANCHOR_PREFIX = 'NOMOSID1'
+const CHALLENGE_PREFIX = 'NOMOSAUTH'
+const OP_RETURN = 0x6a
+
+function utf8Hex(text: string): string {
+  return libBinToHex(utf8ToBin(text))
+}
+
+/** Hash160 payload of a P2PKH cashaddr, or an error string. */
+function p2pkhPayload(address: string): Uint8Array | string {
+  const decoded = decodeCashAddress(address)
+  if (typeof decoded === 'string') return decoded
+  if (decoded.type !== 'p2pkh' && decoded.type !== 'p2pkhWithTokens') {
+    return 'The identity address must be a regular wallet (P2PKH) address'
+  }
+  return decoded.payload
+}
+
+/** The pushes of an OP_RETURN output, or null when the output is not one. */
+function opReturnPushes(lockingBytecode: Uint8Array): Uint8Array[] | null {
+  if (lockingBytecode[0] !== OP_RETURN) return null
+  const ops = decodeAuthenticationInstructions(lockingBytecode.slice(1))
+  return ops.map((op: any) => (op.data instanceof Uint8Array ? op.data : new Uint8Array()))
+}
+
+/** True when an input's unlocking bytecode ends with a pubkey hashing to `payload`. */
+function inputSpentBy(unlockingBytecode: Uint8Array, payload: Uint8Array): boolean {
+  const ops = decodeAuthenticationInstructions(unlockingBytecode) as any[]
+  const last = ops[ops.length - 1]
+  if (!(last?.data instanceof Uint8Array) || last.data.length !== 33) return false
+  return bytesEqual(hash160(last.data), payload)
+}
+
+async function walletCoins(walletAddress: string): Promise<Utxo[]> {
+  const coins = (await getProvider().getUtxos(walletAddress)).filter((u: any) => !u.token)
+  if (coins.length === 0) throw new Error('No BCH found at the connected wallet address.')
+  return coins
+}
+
+/**
+ * Publish the BCH half of the link: a transaction from the wallet address to
+ * itself whose OP_RETURN names the Nostr public key. Returns the txid, which
+ * the Nostr claim uses as its proof.
+ */
+export async function anchorNostrKey(
+  walletAddress: string,
+  nostrPubkeyHex: string,
+  walletProvider: WalletProviderType,
+  wcIndex: number = 0,
+): Promise<string> {
+  if (!/^[0-9a-f]{64}$/.test(nostrPubkeyHex)) throw new Error('Nostr public key must be 32 bytes of hex')
+  const payloadOrError = p2pkhPayload(walletAddress)
+  if (typeof payloadOrError === 'string') throw new Error(payloadOrError)
+
+  const coins = await walletCoins(walletAddress)
+  const total = coins.reduce((sum, u) => sum + u.satoshis, 0n)
+  const fee = p2pkhFee(coins.length, 0, 2)
+  const change = total - fee
+  if (change < DUST_LIMIT) throw new Error('The wallet does not hold enough BCH to cover the anchor fee.')
+
+  const txBuilder = new TransactionBuilder({ provider: getProvider() })
+  for (const coin of coins) txBuilder.addInput(coin, placeholderP2PKHUnlocker(walletAddress))
+  txBuilder.addOpReturnOutput([`0x${utf8Hex(ANCHOR_PREFIX)}`, `0x${nostrPubkeyHex}`])
+  txBuilder.addOutput({ to: walletAddress, amount: change })
+  const result = await buildSignAndBroadcast(txBuilder, walletProvider, 'Nomos: link this address to your Nostr key', wcIndex)
+  return result.txid
+}
+
+export interface AnchorCheck {
+  ok: boolean
+  reason: string
+}
+
+/**
+ * Check that `txid` is an anchor in which `address` committed to
+ * `nostrPubkeyHex`. The node only relays and mines transactions whose
+ * signatures are valid, so finding the transaction on the network plus an
+ * input spent by the address's key shows the address's owner made it.
+ */
+export async function verifyAnchor(txid: string, address: string, nostrPubkeyHex: string): Promise<AnchorCheck> {
+  if (!/^[0-9a-f]{64}$/i.test(txid)) return { ok: false, reason: 'The proof is not a transaction ID' }
+  const payloadOrError = p2pkhPayload(address)
+  if (typeof payloadOrError === 'string') return { ok: false, reason: payloadOrError }
+
+  let rawHex: string
+  try {
+    rawHex = await getProvider().getRawTransaction(txid.toLowerCase())
+  } catch {
+    return { ok: false, reason: 'The anchor transaction was not found on the network' }
+  }
+  const tx = decodeTransaction(hexToBin(rawHex))
+  if (typeof tx === 'string') return { ok: false, reason: 'The anchor transaction could not be decoded' }
+
+  const prefix = utf8ToBin(ANCHOR_PREFIX)
+  const commits = tx.outputs.some((output) => {
+    const pushes = opReturnPushes(output.lockingBytecode)
+    return Boolean(pushes && pushes.length >= 2 && bytesEqual(pushes[0], prefix)
+      && libBinToHex(pushes[1]) === nostrPubkeyHex.toLowerCase())
+  })
+  if (!commits) return { ok: false, reason: 'The anchor transaction does not name this Nostr key' }
+
+  const signedByAddress = tx.inputs.some((input) => inputSpentBy(input.unlockingBytecode, payloadOrError))
+  if (!signedByAddress) return { ok: false, reason: 'The anchor transaction was not signed by this address' }
+
+  return { ok: true, reason: 'Signed by this address and names this Nostr key' }
+}
+
+export interface BchChallengeProof {
+  signedHex: string
+  sourceOutputs: { lockingBytecode: string; valueSatoshis: string }[]
+}
+
+/**
+ * Prove control of `walletAddress` by signing a transaction that carries
+ * `nonceHex`. The wallet is asked not to broadcast, and Nomos never
+ * broadcasts it either; the signature is checked locally.
+ */
+export async function signBchChallenge(
+  walletAddress: string,
+  nonceHex: string,
+  walletProvider: WalletProviderType,
+  wcIndex: number = 0,
+): Promise<BchChallengeProof> {
+  if (!/^[0-9a-f]{32,64}$/.test(nonceHex)) throw new Error('Challenge must be 16 to 32 bytes of hex')
+  const coins = await walletCoins(walletAddress)
+  const coin = coins.sort((a, b) => (a.satoshis > b.satoshis ? -1 : 1))[0]
+  const fee = p2pkhFee(1, 0, 2)
+  const change = coin.satoshis - fee
+  if (change < DUST_LIMIT) throw new Error('The wallet does not hold enough BCH to sign a challenge.')
+
+  const txBuilder = new TransactionBuilder({ provider: getProvider() })
+  txBuilder.addInput(coin, placeholderP2PKHUnlocker(walletAddress))
+  txBuilder.addOpReturnOutput([`0x${utf8Hex(CHALLENGE_PREFIX)}`, `0x${nonceHex}`])
+  txBuilder.addOutput({ to: walletAddress, amount: change })
+  const wcTxObj = (txBuilder as any).generateWcTransactionObject({
+    broadcast: false,
+    userPrompt: `Nomos: prove you control this address (challenge ${nonceHex.slice(0, 8)}…). Nomos does not broadcast this.`,
+  })
+  const signed = await signWcTransaction(walletProvider, wcTxObj, undefined, wcIndex)
+  const signedHex = signed.signedTransaction?.trim().toLowerCase()
+  if (!signedHex || !/^[0-9a-f]+$/.test(signedHex)) throw new Error('The wallet did not return a signed challenge.')
+
+  const sourceOutputs = (wcTxObj.sourceOutputs as any[]).map((output) => ({
+    lockingBytecode: libBinToHex(output.lockingBytecode),
+    valueSatoshis: String(output.valueSatoshis),
+  }))
+  return { signedHex, sourceOutputs }
+}
+
+/** Verify a BCH challenge proof against an address and nonce, with no network access. */
+export function verifyBchChallenge(proof: BchChallengeProof, address: string, nonceHex: string): AnchorCheck {
+  const payloadOrError = p2pkhPayload(address)
+  if (typeof payloadOrError === 'string') return { ok: false, reason: payloadOrError }
+  const tx = decodeTransaction(hexToBin(proof.signedHex))
+  if (typeof tx === 'string') return { ok: false, reason: 'The signed challenge could not be decoded' }
+  if (proof.sourceOutputs.length !== tx.inputs.length) return { ok: false, reason: 'The proof does not describe every input' }
+
+  const prefix = utf8ToBin(CHALLENGE_PREFIX)
+  const carriesNonce = tx.outputs.some((output) => {
+    const pushes = opReturnPushes(output.lockingBytecode)
+    return Boolean(pushes && pushes.length >= 2 && bytesEqual(pushes[0], prefix) && libBinToHex(pushes[1]) === nonceHex)
+  })
+  if (!carriesNonce) return { ok: false, reason: 'The signed transaction does not carry this challenge' }
+  if (!tx.inputs.every((input) => inputSpentBy(input.unlockingBytecode, payloadOrError))) {
+    return { ok: false, reason: 'The challenge was not signed by this address' }
+  }
+
+  const sourceOutputs = proof.sourceOutputs.map((output) => ({
+    lockingBytecode: hexToBin(output.lockingBytecode),
+    valueSatoshis: BigInt(output.valueSatoshis),
+  }))
+  const verdict = createVirtualMachineBch2025().verify({ sourceOutputs, transaction: tx })
+  if (verdict !== true) return { ok: false, reason: `The signature did not verify: ${verdict}` }
+  return { ok: true, reason: 'Signed by this address over this challenge' }
 }
