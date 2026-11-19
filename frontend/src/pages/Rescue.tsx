@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
+import { Panel, fmtBch } from '../components/ui'
 import { executeRescue, validateCashAddress, EXPLORER_TX_URL } from '../lib/contract'
 
 export default function Rescue() {
-  const { wallet, vault, vaultConfig, refreshVault } = useWallet()
+  const { wallet, vault, vaultConfig, refreshVault, addReceipt } = useWallet()
   const [destination, setDestination] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
@@ -21,7 +22,7 @@ export default function Rescue() {
 
   const handleRescue = async () => {
     if (!confirmed) {
-      setResult({ type: 'error', message: 'Confirm that you understand this sweeps the entire vault balance and bypasses the daily limit.' })
+      setResult({ type: 'error', message: 'Confirm that you understand the rescue sweeps the spendable balance (minus fees) and bypasses the daily limit.' })
       return
     }
     const addrErr = validateCashAddress(destination)
@@ -32,13 +33,24 @@ export default function Rescue() {
 
     setSubmitting(true)
     try {
-      const txid = await executeRescue(
+      const rescue = await executeRescue(
         vaultConfig, vault.mandate, destination, wallet.provider, wallet.wcIndex ?? 0,
       )
+      addReceipt({
+        id: rescue.txid,
+        kind: 'rescue',
+        status: 'submitted',
+        amount: rescue.amountSats,
+        destination,
+        destinationLabel: 'Rescue sweep',
+        txHash: rescue.txid,
+        mandate: vault.mandate,
+        timestamp: Date.now(),
+      })
       setResult({
         type: 'success',
         message: 'The wallet/provider returned a transaction ID. Check an explorer for relay, mining, and confirmation.',
-        txHash: txid,
+        txHash: rescue.txid,
       })
     } catch (err: any) {
       setResult({ type: 'error', message: err.message || 'Rescue failed' })
@@ -51,18 +63,15 @@ export default function Rescue() {
   }
 
   return (
-    <div className="page-enter space-y-5">
-      {/* Back nav */}
-      <Link to="/vault" className="text-xs text-nomos-muted hover:text-nomos-accent transition-colors duration-200">
-        ← Back to vault
-      </Link>
+    <div className="page-enter space-y-4">
+      <header>
+        <p className="eyebrow">OWNER + RESCUE CO-SIGNER</p>
+        <h1 className="page-title">Emergency rescue</h1>
+      </header>
 
-      <h2 className="font-mono text-2xl font-bold">Rescue</h2>
-
-      {/* Warning */}
-      <div className="card border-nomos-refuse/15 bg-nomos-refuse/[0.04] p-4 text-xs text-nomos-refuse" style={{ borderWidth: '1px', borderStyle: 'solid' }}>
-        <strong>Emergency only.</strong> Sweeps the entire vault balance to a destination address. Requires both owner and rescue co-signer. Daily limit is bypassed.
-      </div>
+      <Panel title="Irreversible operation" tone="refused" bodyClassName="p-3">
+        <p className="text-xs leading-relaxed text-nomos-refuse"><strong>Emergency only.</strong> Sweeps the vault's available balance to one destination, burns its state NFT, and bypasses the daily limit. Confirm the destination carefully.</p>
+      </Panel>
 
       {/* Multi-party note */}
       {hasRescuePk && (
@@ -88,19 +97,14 @@ export default function Rescue() {
         </div>
       )}
 
-      {/* Balance */}
-      <div className="card px-5 py-4 text-center">
-        <p className="label">Vault Balance</p>
-        <p className="mt-1 mono-value text-2xl font-bold text-nomos-text">
-          {(vault.balanceSats / 1e8).toFixed(8)}
-          <span className="ml-1 text-sm text-nomos-muted">BCH</span>
-        </p>
-      </div>
+      <Panel title="Vault balance">
+        <p className="font-mono text-2xl font-bold tabular-nums text-nomos-text">{fmtBch(vault.balanceSats)} <span className="text-xs font-medium text-nomos-muted">BCH before network fee</span></p>
+      </Panel>
 
-      {/* Destination */}
       <div>
-        <label className="label mb-2 block">Sweep Destination</label>
+        <label htmlFor="rescue-destination" className="label mb-2 block">Sweep destination</label>
         <input
+          id="rescue-destination"
           type="text"
           value={destination}
           onChange={(e) => { setDestination(e.target.value); setConfirmed(false); setResult(null) }}
@@ -117,7 +121,7 @@ export default function Rescue() {
           onChange={(event) => setConfirmed(event.target.checked)}
           className="mt-0.5 h-4 w-4 shrink-0 accent-nomos-refuse"
         />
-        I understand this sweeps the entire vault balance and bypasses the daily limit.
+        I understand this moves the spendable balance, less the network fee, and bypasses the daily limit.
       </label>
 
       <button
@@ -125,30 +129,20 @@ export default function Rescue() {
         disabled={!destination || submitting || !hasRescuePk || !confirmed}
         className="btn-danger w-full py-3 font-semibold"
       >
-        {submitting ? <><span className="spinner mr-2" /> Signing…</> : 'Rescue — Sweep All Funds'}
+        {submitting ? <><span className="spinner mr-2" /> Signing…</> : 'Sign rescue sweep'}
       </button>
 
-      {/* Result */}
       {result && (
-        <div className={`card p-5 text-center ${
-          result.type === 'success'
-            ? 'border-nomos-accent/20 bg-nomos-accent/5'
-            : 'border-nomos-refuse/20 bg-nomos-refuse/5'
-        }`} style={{ borderWidth: '1px', borderStyle: 'solid' }}>
-          <p className={`mono-value text-lg font-bold ${
-            result.type === 'success' ? 'text-nomos-accent' : 'text-nomos-refuse'
-          }`}>
-            {result.type === 'success' ? 'Submitted · unconfirmed' : 'Rescue failed'}
+        <div className={`card p-4 ${result.type === 'success' ? 'border-nomos-pending/30 bg-nomos-pending/[0.04]' : 'border-nomos-refuse/30 bg-nomos-refuse/[0.04]'}`}>
+          <p className={`font-mono text-sm font-bold uppercase tracking-[0.08em] ${result.type === 'success' ? 'text-nomos-pending' : 'text-nomos-refuse'}`}>
+            {result.type === 'success' ? 'Submitted · awaiting confirmation' : 'Rescue not submitted'}
           </p>
-          <p className="mt-1 text-xs text-nomos-muted-bright">{result.message}</p>
+          <p className="mt-1 text-xs leading-relaxed text-nomos-muted-bright">{result.message}</p>
           {result.txHash && (
-            <a
-              href={`${EXPLORER_TX_URL}${result.txHash}`}
-              target="_blank" rel="noreferrer"
-              className="mt-3 inline-block text-xs text-nomos-accent hover:underline"
-            >
-              Check explorer · not confirmed →
-            </a>
+            <div className="mt-3 flex flex-wrap gap-4">
+              <a href={`${EXPLORER_TX_URL}${result.txHash}`} target="_blank" rel="noreferrer" className="link-action text-nomos-pending">Check explorer · unconfirmed</a>
+              <Link to="/activity" className="link-action">View saved receipt</Link>
+            </div>
           )}
         </div>
       )}

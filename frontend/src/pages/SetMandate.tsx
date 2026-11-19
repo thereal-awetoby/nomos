@@ -1,12 +1,25 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, Navigate, Link } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
 import { executeSetMandate, executeCreateVault, validateAllowlistAddress, validateCashAddress, getWalletBalance, MIN_VAULT_DEPOSIT_SATS } from '../lib/contract'
 import { isNostrIdentifier, resolveNostrPayee } from '../lib/nostr'
+import type { Mandate, VaultConfig } from '../lib/types'
+
+function mandateSnapshot(config: VaultConfig): Mandate {
+  return {
+    dailyLimitSats: config.dailyLimitSats,
+    spentTodaySats: 0,
+    dayMarker: 0,
+    allowlistEnabled: config.allowlistEnabled,
+    allowlist: [...config.allowedAddrs],
+    agentPk: config.agentPk || null,
+    rescuePk: config.rescuePk || null,
+  }
+}
 
 export default function SetMandate() {
   const navigate = useNavigate()
-  const { wallet, vault, vaultConfig, setVaultConfig } = useWallet()
+  const { wallet, vault, vaultConfig, setVaultConfig, addReceipt } = useWallet()
   // Pre-fill from existing config when editing an active mandate
   const [dailyLimit, setDailyLimit] = useState(
     vaultConfig ? (vaultConfig.dailyLimitSats / 1e8).toString() : '',
@@ -114,8 +127,19 @@ export default function SetMandate() {
       if (needsDeploy) {
         // New vault: mint the state NFT into the covenant from the user's wallet
         const depositSats = Math.round(parseFloat(deposit || '0') * 1e8)
-        await executeCreateVault(newConfig, depositSats, wallet.address, wallet.provider, setStep, wallet.wcIndex ?? 0)
+        const created = await executeCreateVault(newConfig, depositSats, wallet.address, wallet.provider, setStep, wallet.wcIndex ?? 0)
         setVaultConfig(newConfig)
+        addReceipt({
+          id: created.txid,
+          kind: 'mandate',
+          status: 'submitted',
+          amount: depositSats,
+          destination: created.tokenAddress,
+          destinationLabel: 'Vault created',
+          txHash: created.txid,
+          mandate: mandateSnapshot(newConfig),
+          timestamp: Date.now(),
+        })
       } else if (vaultConfig) {
         // Existing vault: redeploy to a new contract with the new params
         const result = await executeSetMandate(
@@ -127,6 +151,17 @@ export default function SetMandate() {
         )
         // Save the config that matches the NEW on-chain contract
         setVaultConfig(result.newConfig)
+        addReceipt({
+          id: result.txid,
+          kind: 'mandate',
+          status: 'submitted',
+          amount: result.amountSats,
+          destination: result.tokenAddress,
+          destinationLabel: 'Mandate updated',
+          txHash: result.txid,
+          mandate: mandateSnapshot(result.newConfig),
+          timestamp: Date.now(),
+        })
       }
       navigate('/vault')
     } catch (err: any) {
@@ -138,23 +173,21 @@ export default function SetMandate() {
   }
 
   return (
-    <div className="page-enter space-y-5">
-      {/* Back nav */}
-      <Link to="/vault" className="text-xs text-nomos-muted hover:text-nomos-accent transition-colors duration-200">
-        ← Back to vault
-      </Link>
-
-      <h2 className="font-mono text-2xl font-bold">Set Mandate</h2>
+    <div className="page-enter space-y-4">
+      <header>
+        <p className="eyebrow">OWNER AUTHORIZATION · COVENANT SETTINGS</p>
+        <h1 className="page-title">{needsDeploy ? 'Create vault' : 'Set mandate'}</h1>
+      </header>
 
       {/* Info banner */}
       {needsDeploy ? (
-        <div className="card border-nomos-accent/15 bg-nomos-accent/[0.04] p-4 text-xs text-nomos-accent" style={{ borderWidth: '1px', borderStyle: 'solid' }}>
-          <strong>Create your vault.</strong> Your wallet funds the vault and mints the NFT
-          that tracks today's spending. You'll confirm one or two transactions.
+        <div className="card border-nomos-pending/25 bg-nomos-pending/[0.04] p-4 text-xs text-nomos-pending">
+          <strong>Create your vault.</strong> Your wallet funds the vault and mints the state NFT
+          that tracks spending. You may need to confirm one or two transactions.
         </div>
       ) : (
-        <div className="card border-nomos-accent/15 bg-nomos-accent/[0.04] p-4 text-xs text-nomos-accent" style={{ borderWidth: '1px', borderStyle: 'solid' }}>
-          <strong>Updating mandate.</strong> This redeploys your vault to a new contract address. NFT and funds move automatically.
+        <div className="card border-nomos-pending/25 bg-nomos-pending/[0.04] p-4 text-xs text-nomos-pending">
+          <strong>Updating mandate.</strong> This creates a new contract address and moves the NFT and vault funds under the new rules.
         </div>
       )}
 

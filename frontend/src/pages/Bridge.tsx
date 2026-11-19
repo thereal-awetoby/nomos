@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 
 type Tab = 'swap' | 'bridge-in' | 'bridge-out'
 
@@ -14,28 +13,37 @@ export default function Bridge() {
 
   return (
     <div className="page-enter space-y-5">
-      <Link to="/vault" className="text-xs text-nomos-muted transition-colors hover:text-nomos-accent">
-        ← Back to vault
-      </Link>
-
       <header>
         <p className="label">Nomos · BCH</p>
-        <h1 className="mt-2 font-mono text-2xl font-bold text-nomos-text">Get BCH / Get PUSD</h1>
+        <h1 className="page-title mt-2">Get BCH / Get PUSD</h1>
         <p className="mt-2 text-sm leading-relaxed text-nomos-muted">
           Preview the planned BCH/PUSD swap and cross-chain bridge flows.
         </p>
       </header>
 
-      <div className="card border-amber-400/20 bg-amber-400/[0.04] p-4">
+      <div className="card border-nomos-pending/20 bg-nomos-pending/[0.04] p-4">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-semibold text-nomos-text">Bridge and pool are not live</p>
-          <span className="rounded-pill bg-amber-400/15 px-2.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-wider text-amber-500">
+          <span className="rounded-pill bg-nomos-pending/15 px-2.5 py-1 font-mono text-[9px] font-semibold uppercase tracking-wider text-nomos-pending">
             Preview only
           </span>
         </div>
         <p className="mt-2 text-xs leading-relaxed text-nomos-muted">
           No verified PUSD category, deployed StableSwap pool, or cross-chain partner is configured. Inputs and actions are disabled; do not send funds to a pool address from this page.
         </p>
+      </div>
+
+      <div className="card grid grid-cols-3 gap-px overflow-hidden" style={{ background: 'var(--line)' }}>
+        {[
+          { label: 'Last swap', value: 'None' },
+          { label: 'Last bridge', value: 'None' },
+          { label: 'PUSD category', value: 'Not set' },
+        ].map((cell) => (
+          <div key={cell.label} className="bg-nomos-surface px-3 py-2">
+            <p className="label">{cell.label}</p>
+            <p className="mt-0.5 font-mono text-xs text-nomos-muted-bright">{cell.value}</p>
+          </div>
+        ))}
       </div>
 
       <div className="flex gap-1 rounded-2xl bg-nomos-surface-raised/60 p-1" role="tablist" aria-label="Bridge options">
@@ -88,7 +96,7 @@ export default function Bridge() {
         tabIndex={0}
       >
         <div>
-          <p className="label mb-2">Bridge In · other-chain stablecoins → BCH</p>
+          <p className="label mb-2">Bridge In · other-chain stablecoins to BCH</p>
           <p className="text-xs leading-relaxed text-nomos-muted">
             A source-chain lock and verified release path have not been integrated. The BCH-side HTLC is a local prototype only.
           </p>
@@ -107,7 +115,7 @@ export default function Bridge() {
         tabIndex={0}
       >
         <div>
-          <p className="label mb-2">Bridge Out · BCH → other-chain stablecoins</p>
+          <p className="label mb-2">Bridge Out · BCH to other-chain stablecoins</p>
           <p className="text-xs leading-relaxed text-nomos-muted">
             No PUSD lock/burn flow or destination-chain release contract is deployed.
           </p>
@@ -126,12 +134,12 @@ export default function Bridge() {
         </div>
         <div className="flex flex-wrap gap-2">
           <a
-            href="https://www.mercar.app/"
+            href="https://mercar.asgaya.org/"
             target="_blank"
             rel="noreferrer"
             className="rounded-xl bg-nomos-accent/10 px-3 py-1.5 text-xs font-medium text-nomos-accent transition-colors hover:bg-nomos-accent/20"
           >
-            Mercar ↗
+            Mercar
           </a>
           <a
             href="https://asgaya.org/"
@@ -139,7 +147,7 @@ export default function Bridge() {
             rel="noreferrer"
             className="rounded-xl bg-nomos-accent/10 px-3 py-1.5 text-xs font-medium text-nomos-accent transition-colors hover:bg-nomos-accent/20"
           >
-            Asgaya ↗
+            Asgaya
           </a>
         </div>
       </section>

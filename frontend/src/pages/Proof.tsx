@@ -1,19 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import RefusalProofPanel from '../components/RefusalProofPanel'
-import { getLocalProofs, localProofsUpdatedEvent, removeLocalProof, type RefusalProof } from '../lib/proofs'
-import { CONTRACT_SOURCE_URL } from '../lib/contract'
+import { getLocalProofs, localProofsUpdatedEvent, removeLocalProof } from '../lib/proofs'
+import type { RefusalProof } from '../lib/proofs'
 import { useToast } from '../components/Toast'
+import { Panel } from '../components/ui'
+import { CONTRACT_SOURCE_URL } from '../lib/contract'
 
 function verdictLabel(proof: RefusalProof): string {
-  switch (proof.rejectionKind) {
-    case 'script-failure': return 'Script-validation failure'
-    case 'missing-inputs': return 'Missing or spent inputs'
-    default: return 'Other node rejection'
-  }
+  if (proof.rejectionKind === 'script-failure') return 'Script-validation failure'
+  if (proof.rejectionKind === 'missing-inputs') return 'Missing or spent inputs'
+  return 'Other node rejection'
 }
 
-/** Offer cautious context for common node error strings without claiming a covenant cause. */
 function explainError(proof: RefusalProof): string | null {
   const error = proof.nodeError.toLowerCase()
   if (proof.scriptFailure) {
@@ -25,29 +24,25 @@ function explainError(proof: RefusalProof): string | null {
   if (proof.rejectionKind === 'missing-inputs') {
     return 'The node reports one or more inputs are missing, unavailable, or spent from its current view. A parent may be unknown to this node; this alone does not prove the vault UTXO was spent.'
   }
-  if (error.includes('dust')) {
-    return 'The node flagged an output under its dust relay policy. Thresholds can depend on the output type and node policy; this is not by itself proof of a covenant violation.'
-  }
-  if (error.includes('fee') || error.includes('insufficient priority')) {
-    return 'The node reports a fee or priority relay-policy issue. This does not by itself establish a covenant violation or consensus failure.'
-  }
+  if (error.includes('dust')) return 'The node flagged an output under its dust relay policy; this is not by itself proof of a covenant violation.'
+  if (error.includes('fee') || error.includes('insufficient priority')) return 'The node reports a fee or relay-policy issue; this does not by itself establish a covenant violation.'
   return null
 }
 
-function exportProofs(proofs: RefusalProof[]) {
-  const blob = new Blob([JSON.stringify({
-    format: 'nomos-local-node-checks',
+function downloadChecks(proofs: RefusalProof[]) {
+  const payload = {
+    format: 'nomos-node-checks-export',
     exportedAt: new Date().toISOString(),
-    note: 'Node replies are point-in-time observations, not mined or confirmed chain state. Raw signed transactions can be rebroadcast.',
-    proofs,
-  }, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = `nomos-node-checks-${new Date().toISOString().slice(0, 10)}.json`
-  document.body.appendChild(anchor)
-  anchor.click()
-  anchor.remove()
+    note: 'Saved node replies are point-in-time responses. Script failure does not by itself identify the failing input or prove Nomos covenant causation. Attached signed raw transactions may be rebroadcast.',
+    checks: proofs,
+  }
+  const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `nomos-node-checks-${new Date().toISOString().slice(0, 10)}.json`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
   window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
@@ -61,7 +56,6 @@ export default function Proof() {
     ? Number(requestedAmount)
     : undefined
   const initialDestination = searchParams.get('destination') || undefined
-
   const refreshProofs = useCallback(() => setProofs(getLocalProofs()), [])
 
   useEffect(() => {
@@ -76,8 +70,8 @@ export default function Proof() {
 
   const handleExport = () => {
     try {
-      exportProofs(proofs)
-      toast('Local node checks exported as JSON', 'success')
+      downloadChecks(proofs)
+      toast('Node checks exported as JSON', 'success')
     } catch {
       toast('Could not export node checks', 'error')
     }
@@ -93,30 +87,21 @@ export default function Proof() {
   }
 
   return (
-    <div className="page-enter space-y-5">
-      <Link to="/" className="text-xs text-nomos-muted transition-colors hover:text-nomos-accent">← Back to connect</Link>
+    <div className="page-enter space-y-4">
       <header>
-        <p className="eyebrow mb-1">PUBLIC VERIFICATION</p>
-        <h1 className="font-mono text-2xl font-bold text-nomos-text">Refusal proofs</h1>
-        <p className="mt-2 text-xs leading-relaxed text-nomos-muted">Ask a BCH node to evaluate a signed transaction, or inspect locally saved node replies. No wallet is required to check raw transaction hex.</p>
+        <p className="eyebrow">PUBLIC VERIFICATION</p>
+        <h1 className="page-title">Refusal proofs</h1>
+        <p className="mt-1.5 max-w-prose text-xs leading-relaxed text-nomos-muted">Ask a BCH node to evaluate a signed transaction, or inspect saved node replies. No wallet is required to check raw transaction hex.</p>
       </header>
 
-      <section className="card p-5 sm:p-6" aria-labelledby="covenant-rules-title">
-        <p className="eyebrow mb-1">ON-CHAIN RULES</p>
-        <h2 id="covenant-rules-title" className="text-lg font-semibold text-nomos-text">What the vault covenant checks</h2>
-        <pre className="mt-3 overflow-x-auto rounded-xl bg-nomos-surface-raised/50 p-3 font-mono text-[10px] leading-relaxed text-nomos-muted-bright"><code>{`currentDay = tx.locktime / 86400
+      <Panel title="What the covenant checks" bodyClassName="space-y-2 p-3">
+        <pre className="overflow-x-auto border hairline bg-nomos-bg-deep/40 p-2 font-mono text-[10px] leading-relaxed text-nomos-muted-bright"><code>{`currentDay = tx.locktime / 86400
 effectiveSpent = currentDay == storedDay ? spentToday : 0
 require(effectiveSpent + amount <= dailyLimit)`}</code></pre>
-        <p className="mt-3 text-xs leading-relaxed text-nomos-muted">
-          The covenant also checks the optional destination allowlist and the continuing vault NFT state. This excerpt is explanatory; read the contract for the full rules.
-        </p>
-        <p className="mt-2 text-xs leading-relaxed text-nomos-muted">
-          A consensus-invalid transaction cannot be included in a valid block, so it cannot pay a mining fee. This checker only records a node's point-in-time response: a script error does not identify which input script failed or prove the Nomos covenant caused it. Missing-input and policy rejections may not establish consensus invalidity; check the chain independently for confirmation.
-        </p>
-        <a href={CONTRACT_SOURCE_URL} target="_blank" rel="noreferrer" className="mt-3 inline-block text-xs text-nomos-accent hover:underline">
-          Read the full CashScript source →
-        </a>
-      </section>
+        <p className="text-[10px] leading-relaxed text-nomos-muted">The covenant also checks the optional destination allowlist and continuing vault NFT state. Read the contract for full rules.</p>
+        <p className="text-[10px] leading-relaxed text-nomos-muted">A consensus-invalid transaction cannot be included in a valid block, so it cannot pay a mining fee. This checker records only a node’s point-in-time response. A script error does not identify which input script failed or prove the Nomos covenant caused it. Missing-input and policy rejections may not establish consensus invalidity; check chain state independently.</p>
+        <a href={CONTRACT_SOURCE_URL} target="_blank" rel="noreferrer" className="link-action">Read CashScript source</a>
+      </Panel>
 
       <RefusalProofPanel
         onProofSaved={refreshProofs}
@@ -125,46 +110,39 @@ require(effectiveSpent + amount <= dailyLimit)`}</code></pre>
         initialDestination={initialDestination}
       />
 
-      <section className="card p-5 sm:p-6" aria-labelledby="saved-checks-title">
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
-            <p className="eyebrow mb-1">THIS BROWSER ONLY</p>
-            <h2 id="saved-checks-title" className="text-lg font-semibold text-nomos-text">Saved node checks</h2>
-          </div>
-          {proofs.length > 0 && (
-            <button type="button" onClick={handleExport} className="btn-secondary shrink-0 px-3 py-2 text-[10px]">Export JSON</button>
-          )}
-        </div>
-
+      <Panel
+        title={<span className="flex items-center justify-between gap-3"><span>Saved node checks <span className="ml-1 text-nomos-muted">{proofs.length}</span></span>{proofs.length > 0 && <button type="button" onClick={handleExport} className="btn-ghost px-2 py-1 text-[9px]">Export</button>}</span>}
+        bodyClassName="p-0"
+      >
         {proofs.length === 0 ? (
-          <p className="rounded-xl border border-nomos-border/10 p-4 text-xs leading-relaxed text-nomos-muted">No rejected transactions saved on this device. A result is saved here only after a node returns an explicit rejection; network failures and node-accepted transactions are not stored as refusal checks.</p>
+          <p className="p-3 text-[10px] leading-relaxed text-nomos-muted">No rejected transactions saved on this device. A result is saved only after an explicit node rejection; network failures and node-accepted transactions are not stored as refusal checks.</p>
         ) : (
-          <div className="space-y-3">
+          <div className="divide-y divide-nomos-border">
             {proofs.map((proof) => {
               const explanation = explainError(proof)
               return (
-                <article key={proof.txid} className="rounded-xl border border-nomos-border/10 p-3">
+                <article key={proof.txid} className="space-y-1.5 p-3">
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className={`text-[11px] font-semibold ${proof.scriptFailure ? 'text-nomos-accent' : 'text-nomos-muted-bright'}`}>{verdictLabel(proof)}</p>
-                      <p className="mt-1 break-all font-mono text-[9px] text-nomos-muted">{proof.txid}</p>
+                    <div className="min-w-0">
+                      <p className={`font-mono text-[10px] font-bold uppercase ${proof.scriptFailure ? 'text-nomos-refuse' : 'text-nomos-muted-bright'}`}>{verdictLabel(proof)}</p>
+                      <p className="mt-0.5 break-all font-mono text-[9px] text-nomos-muted">{proof.txid}</p>
                     </div>
-                    <button type="button" onClick={() => { removeLocalProof(proof.txid); toast('Local check removed', 'info') }} aria-label={`Remove saved check ${proof.txid}`} className="text-[10px] text-nomos-muted hover:text-nomos-refuse">Remove</button>
+                    <button type="button" onClick={() => { removeLocalProof(proof.txid); refreshProofs(); toast('Local check removed', 'info') }} aria-label={`Remove saved check ${proof.txid}`} className="link-action shrink-0 text-nomos-refuse">Remove</button>
                   </div>
-                  <p className="mt-2 break-words text-[10px] leading-relaxed text-nomos-muted">{proof.nodeError}</p>
-                  {explanation && <p className="mt-1.5 text-[10px] leading-relaxed text-nomos-accent/80">↳ {explanation}</p>}
-                  <p className="mt-2 text-[9px] text-nomos-muted/70">{proof.network} · {new Date(proof.checkedAt).toLocaleString()}</p>
-                  <div className="mt-3 flex flex-wrap gap-4 border-t border-nomos-border/10 pt-2">
-                    <button type="button" onClick={() => { void copyProof(JSON.stringify(proof, null, 2), 'Node check JSON copied') }} className="text-[10px] text-nomos-accent">Copy JSON</button>
-                    <button type="button" onClick={() => { void copyProof(proof.rawTx, 'Signed transaction hex copied; it can be rebroadcast') }} className="text-[10px] text-nomos-accent">Copy raw hex</button>
+                  <p className="break-words text-[10px] leading-relaxed text-nomos-muted-bright">{proof.nodeError}</p>
+                  {explanation && <p className="text-[10px] leading-relaxed text-nomos-muted">{explanation}</p>}
+                  <p className="font-mono text-[9px] text-nomos-muted">{proof.network} · {new Date(proof.checkedAt).toLocaleString()} · not mined/confirmed</p>
+                  <div className="flex flex-wrap gap-3 pt-1">
+                    <button type="button" onClick={() => { void copyProof(JSON.stringify(proof, null, 2), 'Node check JSON copied') }} className="link-action">Copy JSON</button>
+                    <button type="button" onClick={() => { void copyProof(proof.rawTx, 'Signed transaction hex copied; it can be rebroadcast') }} className="link-action">Copy signed hex</button>
                   </div>
                 </article>
               )
             })}
-            <p className="text-[10px] leading-relaxed text-nomos-muted/70">Exported raw signed transactions are rebroadcastable by anyone who receives the JSON. Keep the file private unless you intend to share it.</p>
+            <p className="p-3 text-[9px] leading-relaxed text-nomos-muted">Anyone who receives exported signed raw transaction data can try to rebroadcast it. Keep exports private unless you intend to share them.</p>
           </div>
         )}
-      </section>
+      </Panel>
     </div>
   )
 }

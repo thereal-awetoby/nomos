@@ -18,9 +18,9 @@ const TOAST_MS = 2800
 const MAX_TOASTS = 3
 
 const variantStyles: Record<ToastVariant, string> = {
-  success: 'border-nomos-accent/25 text-nomos-accent',
-  error: 'border-nomos-refuse/25 text-nomos-refuse',
-  info: 'border-nomos-border/10 text-nomos-text',
+  success: 'border-nomos-accent/60 text-nomos-accent',
+  error: 'border-nomos-refuse/60 text-nomos-refuse',
+  info: 'border-nomos-border/35 text-nomos-text',
 }
 
 const variantIcon: Record<ToastVariant, string> = {
@@ -60,7 +60,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={{ toast }}>
       {children}
       <div
-        className="pointer-events-none fixed inset-x-0 bottom-5 z-50 flex flex-col items-center gap-2 px-4"
+        className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex flex-col items-center gap-2 px-4 md:bottom-5"
         role="status"
         aria-live="polite"
         aria-relevant="additions text"
@@ -71,7 +71,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             type="button"
             onClick={() => dismiss(item.id)}
             aria-label={`Dismiss notification: ${item.message}`}
-            className={`toast-enter pointer-events-auto flex max-w-sm items-center gap-2.5 rounded-pill border bg-nomos-surface px-4 py-2.5 text-xs font-medium shadow-card ${variantStyles[item.variant]}`}
+            className={`toast-enter pointer-events-auto flex max-w-sm items-center gap-2.5 border bg-nomos-surface px-3 py-2 font-mono text-[11px] font-medium shadow-[0_8px_24px_rgba(0,0,0,0.3)] ${variantStyles[item.variant]}`}
           >
             <span aria-hidden="true" className="font-mono">{variantIcon[item.variant]}</span>
             <span className="text-left">{item.message}</span>

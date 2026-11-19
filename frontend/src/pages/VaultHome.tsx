@@ -3,7 +3,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
 import { CONTRACT_SOURCE_URL, currentDayMarker, remainingToday } from '../lib/contract'
 import { qrColors, THEME_CHANGE_EVENT } from '../lib/theme'
-import SpendGauge from '../components/SpendGauge'
+import MandateCard from '../components/MandateCard'
 import SpendSparkline from '../components/SpendSparkline'
 import { useToast } from '../components/Toast'
 
@@ -134,7 +134,12 @@ export default function VaultHome() {
   }
 
   return (
-    <div className="stagger space-y-5">
+    <div className="page-enter stagger space-y-4">
+      <header>
+        <p className="eyebrow">VAULT · ON-CHAIN MANDATE</p>
+        <h1 className="page-title">Treasury</h1>
+      </header>
+
       {/* ── Balance hero ── */}
       <div className="card px-5 py-6 text-center">
         <p className="label">Vault Balance</p>
@@ -202,8 +207,8 @@ export default function VaultHome() {
       </div>
 
       {isLowBalance && (
-        <div className="card border-amber-400/15 p-4">
-          <p className="text-sm font-semibold text-nomos-text">⚡ Low balance — Get BCH / Get PUSD</p>
+        <div className="card border-nomos-pending/25 p-4">
+          <p className="text-sm font-semibold text-nomos-pending">Low balance · Get BCH / Get PUSD</p>
           <p className="mt-1 text-xs leading-relaxed text-nomos-muted">
             Your vault has less than 10,000 sats. Swap and bridge options are previews and cannot fund this vault yet.
           </p>
@@ -213,55 +218,27 @@ export default function VaultHome() {
         </div>
       )}
 
-      {/* ── Mandate summary with spend gauge ── */}
-      <div className="card p-5">
-        <p className="label mb-4">Current Mandate</p>
-        <div className="flex flex-col items-center gap-5 sm:flex-row">
-          <SpendGauge
-            spentSats={spentToday}
-            limitSats={vault.mandate.dailyLimitSats}
-          />
-          <div className="w-full flex-1 space-y-2.5 mono-value text-sm">
-            <div className="flex justify-between gap-3">
-              <span className="text-nomos-muted">Daily limit</span>
-              <span className="text-right">{(vault.mandate.dailyLimitSats / 1e8).toFixed(8)} BCH</span>
+      {/* ── Active mandate ── */}
+      <MandateCard
+        mandate={{
+          dailyLimitSats: vault.mandate.dailyLimitSats,
+          spentSats: spentToday,
+          allowlistEnabled: vault.mandate.allowlistEnabled,
+          allowlistCount: vault.mandate.allowlist.length,
+          agentSet: Boolean(vault.mandate.agentPk),
+          rescueSet: Boolean(vault.mandate.rescuePk),
+        }}
+        title="Active mandate"
+        footer={(
+          <>
+            <SpendSparkline receipts={receipts} dailyLimitSats={vault.mandate.dailyLimitSats} />
+            <div className="mt-2 flex items-center justify-between gap-3 font-mono text-[9px]">
+              <span className="text-nomos-muted" title="The covenant day is derived from tx.locktime / 86400.">Covenant day {covenantDay}</span>
+              <a href={CONTRACT_SOURCE_URL} target="_blank" rel="noreferrer" className="link-action">Contract source</a>
             </div>
-            <div className="flex justify-between gap-3">
-              <span className="text-nomos-muted">Spent today</span>
-              <span className="text-right">{(spentToday / 1e8).toFixed(8)} BCH</span>
-            </div>
-            <div className="flex justify-between gap-3 text-xs">
-              <span className="text-nomos-muted">Allowlist</span>
-              <span className="text-nomos-muted-bright">
-                {vault.mandate.allowlistEnabled ? 'On' : 'Off'}
-              </span>
-            </div>
-            <div className="flex justify-between gap-3 text-xs">
-              <span className="text-nomos-muted">Agent</span>
-              <span className="text-nomos-muted-bright">
-                {vault.mandate.agentPk ? 'Set' : 'None'}
-              </span>
-            </div>
-          </div>
-        </div>
-        <SpendSparkline receipts={receipts} dailyLimitSats={vault.mandate.dailyLimitSats} />
-        <div className="mt-3 flex items-center justify-between gap-3 text-[10px]">
-          <span
-            className="text-nomos-muted/60"
-            title="The covenant derives its day from tx.locktime / 86400. This preview uses the app's current locktime estimate."
-          >
-            Covenant day {covenantDay}
-          </span>
-          <a
-            href={CONTRACT_SOURCE_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="text-nomos-muted/60 transition-colors hover:text-nomos-accent"
-          >
-            Enforced by NomosVault.cash →
-          </a>
-        </div>
-      </div>
+          </>
+        )}
+      />
 
       {/* ── Allowlist ── */}
       {vault.mandate.allowlistEnabled && vault.mandate.allowlist.length > 0 && (

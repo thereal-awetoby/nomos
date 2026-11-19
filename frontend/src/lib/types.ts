@@ -25,9 +25,13 @@ export interface VaultState {
 
 export type TxStatus = 'paid' | 'refused' | 'submitted'
 
+/** What a receipt records. Missing means a payment (older receipts). */
+export type ReceiptKind = 'payment' | 'rescue' | 'mandate'
+
 export interface Receipt {
   id: string
   status: TxStatus
+  kind?: ReceiptKind
   amount: number
   destination: string
   /** who the destination is, when paid by Nostr name */

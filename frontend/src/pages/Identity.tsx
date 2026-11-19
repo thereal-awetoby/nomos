@@ -53,45 +53,23 @@ export default function Identity() {
   const looksLikeIdentity = isNostrIdentifier(query)
 
   return (
-    <div className="page-enter space-y-6">
+    <div className="page-enter space-y-5">
       <header>
-        <Link to="/" className="text-xs text-nomos-muted transition-colors hover:text-nomos-accent">
-          ← Home
-        </Link>
-        <h1 className="mt-3 font-mono text-2xl font-bold text-nomos-text">Nostr Identity</h1>
-        <p className="mt-2 text-sm leading-relaxed text-nomos-muted">
-          Look up the BCH address a Nostr identity published. No Nomos server is
-          involved: your browser queries NIP-05 domains when needed and public
-          Nostr relays directly.
+        <p className="eyebrow">NO WALLET REQUIRED</p>
+        <h1 className="page-title">Nostr Identity</h1>
+        <p className="mt-1.5 max-w-prose text-xs leading-relaxed text-nomos-muted">
+          Resolve a published BCH address in your browser. Queries go directly to public NIP-05 domains and Nostr relays, not a Nomos server.
         </p>
       </header>
 
-      <section className="card p-5" aria-labelledby="identity-how-it-works">
-        <h2 id="identity-how-it-works" className="label mb-3">How it works</h2>
-        <ol className="space-y-3 text-xs leading-relaxed text-nomos-muted-bright">
-          <li className="flex gap-3">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-nomos-accent/15 text-[10px] font-bold text-nomos-accent" aria-hidden="true">1</span>
-            <span>Enter an <strong className="text-nomos-text">npub</strong>, <strong className="text-nomos-text">nprofile</strong>, or <strong className="text-nomos-text">name@domain</strong> NIP-05 identifier.</span>
-          </li>
-          <li className="flex gap-3">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-nomos-accent/15 text-[10px] font-bold text-nomos-accent" aria-hidden="true">2</span>
-            <span>The browser looks for a signed BCH-address event (kind 30078, Paytaca format) on the listed relays.</span>
-          </li>
-          <li className="flex gap-3">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-nomos-accent/15 text-[10px] font-bold text-nomos-accent" aria-hidden="true">3</span>
-            <span>The event signature is checked locally and the address is validated for the configured BCH network. Relays can still withhold or serve stale events.</span>
-          </li>
-        </ol>
-      </section>
-
       <form
-        className="space-y-3"
+        className="card space-y-3 p-4"
         onSubmit={(event) => {
           event.preventDefault()
           void handleLookup()
         }}
       >
-        <label htmlFor="nostr-identity" className="label mb-2 block">Nostr identity</label>
+        <label htmlFor="nostr-identity" className="label block">Nostr identity</label>
         <input
           id="nostr-identity"
           name="nostr-identity"
@@ -103,82 +81,54 @@ export default function Identity() {
           autoComplete="off"
           aria-describedby="identity-hint"
         />
-        <p id="identity-hint" className="text-[10px] text-nomos-muted" aria-live="polite">
-          {!query.trim()
-            ? 'Enter an npub, nprofile, or NIP-05 name.'
-            : looksLikeIdentity
-              ? 'This looks like a Nostr identity.'
-              : 'Enter an npub, nprofile, or NIP-05 name.'}
-        </p>
-        <button
-          type="submit"
-          disabled={!query.trim() || !looksLikeIdentity || loading}
-          className="btn-primary w-full"
-        >
-          {loading ? <><span className="spinner mr-2" /> Resolving…</> : 'Look up'}
-        </button>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p id="identity-hint" className="text-[10px] text-nomos-muted" aria-live="polite">
+            {!query.trim()
+              ? 'Enter an npub, nprofile, or NIP-05 name.'
+              : looksLikeIdentity
+                ? 'This looks like a Nostr identity.'
+                : 'Enter an npub, nprofile, or NIP-05 name.'}
+          </p>
+          <button type="submit" disabled={!query.trim() || !looksLikeIdentity || loading} className="btn-primary px-4 py-2">
+            {loading ? <><span className="spinner mr-2" /> Resolving…</> : 'Look up'}
+          </button>
+        </div>
       </form>
 
       {error && (
-        <div className="card border-nomos-refuse/20 bg-nomos-refuse/5 p-5 text-center" role="alert" style={{ borderWidth: '1px', borderStyle: 'solid' }}>
+        <div className="card border-nomos-refuse/20 bg-nomos-refuse/5 p-4" role="alert" style={{ borderWidth: '1px', borderStyle: 'solid' }}>
           <p className="text-sm font-medium text-nomos-refuse">{error}</p>
-          <p className="mt-2 text-[10px] text-nomos-muted">
-            The person may not have published an address, or the relays may be unavailable.
-          </p>
+          <p className="mt-1 text-[10px] text-nomos-muted">The person may not have published an address, or the relays may be unavailable.</p>
         </div>
       )}
 
       {result && (
-        <section className="card border-nomos-accent/20 p-5" aria-labelledby="identity-result-title" aria-live="polite" style={{ borderWidth: '1px', borderStyle: 'solid' }}>
-          <div className="flex items-start gap-4">
-            {result.picture && (
-              <img
-                src={result.picture}
-                alt=""
-                referrerPolicy="no-referrer"
-                className="h-14 w-14 shrink-0 rounded-full object-cover ring-2 ring-nomos-accent/20"
-              />
-            )}
+        <section className="card p-4" aria-labelledby="identity-result-title" aria-live="polite">
+          <div className="flex items-start gap-3">
+            {result.picture && <img src={result.picture} alt="" referrerPolicy="no-referrer" className="h-10 w-10 shrink-0 rounded-sm object-cover" />}
             <div className="min-w-0 flex-1">
-              <h2 id="identity-result-title" className="text-lg font-semibold text-nomos-text">
-                {result.displayName || payeeLabel(result)}
-              </h2>
-              {result.nip05 && <p className="text-xs text-nomos-accent">{result.nip05}</p>}
-              <p className="mt-1 truncate font-mono text-[10px] text-nomos-muted">{result.npub}</p>
+              <p className="eyebrow">VERIFIED EVENT SIGNATURE</p>
+              <h2 id="identity-result-title" className="font-mono text-sm font-bold text-nomos-text">{result.displayName || payeeLabel(result)}</h2>
+              {result.nip05 && <p className="font-mono text-[10px] text-nomos-accent">{result.nip05}</p>}
+              <p className="truncate font-mono text-[9px] text-nomos-muted">{result.npub}</p>
             </div>
           </div>
 
-          <div className="mt-4 rounded-xl bg-nomos-surface-raised/60 p-4">
+          <div className="mt-3 border hairline bg-nomos-bg-deep/30 p-3">
             <p className="label mb-1">Published BCH address</p>
             <p className="break-all font-mono text-xs text-nomos-text">{result.address}</p>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-nomos-muted">
-              <span className="text-nomos-accent">✓ Signature verified</span>
-              <span aria-hidden="true">·</span>
-              <span>Event published {new Date(result.publishedAt * 1000).toLocaleDateString()}</span>
-            </div>
+            <p className="mt-1 font-mono text-[9px] text-nomos-muted">Published {new Date(result.publishedAt * 1000).toLocaleDateString()}</p>
           </div>
-
-          <p className="mt-4 text-center text-xs leading-relaxed text-nomos-muted">
-            This is the latest valid address event found on the queried relays; it
-            may not be the latest event published anywhere. Verify the destination
-            before sending. Pay resolves Nostr names too, and the covenant still
-            enforces the configured spending rules.
-          </p>
+          <p className="mt-2 text-[10px] leading-relaxed text-nomos-muted">Latest valid event found on queried relays; not necessarily the latest published. Verify the destination before sending.</p>
         </section>
       )}
 
       <section className="card p-4" aria-labelledby="identity-relays-title">
         <h2 id="identity-relays-title" className="label mb-2">Default public relays</h2>
-        <ul className="space-y-1">
-          {DEFAULT_RELAYS.map((relay) => (
-            <li key={relay} className="font-mono text-[10px] text-nomos-muted-bright">{relay}</li>
-          ))}
+        <ul className="grid gap-1 sm:grid-cols-3">
+          {DEFAULT_RELAYS.map((relay) => <li key={relay} className="break-all font-mono text-[9px] text-nomos-muted-bright">{relay}</li>)}
         </ul>
-        <p className="mt-2 text-[10px] leading-relaxed text-nomos-muted">
-          NIP-05 lookups contact the named domain. Event queries use these
-          defaults and may include relay hints supplied by the identity. No Nomos
-          backend is involved; relays may censor or withhold results.
-        </p>
+        <p className="mt-2 text-[9px] leading-relaxed text-nomos-muted">NIP-05 lookups contact the named domain. Event queries use these defaults and any relay hints. Relays may censor or withhold results.</p>
       </section>
     </div>
   )
