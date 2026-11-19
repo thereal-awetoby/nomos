@@ -17,7 +17,7 @@ const LAYERS: Layer[] = [
   },
   {
     label: 'Application layer',
-    items: ['WalletContext', 'wallet.ts', 'contract.ts', 'nostr.ts', 'theme.ts'],
+    items: ['WalletContext', 'wallet.ts', 'contract.ts', 'nostr.ts', 'proofs.ts', 'theme.ts'],
     tone: 'muted',
   },
   {
@@ -290,7 +290,10 @@ export default function Architecture() {
           GitHub →
         </a>
         <Link to="/simulate" className="btn-ghost flex-1 py-2.5 text-center text-xs">
-          Try simulator
+          Simulator
+        </Link>
+        <Link to="/proof" className="btn-ghost flex-1 py-2.5 text-center text-xs">
+          Proof checker
         </Link>
         <Link to="/identity" className="btn-ghost flex-1 py-2.5 text-center text-xs">
           Nostr lookup
