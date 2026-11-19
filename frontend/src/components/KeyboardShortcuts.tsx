@@ -30,7 +30,9 @@ function isEditableTarget(target: EventTarget | null): boolean {
 /** Press ? for the help palette; Escape closes it. */
 export default function KeyboardShortcuts() {
   const [open, setOpen] = useState(false)
-  const [shortcutsEnabled, setShortcutsEnabled] = useState(true)
+  const [shortcutsEnabled, setShortcutsEnabled] = useState(() => {
+    try { return localStorage.getItem('nomos-shortcuts') !== 'off' } catch { return true }
+  })
   const navigate = useNavigate()
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
@@ -171,7 +173,11 @@ export default function KeyboardShortcuts() {
                 aria-label="Single-key shortcuts"
                 aria-describedby="single-key-shortcuts-description"
                 aria-pressed={shortcutsEnabled}
-                onClick={() => setShortcutsEnabled((enabled) => !enabled)}
+                onClick={() => setShortcutsEnabled((enabled) => {
+                  const next = !enabled
+                  try { localStorage.setItem('nomos-shortcuts', next ? 'on' : 'off') } catch {}
+                  return next
+                })}
                 className={`shrink-0 rounded-pill px-3 py-1 text-[10px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomos-accent ${
                   shortcutsEnabled
                     ? 'bg-nomos-accent/15 text-nomos-accent'
