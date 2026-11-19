@@ -64,14 +64,17 @@ contract, an other-chain contract, or a deployed cross-chain bridge. A genuine
 cross-chain swap needs a separately reviewed contract on the other chain and
 carefully ordered timeouts.
 
-## Chipnet demo
+## Live demo (chipnet or mainnet)
 
 ```bash
 PRIVATE_KEY=<funded chipnet WIF> npm run demo:chipnet
+PRIVATE_KEY=<funded mainnet WIF> npm run demo:mainnet
 ```
 
-Deploys a vault, pays 3,000 sats, then tries 8,000 more the same day and gets
-refused by the daily limit.
+Deploys a vault, pays under the daily limit, tries to pay over it the same day
+and is refused by the contract, then rescues the remaining deposit back to the
+wallet. On mainnet the limit is 5,000 sats with a 10,000-sat deposit, so a run
+costs only network fees (fund the wallet with about 15,000 sats).
 
 ## Notes
 
