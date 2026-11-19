@@ -7,7 +7,8 @@
   "scripts": {
     "build": "solidc NomosVault.scash -o build/NomosVault.json && solidc StableSwap.scash -o build/StableSwap.json && solidc HashedTimeLock.scash -o build/HashedTimeLock.json",
     "test": "npm run build && node vault.test.mjs && node swap.test.mjs && node htlc.test.mjs",
-    "demo:chipnet": "npm run build && node chipnet-demo.mjs"
+    "demo:chipnet": "npm run build && node demo.mjs chipnet",
+    "demo:mainnet": "npm run build && node demo.mjs mainnet"
   },
   "dependencies": {
     "@noble/curves": "^1.9.0",

@@ -64,8 +64,8 @@ Vault genesis (state NFT minted into the covenant):
 covenant; BCH sits in a satoshi container. Fourteen mock-network checks (real
 BCH VM) cover vault payments, refusals, allowlist, day reset, deposit, and
 rescue, with refusals failing at their exact `require`. The suite also tests
-the StableSwap and BCH-only HTLC prototypes on the mock network. A chipnet demo
-script is included. Details in
+the StableSwap and BCH-only HTLC prototypes on the mock network. A live demo
+script runs the vault on chipnet or mainnet. Details in
 [`contracts/solidcash/README.md`](contracts/solidcash/README.md).
 
 ## StableSwap — BCH ↔ PUSD AMM
