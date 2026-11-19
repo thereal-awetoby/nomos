@@ -7,6 +7,7 @@ export default function Rescue() {
   const { wallet, vault, vaultConfig, refreshVault } = useWallet()
   const [destination, setDestination] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [confirmed, setConfirmed] = useState(false)
   const [result, setResult] = useState<{
     type: 'success' | 'error'
     message: string
@@ -19,6 +20,10 @@ export default function Rescue() {
   const hasRescuePk = !!vaultConfig.rescuePk
 
   const handleRescue = async () => {
+    if (!confirmed) {
+      setResult({ type: 'error', message: 'Confirm that you understand this sweeps the entire vault balance and bypasses the daily limit.' })
+      return
+    }
     const addrErr = validateCashAddress(destination)
     if (addrErr) {
       setResult({ type: 'error', message: `Invalid destination: ${addrErr}` })
@@ -32,7 +37,7 @@ export default function Rescue() {
       )
       setResult({
         type: 'success',
-        message: 'Rescue complete — all funds swept',
+        message: 'The wallet/provider returned a transaction ID. Check an explorer for relay, mining, and confirmation.',
         txHash: txid,
       })
     } catch (err: any) {
@@ -98,15 +103,26 @@ export default function Rescue() {
         <input
           type="text"
           value={destination}
-          onChange={(e) => { setDestination(e.target.value); setResult(null) }}
+          onChange={(e) => { setDestination(e.target.value); setConfirmed(false); setResult(null) }}
           placeholder="bitcoincash:qr…"
           className="input text-xs"
         />
       </div>
 
+      {/* Confirmation gate */}
+      <label className="flex cursor-pointer items-start gap-3 text-xs text-nomos-muted-bright">
+        <input
+          type="checkbox"
+          checked={confirmed}
+          onChange={(event) => setConfirmed(event.target.checked)}
+          className="mt-0.5 h-4 w-4 shrink-0 accent-nomos-refuse"
+        />
+        I understand this sweeps the entire vault balance and bypasses the daily limit.
+      </label>
+
       <button
         onClick={handleRescue}
-        disabled={!destination || submitting || !hasRescuePk}
+        disabled={!destination || submitting || !hasRescuePk || !confirmed}
         className="btn-danger w-full py-3 font-semibold"
       >
         {submitting ? <><span className="spinner mr-2" /> Signing…</> : 'Rescue — Sweep All Funds'}
@@ -122,7 +138,7 @@ export default function Rescue() {
           <p className={`mono-value text-lg font-bold ${
             result.type === 'success' ? 'text-nomos-accent' : 'text-nomos-refuse'
           }`}>
-            {result.type === 'success' ? 'Rescue complete' : 'Rescue failed'}
+            {result.type === 'success' ? 'Submitted · unconfirmed' : 'Rescue failed'}
           </p>
           <p className="mt-1 text-xs text-nomos-muted-bright">{result.message}</p>
           {result.txHash && (
@@ -131,7 +147,7 @@ export default function Rescue() {
               target="_blank" rel="noreferrer"
               className="mt-3 inline-block text-xs text-nomos-accent hover:underline"
             >
-              View on explorer →
+              Check explorer · not confirmed →
             </a>
           )}
         </div>

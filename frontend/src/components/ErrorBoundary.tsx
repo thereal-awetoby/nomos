@@ -42,13 +42,22 @@ export default class ErrorBoundary extends Component<Props, State> {
             </pre>
           </details>
         )}
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-          className="btn-primary"
-        >
-          Reload Nomos
-        </button>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="btn-primary"
+          >
+            Try again
+          </button>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="btn-ghost"
+          >
+            Reload app
+          </button>
+        </div>
       </div>
     )
   }

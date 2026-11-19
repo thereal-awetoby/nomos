@@ -1,9 +1,32 @@
-import { lazy, Suspense } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { lazy, Suspense, useEffect } from 'react'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { WalletProvider } from './context/WalletContext'
 import Layout from './components/Layout'
 import KeyboardShortcuts from './components/KeyboardShortcuts'
 import { ToastProvider } from './components/Toast'
+
+const PAGE_TITLES: Record<string, string> = {
+  '/': 'Connect',
+  '/vault': 'Vault',
+  '/mandate': 'Set Mandate',
+  '/pay': 'Pay',
+  '/activity': 'Activity',
+  '/rescue': 'Rescue',
+  '/proof': 'Proof Checker',
+  '/bridge': 'Bridge',
+  '/identity': 'Nostr Identity',
+  '/simulate': 'Simulator',
+  '/architecture': 'Architecture',
+}
+
+function PageTitle() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    const label = PAGE_TITLES[pathname]
+    document.title = label ? `${label} · Nomos` : 'Nomos'
+  }, [pathname])
+  return null
+}
 
 const Connect = lazy(() => import('./pages/Connect'))
 const VaultHome = lazy(() => import('./pages/VaultHome'))
@@ -31,6 +54,7 @@ export default function App() {
     <ToastProvider>
       <WalletProvider>
         <KeyboardShortcuts />
+        <PageTitle />
         <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route element={<Layout />}>
