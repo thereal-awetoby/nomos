@@ -79,7 +79,7 @@ export default function SpendSparkline({
           </div>
         ))}
       </div>
-      <p className="mt-2 text-[9px] leading-relaxed text-nomos-muted">Grouped by local calendar date from receipts saved on this device. The covenant day comes from tx.locktime and may differ. Red dashed line: daily limit.</p>
+      <p className="mt-2 text-[9px] leading-relaxed text-nomos-muted">Grouped by local calendar date from receipts saved on this device. The covenant day comes from tx.locktime and may differ. A mandate update resets the on-chain counter, not this history. Red dashed line: daily limit.</p>
     </section>
   )
 }
