@@ -4,8 +4,8 @@
   "description": "A Bitcoin Cash spend-mandate covenant with daily limits, allowlists, and agent keys checked by BCH nodes.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#080810",
-  "theme_color": "#00e599",
+  "background_color": "#0b0d10",
+  "theme_color": "#0b0d10",
   "icons": [
     {
       "src": "/icon-192.svg",

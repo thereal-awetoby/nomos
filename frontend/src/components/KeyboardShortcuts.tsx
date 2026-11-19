@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { OPEN_SHORTCUTS_EVENT } from '../lib/theme'
 
 interface Shortcut {
   key: string
@@ -91,6 +92,11 @@ export default function KeyboardShortcuts() {
   }, [handleKey])
 
   useEffect(() => {
+    window.addEventListener(OPEN_SHORTCUTS_EVENT, openPalette)
+    return () => window.removeEventListener(OPEN_SHORTCUTS_EVENT, openPalette)
+  }, [openPalette])
+
+  useEffect(() => {
     if (open) {
       closeButtonRef.current?.focus()
       return
@@ -130,13 +136,13 @@ export default function KeyboardShortcuts() {
         aria-haspopup="dialog"
         aria-expanded={open}
         title="Keyboard shortcuts"
-        className="fixed bottom-4 right-4 z-40 flex h-10 w-10 items-center justify-center rounded-full border border-nomos-border/20 bg-nomos-surface text-sm font-mono font-semibold text-nomos-muted-bright shadow-card transition-colors hover:text-nomos-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomos-accent"
+        className="fixed bottom-4 right-4 z-40 hidden h-9 w-9 items-center justify-center border hairline-strong bg-nomos-surface font-mono text-sm font-semibold text-nomos-muted-bright transition-colors hover:text-nomos-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomos-accent md:flex"
       >
         ?
       </button>
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6"
           onClick={closePalette}
         >
           <div

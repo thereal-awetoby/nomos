@@ -77,6 +77,7 @@ export default function RefusalProofPanel({
           } else if (vault?.mandate) {
             addReceipt({
               id: `node-accepted-${result.txid}`,
+              kind: 'payment',
               status: 'submitted',
               amount: receiptDetails.amountSats,
               destination: receiptDetails.destination,
@@ -112,6 +113,7 @@ export default function RefusalProofPanel({
         } else if (vault?.mandate) {
           addReceipt({
             id: `refusal-${result.proof.txid}`,
+            kind: 'payment',
             status: 'refused',
             amount: receiptDetails.amountSats,
             destination: receiptDetails.destination,

@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
-  <rect width="512" height="512" rx="96" fill="#080810"/>
-  <text x="256" y="310" font-family="monospace" font-size="220" font-weight="bold" fill="#00e599" text-anchor="middle">N</text>
-  <rect x="96" y="370" width="320" height="8" rx="4" fill="#00e599" opacity="0.3"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" shape-rendering="crispEdges">
+  <rect width="512" height="512" fill="#0b0d10"/>
+  <g fill="#e7eaee"><rect x="112.64" y="112.64" width="57.34" height="57.34"/><rect x="342.02" y="112.64" width="57.34" height="57.34"/><rect x="112.64" y="169.98" width="57.34" height="57.34"/><rect x="169.98" y="169.98" width="57.34" height="57.34"/><rect x="342.02" y="169.98" width="57.34" height="57.34"/><rect x="112.64" y="227.33" width="57.34" height="57.34"/><rect x="227.33" y="227.33" width="57.34" height="57.34"/><rect x="342.02" y="227.33" width="57.34" height="57.34"/><rect x="112.64" y="284.67" width="57.34" height="57.34"/><rect x="284.67" y="284.67" width="57.34" height="57.34"/><rect x="342.02" y="284.67" width="57.34" height="57.34"/><rect x="112.64" y="342.02" width="57.34" height="57.34"/><rect x="342.02" y="342.02" width="57.34" height="57.34"/></g>
+  <rect x="112.64" y="450.05" width="286.72" height="5.33" fill="#12c788"/>
 </svg>

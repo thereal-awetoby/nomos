@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
 import { useToast } from '../components/Toast'
+import { Panel } from '../components/ui'
+import SpentMeter from '../components/SpentMeter'
+import RefuseBanner, { refusalRule } from '../components/RefuseBanner'
 import { wouldRefuse, remainingToday, executeSpend, validateCashAddress, EXPLORER_TX_URL } from '../lib/contract'
 import { isNostrIdentifier, resolveNostrPayee, payeeLabel, type NostrPayee } from '../lib/nostr'
 
@@ -55,6 +58,7 @@ export default function Pay() {
 
   const mandate = vault.mandate
   const remaining = remainingToday(mandate)
+  const spentToday = Math.max(0, mandate.dailyLimitSats - remaining)
   const amountSats = bchToSats(amount)
   const payToPreview = payee?.address ?? destination.trim()
   const liveVerdict = vault.deployed && amountSats > 0 && payToPreview && (!isNostr || payee)
@@ -92,6 +96,7 @@ export default function Pay() {
       const receiptId = `local-refusal-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       const receipt = {
         id: receiptId,
+        kind: 'payment' as const,
         status: 'refused' as const,
         amount: amountSats,
         destination: payTo,
@@ -138,22 +143,19 @@ export default function Pay() {
   }
 
   return (
-    <div className="page-enter space-y-5">
-      {/* Back nav */}
-      <Link to="/vault" className="text-xs text-nomos-muted hover:text-nomos-accent transition-colors duration-200">
-        ← Back to vault
-      </Link>
+    <div className="page-enter space-y-4">
+      <header>
+        <p className="eyebrow">PAYMENT · LOCAL PREVIEW</p>
+        <h1 className="page-title">Pay</h1>
+        <p className="mt-1 text-[10px] text-nomos-muted">Your wallet signs; the covenant enforces the active mandate on-chain.</p>
+      </header>
 
-      <h2 className="font-mono text-2xl font-bold">Pay</h2>
-
-      {/* Remaining budget */}
-      <div className="card px-5 py-4 text-center">
-        <p className="label">Remaining Today</p>
-        <p className="mt-1 mono-value text-2xl font-bold text-nomos-accent">
-          {(remaining / 1e8).toFixed(8)}
-          <span className="ml-1 text-sm text-nomos-muted">BCH</span>
-        </p>
-      </div>
+      <Panel
+        title="Daily allowance"
+        right={<span className="font-mono text-[10px] tabular-nums text-nomos-text">{(remaining / 1e8).toFixed(8)} BCH left</span>}
+      >
+        <SpentMeter spentSats={spentToday} limitSats={mandate.dailyLimitSats} pendingSats={amountSats > 0 ? amountSats : 0} />
+      </Panel>
 
       {/* Amount */}
       <div>
@@ -194,7 +196,7 @@ export default function Pay() {
 
         {/* Nostr resolution */}
         {isNostr && (
-          <div className="mt-2 rounded-2xl px-3 py-2.5 text-xs" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="mt-2 border hairline bg-nomos-surface-raised/40 px-3 py-2.5 text-xs">
             {resolving && <p className="pulse-text text-nomos-muted">Looking up on Nostr…</p>}
             {resolveError && <p className="text-nomos-refuse">{resolveError}</p>}
             {payee && (
@@ -262,33 +264,32 @@ export default function Pay() {
       </p>
 
       {/* Result */}
-      {result && (
-        <div className={`card p-5 text-center ${
-          result.type === 'success'
-            ? 'border-nomos-accent/20 bg-nomos-accent/5'
-            : result.type === 'refused'
-              ? 'border-nomos-refuse/20 bg-nomos-refuse/5'
-              : 'border-amber-400/20 bg-amber-400/5'
-        }`} style={{ borderWidth: '1px', borderStyle: 'solid' }}>
-          <p className={`mono-value text-lg font-bold ${
-            result.type === 'success' ? 'text-nomos-accent' : result.type === 'refused' ? 'text-nomos-refuse' : 'text-amber-400'
-          }`}>
-            {result.type === 'success' ? 'Submitted · awaiting confirmation' : result.type === 'refused' ? 'Blocked by mandate check' : 'No confirmed node verdict'}
+      {result?.type === 'refused' ? (
+        <RefuseBanner
+          detail={{
+            rule: refusalRule(result.message),
+            amountSats,
+            remainingSats: remaining,
+            dailyLimitSats: mandate.dailyLimitSats,
+            destination: payToPreview,
+            reason: result.message,
+          }}
+          proofUrl={result.proofUrl}
+          onAdjustAmount={refusalRule(result.message) === 'limit' ? () => setAmount((remaining / 1e8).toFixed(8)) : undefined}
+          onChangeDestination={refusalRule(result.message) === 'limit' || refusalRule(result.message) === 'amount'
+            ? undefined
+            : () => { setDestination(''); setPayee(null); setResult(null) }}
+        />
+      ) : result && (
+        <div className={`card p-4 ${result.type === 'success' ? 'border-nomos-pending/30 bg-nomos-pending/[0.04]' : 'border-nomos-muted/30 bg-nomos-surface'}`}>
+          <p className={`font-mono text-sm font-bold uppercase tracking-[0.08em] ${result.type === 'success' ? 'text-nomos-pending' : 'text-nomos-muted-bright'}`}>
+            {result.type === 'success' ? 'Submitted · awaiting confirmation' : 'No confirmed node verdict'}
           </p>
           <p className="mt-1 text-xs text-nomos-muted-bright">{result.message}</p>
           {result.txHash && (
-            <a
-              href={`${EXPLORER_TX_URL}${result.txHash}`}
-              target="_blank" rel="noreferrer"
-              className="mt-3 inline-block text-xs text-nomos-accent hover:underline"
-            >
-              Check explorer · not confirmed →
+            <a href={`${EXPLORER_TX_URL}${result.txHash}`} target="_blank" rel="noreferrer" className="link-action mt-3 inline-block text-nomos-accent">
+              Check explorer · not confirmed
             </a>
-          )}
-          {result.proofUrl && (
-            <p className="mt-3 text-xs">
-              <Link to={result.proofUrl} className="text-nomos-accent underline">Check this refusal with a node →</Link>
-            </p>
           )}
         </div>
       )}

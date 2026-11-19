@@ -35,7 +35,7 @@ const LAYERS: Layer[] = [
 const layerToneClasses: Record<Layer['tone'], string> = {
   accent: 'text-nomos-accent',
   muted: 'text-nomos-muted-bright',
-  warning: 'text-amber-400',
+  warning: 'text-nomos-pending',
 }
 
 interface ContractRow {
@@ -74,7 +74,7 @@ const CONTRACTS: ContractRow[] = [
 
 const statusClasses: Record<ContractRow['status'], string> = {
   'Chipnet evidence': 'bg-nomos-accent/15 text-nomos-accent',
-  'Mock tested': 'bg-amber-400/15 text-amber-400',
+  'Mock tested': 'bg-nomos-pending/15 text-nomos-pending',
   Prototype: 'bg-nomos-muted/15 text-nomos-muted-bright',
 }
 
@@ -126,10 +126,7 @@ export default function Architecture() {
   return (
     <div className="page-enter space-y-6">
       <header>
-        <Link to="/" className="text-xs text-nomos-muted transition-colors hover:text-nomos-accent">
-          ← Home
-        </Link>
-        <h1 className="mt-3 font-mono text-2xl font-bold text-nomos-text">Architecture</h1>
+        <h1 className="page-title">Architecture</h1>
         <p className="mt-2 text-sm leading-relaxed text-nomos-muted">
           How the browser app, wallet providers, BCH network, and experimental
           contracts fit together. No Nomos server holds wallet keys or signs
@@ -158,7 +155,7 @@ export default function Architecture() {
             </div>
             {index < LAYERS.length - 1 && (
               <div className="flex justify-center py-0.5" aria-hidden="true">
-                <span className="text-xs text-nomos-muted/40">↓</span>
+                <span className="block h-3 w-px bg-nomos-border/40" />
               </div>
             )}
           </div>
@@ -272,11 +269,11 @@ export default function Architecture() {
         <h2 id="architecture-validation-title" className="label">Validation commands</h2>
         <div className="space-y-1 rounded-xl bg-nomos-bg/60 px-4 py-3 font-mono text-[10px] text-nomos-muted-bright">
           <p><span className="text-nomos-accent">$</span> cd contracts/solidcash &amp;&amp; npm test</p>
-          <p className="pl-3 text-nomos-muted">→ Vault, StableSwap, and HTLC mock-network tests</p>
+          <p className="pl-3 text-nomos-muted"># Vault, StableSwap, and HTLC mock-network tests</p>
           <p><span className="text-nomos-accent">$</span> cd xo &amp;&amp; npm test</p>
-          <p className="pl-3 text-nomos-muted">→ 14 offline XO template checks</p>
+          <p className="pl-3 text-nomos-muted"># 14 offline XO template checks</p>
           <p><span className="text-nomos-accent">$</span> cd frontend &amp;&amp; npm run build</p>
-          <p className="pl-3 text-nomos-muted">→ TypeScript check and production bundle</p>
+          <p className="pl-3 text-nomos-muted"># TypeScript check and production bundle</p>
         </div>
       </section>
 
@@ -287,7 +284,7 @@ export default function Architecture() {
           rel="noreferrer"
           className="btn-ghost flex-1 py-2.5 text-center text-xs"
         >
-          GitHub →
+          GitHub
         </a>
         <Link to="/simulate" className="btn-ghost flex-1 py-2.5 text-center text-xs">
           Simulator

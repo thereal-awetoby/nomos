@@ -75,10 +75,7 @@ export default function Simulate() {
   return (
     <div className="page-enter space-y-6">
       <header>
-        <Link to="/" className="text-xs text-nomos-muted transition-colors hover:text-nomos-accent">
-          ← Home
-        </Link>
-        <h1 className="mt-3 font-mono text-2xl font-bold text-nomos-text">Mandate Simulator</h1>
+        <h1 className="page-title">Mandate Simulator</h1>
         <p className="mt-2 text-sm leading-relaxed text-nomos-muted">
           Explore the daily-limit and allowlist rules without connecting a
           wallet. This is a local illustration only: it does not run the
@@ -86,7 +83,7 @@ export default function Simulate() {
         </p>
       </header>
 
-      <div className="card border-amber-400/20 bg-amber-400/[0.04] p-4" role="note">
+      <div className="card border-nomos-pending/20 bg-nomos-pending/[0.04] p-4" role="note">
         <p className="text-xs leading-relaxed text-nomos-muted-bright">
           The deployed covenant also checks signatures, transaction locktime,
           and NFT continuation. This simulator does not model those checks and

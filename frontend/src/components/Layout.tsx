@@ -1,37 +1,43 @@
 import { Outlet } from 'react-router-dom'
 import Banner from './Banner'
+import BottomNav from './BottomNav'
+import { useWallet } from '../context/WalletContext'
+
+const SOURCE_URL = 'https://github.com/thereal-awetoby/nomos/blob/main/contracts/NomosVault.cash'
 
 export default function Layout() {
+  const { wallet } = useWallet()
+  const hasBottomNav = !!wallet?.connected
+
   return (
-    <div className="flex min-h-screen flex-col bg-nomos-bg">
+    <div className="flex min-h-screen flex-col">
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-nomos-accent focus:px-4 focus:py-2 focus:text-sm focus:font-semibold"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:bg-nomos-accent focus:px-4 focus:py-2 focus:font-mono focus:text-xs focus:font-bold focus:uppercase"
         style={{ color: 'rgb(var(--nomos-on-accent))' }}
       >
         Skip to content
       </a>
-
-      {/* Subtle radial glow behind content */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
-        <div className="absolute left-1/2 top-0 -translate-x-1/2 h-[600px] w-[800px] rounded-full bg-nomos-accent/[0.03] blur-[120px]" />
-      </div>
 
       <Banner />
       <main
         id="main-content"
         role="main"
         tabIndex={-1}
-        className="relative mx-auto w-full max-w-lg flex-1 px-5 py-8"
+        className={`relative mx-auto w-full max-w-5xl flex-1 px-4 py-5 focus:outline-none ${hasBottomNav ? 'pb-28 md:pb-10' : 'pb-10'}`}
       >
         <Outlet />
       </main>
       <footer
         role="contentinfo"
-        className="relative py-5 text-center text-[10px] text-nomos-muted/40 tracking-wider"
+        className={`border-t hairline ${hasBottomNav ? 'mb-16 md:mb-0' : ''}`}
       >
-        NOMOS · BCH BLAZE 2026
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-3 font-mono text-[9px] uppercase tracking-[0.14em] text-nomos-muted">
+          <span>Nomos · BCH BLAZE 2026</span>
+          <a href={SOURCE_URL} target="_blank" rel="noreferrer" className="hover:text-nomos-accent">Covenant source: NomosVault.cash</a>
+        </div>
       </footer>
+      <BottomNav />
     </div>
   )
 }

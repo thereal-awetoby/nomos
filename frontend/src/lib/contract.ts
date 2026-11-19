@@ -109,6 +109,13 @@ export function remainingToday(mandate: Mandate): number {
   return Math.max(0, mandate.dailyLimitSats - mandate.spentTodaySats)
 }
 
+/** Remaining allowance recorded in a mandate snapshot taken at `timestampMs`. */
+export function remainingAt(mandate: Mandate, timestampMs: number): number {
+  const day = Math.floor((Math.floor(timestampMs / 1000) - LOCKTIME_BACKDATE_SECS) / 86400)
+  if (day !== mandate.dayMarker) return mandate.dailyLimitSats
+  return Math.max(0, mandate.dailyLimitSats - mandate.spentTodaySats)
+}
+
 export function wouldRefuse(
   mandate: Mandate,
   amountSats: number,
@@ -465,6 +472,7 @@ export async function executeSpend(
 
   return {
     id: result.txid || Date.now().toString(),
+    kind: 'payment',
     status: 'submitted',
     amount: amountSats,
     destination,
@@ -603,7 +611,7 @@ export async function executeCreateVault(
   walletProvider: WalletProviderType,
   onStep?: (message: string) => void,
   wcIndex: number = 0,
-): Promise<{ txid: string }> {
+): Promise<{ txid: string; tokenAddress: string }> {
   if (!Number.isFinite(depositSats) || depositSats < MIN_VAULT_DEPOSIT_SATS) {
     throw new Error(`Deposit at least ${MIN_VAULT_DEPOSIT_SATS} sats (${MIN_VAULT_DEPOSIT_SATS / 1e8} BCH)`)
   }
@@ -664,7 +672,7 @@ export async function executeCreateVault(
   if (change >= DUST_LIMIT) genesisTx.addOutput({ to: walletAddress, amount: change })
 
   const result = await buildSignAndBroadcast(genesisTx, walletProvider, 'Nomos: create vault', wcIndex)
-  return { txid: result.txid }
+  return { txid: result.txid, tokenAddress: contract.tokenAddress }
 }
 
 // ── Set Mandate ────────────────────────────────────────────
@@ -679,7 +687,7 @@ export async function executeSetMandate(
   _ownerAddress: string,
   walletProvider: WalletProviderType,
   wcIndex: number = 0,
-): Promise<{ txid: string; newConfig: VaultConfig }> {
+): Promise<{ txid: string; newConfig: VaultConfig; amountSats: number; tokenAddress: string }> {
   const oldContract = await getContract(config)
   const newContract = await getContract(newConfig)
   const provider = getProvider()
@@ -721,7 +729,7 @@ export async function executeSetMandate(
   const result = await buildSignAndBroadcast(
     txBuilder, walletProvider, 'Nomos: update mandate', wcIndex,
   )
-  return { txid: result.txid, newConfig }
+  return { txid: result.txid, newConfig, amountSats: Number(changeSats), tokenAddress: newContract.tokenAddress }
 }
 
 // ── Rescue ─────────────────────────────────────────────────
@@ -732,7 +740,7 @@ export async function executeRescue(
   destination: string,
   walletProvider: WalletProviderType,
   wcIndex: number = 0,
-): Promise<string> {
+): Promise<{ txid: string; amountSats: number }> {
   const contract = await getContract(config)
   const provider = getProvider()
   const utxos = await contract.getUtxos()
@@ -761,5 +769,5 @@ export async function executeRescue(
   const result = await buildSignAndBroadcast(
     txBuilder, walletProvider, 'Nomos: rescue funds', wcIndex,
   )
-  return result.txid
+  return { txid: result.txid, amountSats: Number(sweepAmount) }
 }
