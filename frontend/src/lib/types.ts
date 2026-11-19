@@ -1,5 +1,7 @@
 // ── Nomos types ─────────────────────────────────────────────
 
+import type { RefusalProof } from './proofs'
+
 export type WalletProviderType = 'wizardconnect' | 'wc2'
 
 export interface Mandate {
@@ -21,7 +23,7 @@ export interface VaultState {
   mandate: Mandate
 }
 
-export type TxStatus = 'paid' | 'refused'
+export type TxStatus = 'paid' | 'refused' | 'submitted'
 
 export interface Receipt {
   id: string
@@ -34,6 +36,8 @@ export interface Receipt {
   txHash?: string
   mandate: Mandate
   timestamp: number
+  /** Signed transaction rejected by a BCH node; not proof of mined or confirmed state. */
+  onChainRefusal?: RefusalProof
 }
 
 export interface WalletConnection {

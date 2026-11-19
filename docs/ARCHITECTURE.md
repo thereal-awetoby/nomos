@@ -13,8 +13,8 @@ disabled.
 ```text
 ┌──────────────────────── Browser ───────────────────────────┐
 │ React Router pages                                         │
-│ Connect · Vault · Mandate · Pay · Activity · Rescue · Bridge│
-│ Identity · Simulate · Architecture                         │
+│ Connect · Vault · Mandate · Pay · Activity · Proof · Rescue│
+│ Bridge · Identity · Simulate · Architecture                │
 │                           │                                │
 │                     WalletContext                          │
 │              wallet · vault config · receipts               │
@@ -52,7 +52,8 @@ address is used. The Simulator is local-only and does not execute a covenant.
 | `/vault` | `VaultHome` | Show balance, mandate, funding address, and vault actions. |
 | `/mandate` | `SetMandate` | Create a vault or update its owner-configured mandate. |
 | `/pay` | `Pay` | Prepare a payment under the current vault rules. |
-| `/activity` | `Activity` | Show locally saved receipts and summary counts. |
+| `/activity` | `Activity` | Show locally saved receipts, node script-failure counts, and a JSON export. |
+| `/proof` | `Proof` | Wallet-free signed-transaction checker, optional vault-assisted signing, and browser-local node-check records. |
 | `/rescue` | `Rescue` | Present the owner/co-signer emergency path. The current in-app signing flow has limitations for separate keys; see the root README. |
 | `/bridge` | `Bridge` | Disabled Swap / Bridge In / Bridge Out preview. |
 | `/identity` | `Identity` | Resolve a Nostr identity through external NIP-05/relay services and verify the signed BCH-address event. |
@@ -62,10 +63,23 @@ address is used. The Simulator is local-only and does not execute a covenant.
 `WalletContext` coordinates the wallet session, vault configuration, receipts,
 and periodic vault refresh. The `wallet.ts` module adapts wallet providers;
 `contract.ts` handles BCH covenant interactions; `nostr.ts` resolves Nostr
-identifiers and verifies address events. `KeyboardShortcuts` provides optional
-single-key navigation that can be disabled from its help palette and does not
-intercept keystrokes in editable fields. Wallet configuration and receipts
-are stored locally in the browser, not as an application-server database.
+identifiers and verifies address events; `proofs.ts` classifies node rejections
+and stores recent results in this browser. Wallet configuration, receipts, and
+saved node checks are local browser data, not an application-server database.
+`KeyboardShortcuts` provides optional single-key navigation that can be disabled
+from its help palette and does not intercept keystrokes in editable fields.
+
+The refusal-proof signing path is separate from the regular broadcasting spend
+helper. It re-reads the deployed vault state, signs a transaction that violates
+a stable rule, then submits the raw signed hex to the configured Electrum
+`blockchain.transaction.broadcast` RPC for a verdict. The public `/proof`
+checker accepts arbitrary signed hex, requires no wallet, and can therefore
+submit a valid spend as well as a deliberately invalid one. The interface warns
+that an accepted transaction may be relayed/mined and that anyone with the hex
+can rebroadcast it. A node rejection is not mined/confirmed state: script
+failures, missing/spent inputs, other RPC rejections, and transport errors are
+presented separately. A reported script failure does not identify which input
+script failed or prove that the Nomos covenant rule caused it.
 
 ## Contract surfaces
 

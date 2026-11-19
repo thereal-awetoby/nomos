@@ -138,11 +138,31 @@ Receipts show who you paid by name as well as the address.
 1. Open the [live demo](https://nomos.asgaya.org/) and connect with WizardConnect or a
    WalletConnect wallet (XO).
 2. Set a mandate with a low daily limit.
-3. Fund the vault and pay under the limit → **Paid**, with a receipt and
-   explorer link.
-4. Try to pay over the limit → **Refused by Nomos**. The app checks the
-   mandate first so you don't waste a fee; the chipnet test above shows the
-   chain refuses the same payment if it's broadcast anyway.
+3. Fund the vault and pay under the limit → the wallet/provider returns a
+   transaction ID; check the explorer for relay, mining, and confirmation.
+4. Try to pay over the limit → the app's live mandate preview blocks the
+   normal Pay action. The chipnet test above documents a signed transaction
+   rejected by a node.
+
+## Check a refusal (`/proof`)
+
+The proof checker can submit signed transaction hex to the configured public
+Electrum node without connecting a wallet. Its **Check** action calls the
+node's transaction-broadcast RPC; it is not a passive or offline validator.
+A valid transaction may be accepted, relayed, mined, and spend funds. Anyone
+who receives the signed hex can also rebroadcast it. Treat raw transaction hex
+as sensitive and submit only transactions you are willing to expose.
+
+The wallet-assisted flow first re-reads the deployed vault mandate, then asks
+the connected wallet to sign a spend that violates a durable rule (above the
+full daily cap or excluded by the immutable allowlist). Signing itself does not
+broadcast; the subsequent node check does. A node rejection is a point-in-time
+response, not proof of mined or confirmed chain state. The interface separates
+script-validation failures, missing or spent inputs, other node rejections,
+and transport failures. A script failure does not identify which input script
+failed or, by itself, prove the Nomos covenant rule caused it. Rejected node
+responses are saved in this browser only; Activity receipts and JSON exports
+may include rebroadcastable signed transaction hex.
 
 ## Run locally
 

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import ThemeToggle from './ThemeToggle'
+import { useToast } from './Toast'
 
 // ── Site-wide top banner ────────────────────────────────────
 
@@ -12,6 +13,17 @@ const NETWORK = ((import.meta.env.VITE_BCH_NETWORK as string) || 'mainnet')
 const isChipnet = NETWORK === 'chipnet'
 
 export default function Banner() {
+  const { toast } = useToast()
+
+  const copyEmberAddress = async () => {
+    try {
+      await navigator.clipboard.writeText(EMBER_ADDRESS)
+      toast('EMBER2026 address copied', 'success')
+    } catch {
+      toast('Could not copy the EMBER2026 address', 'error')
+    }
+  }
+
   return (
     <nav
       aria-label="Site navigation"
@@ -82,9 +94,15 @@ export default function Banner() {
           </a>
         </div>
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          <span className="hidden max-w-[100px] truncate font-mono opacity-40 lg:block">
-            {EMBER_ADDRESS}
-          </span>
+          <button
+            type="button"
+            onClick={() => { void copyEmberAddress() }}
+            title={`Copy EMBER2026 CashTokens address: ${EMBER_ADDRESS}`}
+            aria-label="Copy EMBER2026 community address"
+            className="rounded-pill border border-nomos-accent/20 bg-nomos-accent/5 px-2.5 py-1 text-[9px] font-semibold tracking-wide text-nomos-accent transition-colors hover:bg-nomos-accent/10"
+          >
+            EMBER2026 · COPY
+          </button>
           <ThemeToggle />
         </div>
       </div>

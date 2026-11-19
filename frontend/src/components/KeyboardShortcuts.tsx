@@ -13,6 +13,7 @@ const SHORTCUTS: Shortcut[] = [
   { key: 'p', label: 'Pay', route: '/pay' },
   { key: 'm', label: 'Set mandate', route: '/mandate' },
   { key: 'a', label: 'Activity', route: '/activity' },
+  { key: 'f', label: 'Refusal proof checker', route: '/proof' },
   { key: 'b', label: 'Bridge preview', route: '/bridge' },
   { key: 'i', label: 'Nostr identity', route: '/identity' },
   { key: 's', label: 'Simulator', route: '/simulate' },

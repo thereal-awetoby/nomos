@@ -3,9 +3,11 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useWallet } from '../context/WalletContext'
 import { WizardConnectQRDialog } from '@wizardconnect/react'
 import { qrColors, THEME_CHANGE_EVENT } from '../lib/theme'
+import { useToast } from '../components/Toast'
 
 export default function Connect() {
   const navigate = useNavigate()
+  const { toast } = useToast()
   const {
     wallet, connecting, error,
     wcState, wcUri, wcQrUri, wcWalletName,
@@ -58,19 +60,37 @@ export default function Connect() {
   const handleWizardConnect = useCallback(() => {
     setLocalError(null)
     const started = startWizardConnect()
-    if (started !== false) setShowQr(true)
-  }, [startWizardConnect])
+    if (started !== false) {
+      setShowQr(true)
+      toast('WizardConnect pairing started', 'info')
+    } else {
+      toast('A wallet pairing is already in progress', 'info')
+    }
+  }, [startWizardConnect, toast])
 
   const handleWc2 = useCallback(async () => {
     setLocalError(null)
     setWc2Uri(null)
     try {
       await connectWc2()
+      toast('Wallet connected', 'success')
       navigate('/vault')
     } catch (err: any) {
-      setLocalError(err.message || 'Connection failed')
+      const message = err.message || 'Connection failed'
+      setLocalError(message)
+      toast(message, 'error')
     }
-  }, [connectWc2, navigate])
+  }, [connectWc2, navigate, toast])
+
+  const copyWc2Uri = async () => {
+    if (!wc2Uri) return
+    try {
+      await navigator.clipboard.writeText(wc2Uri)
+      toast('WalletConnect pairing URI copied', 'success')
+    } catch {
+      toast('Could not copy pairing URI', 'error')
+    }
+  }
 
   const displayError = localError || error || null
 
@@ -78,6 +98,7 @@ export default function Connect() {
     <div className="page-enter flex min-h-[75vh] flex-col items-center justify-center text-center">
       {/* Logo */}
       <div className="mb-10">
+        <p className="eyebrow mb-3">STEP 1 OF 4 · CONNECT</p>
         <h1 className="font-mono text-5xl font-bold tracking-tighter text-nomos-text">
           NOMOS
         </h1>
@@ -99,14 +120,14 @@ export default function Connect() {
             ? <><span className="spinner mr-2" /> Scan QR to connect…</>
             : wcState === 'reconnecting'
               ? <><span className="spinner mr-2" /> Reconnecting…</>
-              : 'Connect Wallet'}
+              : 'Connect with WizardConnect'}
         </button>
         <button
           onClick={handleWc2}
           disabled={connecting || wcState === 'connecting'}
           className="btn-ghost"
         >
-          {connecting ? <><span className="spinner mr-2" /> Connecting…</> : 'WalletConnect'}
+          {connecting ? <><span className="spinner mr-2" /> Connecting…</> : 'Connect with WalletConnect v2'}
         </button>
       </div>
 
@@ -118,7 +139,7 @@ export default function Connect() {
             <canvas ref={qrCanvasRef} />
           </div>
           <button
-            onClick={() => navigator.clipboard?.writeText(wc2Uri)}
+            onClick={() => { void copyWc2Uri() }}
             className="text-[10px] text-nomos-muted hover:text-nomos-accent transition-colors duration-200"
           >
             Copy pairing URI
@@ -151,9 +172,10 @@ export default function Connect() {
         <h2 id="how-nomos-works" className="label text-center">How Nomos works</h2>
         <ol className="space-y-3">
           {[
-            { step: '1', title: 'Connect a BCH wallet', desc: 'Pair with WizardConnect or WalletConnect.' },
-            { step: '2', title: 'Set your mandate', desc: 'Choose a daily limit, optional allowlist, and agent key.' },
-            { step: '3', title: 'Pay within the rules', desc: 'The BCH covenant checks spends; Activity keeps receipts.' },
+            { step: '1', title: 'Connect a BCH wallet', desc: 'Pair with WizardConnect or WalletConnect v2.' },
+            { step: '2', title: 'Create your vault', desc: 'Set a daily cap, optional allowlist, and agent key.' },
+            { step: '3', title: 'Fund the vault', desc: 'Use its token-aware deposit address; check the network first.' },
+            { step: '4', title: 'Pay under the rules', desc: 'Review the live preview; Activity saves receipts and /proof checks node replies.' },
           ].map(({ step, title, desc }) => (
             <li key={step} className="flex items-start gap-3">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-nomos-accent/15 text-sm font-bold text-nomos-accent">
@@ -180,6 +202,9 @@ export default function Connect() {
             </Link>
             <Link to="/architecture" className="btn-ghost py-2.5 text-center text-[10px]">
               Architecture
+            </Link>
+            <Link to="/proof" className="btn-ghost py-2.5 text-center text-[10px]">
+              Proof checker
             </Link>
           </div>
           <p className="pt-1 text-center text-[10px] text-nomos-muted/60">

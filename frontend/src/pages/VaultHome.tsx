@@ -4,9 +4,12 @@ import { useWallet } from '../context/WalletContext'
 import { remainingToday } from '../lib/contract'
 import { qrColors, THEME_CHANGE_EVENT } from '../lib/theme'
 import SpendGauge from '../components/SpendGauge'
+import SpendSparkline from '../components/SpendSparkline'
+import { useToast } from '../components/Toast'
 
 export default function VaultHome() {
-  const { wallet, vault, vaultConfig, refreshVault, disconnect } = useWallet()
+  const { wallet, vault, vaultConfig, receipts, refreshVault, disconnect } = useWallet()
+  const { toast } = useToast()
   const [copied, setCopied] = useState(false)
   const [depositCopied, setDepositCopied] = useState(false)
   const [showQr, setShowQr] = useState(false)
@@ -123,7 +126,10 @@ export default function VaultHome() {
       await navigator.clipboard.writeText(vault.address)
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
-    } catch { /* clipboard may be blocked */ }
+      toast('Vault address copied', 'success')
+    } catch {
+      toast('Could not copy vault address', 'error')
+    }
   }
 
   return (
@@ -171,7 +177,10 @@ export default function VaultHome() {
               await navigator.clipboard.writeText(vault.tokenAddress)
               setDepositCopied(true)
               setTimeout(() => setDepositCopied(false), 1500)
-            } catch {}
+              toast('Token-aware deposit address copied', 'success')
+            } catch {
+              toast('Could not copy deposit address', 'error')
+            }
           }}
           className="w-full truncate rounded-2xl bg-nomos-surface-raised/60 px-4 py-3 font-mono text-[10px] text-nomos-muted-bright hover:text-nomos-accent transition-colors duration-200 text-left"
           title="Copy deposit address"
@@ -234,6 +243,7 @@ export default function VaultHome() {
             </div>
           </div>
         </div>
+        <SpendSparkline receipts={receipts} dailyLimitSats={vault.mandate.dailyLimitSats} />
       </div>
 
       {/* ── Allowlist ── */}
@@ -251,7 +261,7 @@ export default function VaultHome() {
       )}
 
       {/* ── Action grid ── */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-3">
         <Link to="/mandate" className="btn-ghost py-3 text-center text-xs">
           Mandate
         </Link>
@@ -260,6 +270,9 @@ export default function VaultHome() {
         </Link>
         <Link to="/activity" className="btn-ghost py-3 text-center text-xs">
           Activity
+        </Link>
+        <Link to="/proof" className="btn-ghost py-3 text-center text-xs">
+          Proof checker
         </Link>
         <Link to="/bridge" className="btn-ghost py-3 text-center text-xs">
           Bridge preview
