@@ -133,6 +133,47 @@ No more pasting addresses. In **Pay**, type a Nostr identity (`npub…`,
 
 Receipts show who you paid by name as well as the address.
 
+## Linking a BCH address to a Nostr key
+
+The lookup above trusts whatever address a Nostr key publishes. A link goes
+further: both keys sign, each on its own network, and anyone can check it
+without Nomos. Create, verify and use one on the **Nostr Identity** page.
+
+| Half | Signed by | Where it lives | Content |
+|------|-----------|----------------|---------|
+| BCH anchor | The BCH address's key | A BCH transaction from the address to itself | `OP_RETURN "NOMOSID1" <32-byte Nostr pubkey>` |
+| Nostr claim | The Nostr key (NIP-07 signer) | Nostr relays, NIP-39 kind `10011` | `["i", "bch:<cashaddr without prefix>", "<anchor txid>"]` |
+
+The BCH half is a transaction because WizardConnect wallets sign transactions,
+not messages. The two keys stay separate: neither signs for the other network.
+
+**Verifying a link** from an npub, a NIP-05 name or a BCH address:
+
+1. Query relays for kind `10011` events, by author or by the `i` tag (relays
+   index it, so a BCH address finds its Nostr key). Keep the newest event per
+   key and check its signature.
+2. For each `bch:` claim, fetch the anchor transaction from a BCH node. It must
+   carry `NOMOSID1` and this Nostr key in an `OP_RETURN`, and one of its inputs
+   must be spent by the claimed address's public key. The node only relays
+   transactions with valid signatures, so this shows the address's owner made it.
+3. The link holds only when both halves name each other.
+
+**Authenticating** a user of a linked identity is challenge-response, with
+either key:
+
+- Nostr: the user signs a kind `22242` event with tag `["challenge", <nonce>]`.
+  The verifier checks the signature, the linked pubkey, the nonce and that the
+  event is under 10 minutes old.
+- BCH: the wallet signs, without broadcasting, a transaction from the linked
+  address to itself carrying `OP_RETURN "NOMOSAUTH" <nonce>`. The verifier
+  checks the nonce, that every input is spent by the linked address, and runs
+  the transaction through libauth's BCH virtual machine with its source outputs.
+  Nothing is sent; the signed transaction only pays the address back to itself.
+
+Both responses can be copied and checked by another app against the same
+link. The code is in `frontend/src/lib/nostr.ts` (Nostr side) and
+`frontend/src/lib/contract.ts` (BCH side).
+
 ## Try it
 
 1. Open the [live demo](https://nomos.asgaya.org/) and connect with WizardConnect or a
@@ -239,9 +280,10 @@ node test/vault.test.mjs
 - The **Mandate Simulator** (`/simulate`) is a local, wallet-free illustration
   of daily-limit and allowlist checks. It does not execute the covenant,
   validate BCH addresses, or create transactions.
-- The **Nostr Identity** page (`/identity`) works without a wallet. It resolves
-  NIP-05 names through the entered domain and public relays, verifies signed
-  address events, and warns that relays may withhold or serve stale results.
+- The **Nostr Identity** page (`/identity`) looks up published addresses
+  without a wallet, verifies BCH and Nostr links, creates a link (BCH wallet
+  plus a NIP-07 Nostr signer) and answers login challenges with either key.
+  Relays may withhold or serve stale results.
 - The **Architecture** page (`/architecture`) summarizes the system stack,
   contract surfaces, and repository/track coverage. It is not an audit or a
   bounty-eligibility claim and distinguishes chipnet/mock evidence from
@@ -265,7 +307,7 @@ or awards:
 | Build with XO / Migrate to XO | `xo/nomos.template.json` plus offline parser/compiler checks | Not yet run in XO's live engine |
 | SolidCash | Vault, StableSwap, and BCH HTLC contracts with mock-network tests | Prototypes only; no StableSwap/HTLC deployment |
 | Stablecoin Bridge ($750 PUSD) | StableSwap and BCH-side HTLC prototypes plus preview UI | No mainnet pool or cross-chain integration |
-| Nostr identity | Standalone lookup, payee resolution, and name labels in the app | No Nomos backend custody or payment processing |
+| Nostr identity | Pay by Nostr name, and a BCH and Nostr key link (NIP-39 claim plus on-chain anchor) with challenge-response login | No Nomos backend; relays may withhold results |
 | Community Choice | EMBER2026 vote address listed in the README and banner | No vote result claimed |
 | Mercar / Asgaya | External links in the interface | No transaction or bridge integration |
 

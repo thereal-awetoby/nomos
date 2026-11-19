@@ -8,6 +8,7 @@ import {
 } from '../lib/nostr'
 import type { NostrPayee } from '../lib/nostr'
 import { validateCashAddress } from '../lib/contract'
+import IdentityLink from '../components/IdentityLink'
 
 /** Standalone Nostr identity lookup; it does not require a connected wallet. */
 export default function Identity() {
@@ -58,7 +59,7 @@ export default function Identity() {
         <p className="eyebrow">NO WALLET REQUIRED</p>
         <h1 className="page-title">Nostr Identity</h1>
         <p className="mt-1.5 max-w-prose text-xs leading-relaxed text-nomos-muted">
-          Resolve a published BCH address in your browser. Queries go directly to public NIP-05 domains and Nostr relays, not a Nomos server.
+          Look up the BCH address a Nostr identity published, or link your own address to your Nostr key with a signature from each. Queries go directly to public NIP-05 domains, Nostr relays and BCH nodes, not a Nomos server.
         </p>
       </header>
 
@@ -122,6 +123,8 @@ export default function Identity() {
           <p className="mt-2 text-[10px] leading-relaxed text-nomos-muted">Latest valid event found on queried relays; not necessarily the latest published. Verify the destination before sending.</p>
         </section>
       )}
+
+      <IdentityLink />
 
       <section className="card p-4" aria-labelledby="identity-relays-title">
         <h2 id="identity-relays-title" className="label mb-2">Default public relays</h2>
