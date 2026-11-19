@@ -2,6 +2,27 @@ import { useEffect, useRef, useState } from 'react'
 import type { Receipt as ReceiptType } from '../lib/types'
 import { EXPLORER_TX_URL } from '../lib/contract'
 
+/** Add cautious context to common node errors without inferring covenant causation. */
+function explainNodeError(refusal: NonNullable<ReceiptType['onChainRefusal']>): string | null {
+  const error = refusal.nodeError.toLowerCase()
+  if (refusal.scriptFailure) {
+    if (error.includes('checksig') || error.includes('signature')) {
+      return 'The node reports a signature-related script failure. It does not identify which input or key; inspect the transaction inputs and signing data.'
+    }
+    return 'The node reported a script-validation failure. It does not identify which input script failed or prove the Nomos covenant caused it.'
+  }
+  if (refusal.rejectionKind === 'missing-inputs') {
+    return 'The node reports one or more inputs are missing, unavailable, or spent from its current view. A parent may be unknown to this node; this alone does not prove the vault UTXO was spent.'
+  }
+  if (error.includes('dust')) {
+    return 'The node flagged an output under its dust relay policy. Thresholds can depend on output type and node policy; this is not by itself proof of a covenant violation.'
+  }
+  if (error.includes('fee') || error.includes('insufficient priority')) {
+    return 'The node reports a fee or priority relay-policy issue. This does not by itself establish a covenant violation or consensus failure.'
+  }
+  return null
+}
+
 function receiptToText(receipt: ReceiptType, dateStr: string, timeStr: string): string {
   const statusLabel = receipt.status === 'paid'
     ? 'PAID'
@@ -37,6 +58,7 @@ export default function ReceiptCard({ receipt }: { receipt: ReceiptType }) {
   const dateStr = ts.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
   const timeStr = ts.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
   const receiptText = receiptToText(receipt, dateStr, timeStr)
+  const nodeErrorExplanation = receipt.onChainRefusal ? explainNodeError(receipt.onChainRefusal) : null
 
   useEffect(() => () => {
     if (copiedTimerRef.current !== null) window.clearTimeout(copiedTimerRef.current)
@@ -176,6 +198,7 @@ export default function ReceiptCard({ receipt }: { receipt: ReceiptType }) {
           </div>
           <p className="mt-1 break-all font-mono text-[9px] text-nomos-muted">TXID {receipt.onChainRefusal.txid}</p>
           <p className="mt-1 break-words text-[10px] leading-relaxed text-nomos-muted">{receipt.onChainRefusal.nodeError}</p>
+          {nodeErrorExplanation && <p className="mt-1 text-[10px] leading-relaxed text-nomos-muted-bright">↳ {nodeErrorExplanation}</p>}
           <p className="mt-1 text-[9px] text-nomos-muted/70">{receipt.onChainRefusal.network} · {new Date(receipt.onChainRefusal.checkedAt).toLocaleString()} · not mined/confirmed</p>
           <details className="mt-2">
             <summary className="cursor-pointer text-[9px] font-semibold text-nomos-accent">Show signed transaction hex</summary>

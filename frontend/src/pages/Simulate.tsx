@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import SpendGauge from '../components/SpendGauge'
 
 interface SimulationResult {
@@ -74,7 +75,10 @@ export default function Simulate() {
   return (
     <div className="page-enter space-y-6">
       <header>
-        <h1 className="font-mono text-2xl font-bold text-nomos-text">Mandate Simulator</h1>
+        <Link to="/" className="text-xs text-nomos-muted transition-colors hover:text-nomos-accent">
+          ← Home
+        </Link>
+        <h1 className="mt-3 font-mono text-2xl font-bold text-nomos-text">Mandate Simulator</h1>
         <p className="mt-2 text-sm leading-relaxed text-nomos-muted">
           Explore the daily-limit and allowlist rules without connecting a
           wallet. This is a local illustration only: it does not run the

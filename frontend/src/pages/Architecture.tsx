@@ -10,8 +10,8 @@ const LAYERS: Layer[] = [
   {
     label: 'Frontend pages',
     items: [
-      'Connect', 'Vault', 'Mandate', 'Pay', 'Activity', 'Rescue', 'Bridge',
-      'Identity', 'Simulate', 'Architecture',
+      'Connect', 'Vault', 'Mandate', 'Pay', 'Activity', 'Proof',
+      'Rescue', 'Bridge', 'Identity', 'Simulate', 'Architecture',
     ],
     tone: 'accent',
   },
