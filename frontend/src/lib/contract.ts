@@ -52,6 +52,9 @@ export const EXPLORER_TX_URL = NETWORK === 'mainnet'
   ? 'https://blockchair.com/bitcoin-cash/transaction/'
   : 'https://chipnet.imaginary.cash/tx/'
 
+/** Public repository source for the CashScript vault covenant. */
+export const CONTRACT_SOURCE_URL = 'https://github.com/thereal-awetoby/nomos/blob/main/contracts/NomosVault.cash'
+
 // ── Fees ───────────────────────────────────────────────────
 // Sizes measured from real NomosVault transactions (p2sh32, CashScript 0.11):
 // every contract input carries the full redeem script, so it is ~525 bytes,
