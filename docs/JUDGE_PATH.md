@@ -52,6 +52,13 @@ These pages work without connecting a wallet:
   The browser contacts the entered NIP-05 domain when applicable and public
   relays; signatures are checked locally, but relays may withhold or serve
   stale events.
+- **`/proof`** — Inspect browser-local node replies or submit signed transaction
+  hex without connecting a wallet. The check sends hex to the configured
+  Electrum broadcast RPC; it is not passive validation, and a node may accept
+  and relay a spend. Anyone with the hex can rebroadcast it. Wallet-assisted
+  signing is separate, requires an authorized wallet, and is limited to durable
+  mandate violations. Node replies are point-in-time observations, not
+  confirmation or proof of which covenant rule failed.
 - **`/architecture`** — In-app overview of the application stack, contract
   surfaces, security boundaries, repository coverage, and validation commands.
   It distinguishes chipnet/mock evidence from mainnet deployment claims.
@@ -64,6 +71,19 @@ For static validation:
 ```bash
 npm run build
 ```
+
+## 2b. Run the XO offline checks
+
+```bash
+cd xo
+npm ci
+npm test
+```
+
+The suite runs 14 offline checks against `nomos.template.json`: template
+parsing and references, CashScript bytecode/address equivalence, representative
+payment/withdraw/rescue transactions, and covenant rejection cases. These
+checks do not connect to XO's live engine.
 
 ## 3. What to inspect
 

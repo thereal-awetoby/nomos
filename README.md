@@ -226,7 +226,16 @@ node test/vault.test.mjs
   downloaded as PNG images, copied as text, or shared with the native share
   sheet where the browser supports it.
 - The vault mandate card visualizes today’s effective spend against its daily
-  limit, and successful payments show a brief confirmation animation.
+  limit. Pay records the wallet/provider-returned transaction ID as submitted;
+  check an explorer for relay, mining, and confirmation.
+- The **Proof Checker** (`/proof`) supports wallet-assisted signing for durable
+  mandate violations and wallet-free signed-hex checks. Wallet signing requests
+  use `broadcast:false`, but the app then submits the signed hex to the configured
+  Electrum broadcast RPC. A node may accept and relay a spend; a rejection is a
+  timestamped local response, not proof of which covenant rule failed or of
+  mined/confirmed state. The wallet flow only generates durable violations, but
+  the raw-hex checker accepts arbitrary transactions; heed its acknowledgement
+  and rebroadcast warning.
 - The **Mandate Simulator** (`/simulate`) is a local, wallet-free illustration
   of daily-limit and allowlist checks. It does not execute the covenant,
   validate BCH addresses, or create transactions.
@@ -290,11 +299,11 @@ nomos/
 │   │   └── *.test.mjs           # mock-network contract tests
 │   └── test/                    # chipnet mint + paid/refused tests
 ├── frontend/src/
-│   ├── pages/                   # Connect, VaultHome, SetMandate, Pay, Activity,
+│   ├── pages/                   # Connect, VaultHome, SetMandate, Pay, Activity, Proof,
 │   │                            # Rescue, Bridge, Identity, Simulate, Architecture
 │   ├── components/              # layout, banner, shortcuts, error boundary,
 │   │                            # theme, receipts, gauge, payment success
-│   └── lib/                     # wallet, covenant, Nostr, theme, and app types
+│   └── lib/                     # wallet, covenant, Nostr, proofs, theme, and app types
 ├── docs/                        # judge path, bridge design, proof checklist
 ├── xo/                          # XO template + offline checks
 └── README.md
