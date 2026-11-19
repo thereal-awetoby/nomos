@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import ReceiptCard from '../components/Receipt'
 import { useWallet } from '../context/WalletContext'
@@ -51,8 +51,9 @@ function downloadActivity(receipts: ReturnType<typeof useWallet>['receipts']) {
 }
 
 export default function Activity() {
-  const { wallet, receipts } = useWallet()
+  const { wallet, receipts, clearReceipts } = useWallet()
   const { toast } = useToast()
+  const [confirmClear, setConfirmClear] = useState(false)
   const stats = receipts.reduce((total, receipt) => {
     if (receipt.status === 'paid') {
       total.paidCount += 1
@@ -90,7 +91,15 @@ export default function Activity() {
           <h2 className="font-mono text-2xl font-bold">Activity</h2>
           <p className="mt-1 text-[10px] text-nomos-muted">Receipts saved on this device</p>
         </div>
-        {receipts.length > 0 && <button type="button" onClick={handleExport} className="btn-secondary shrink-0 px-3 py-2 text-[10px]">Export JSON</button>}
+        {receipts.length > 0 && (
+          <div className="flex shrink-0 gap-2">
+            <button type="button" onClick={handleExport} className="btn-secondary px-3 py-2 text-[10px]">Export</button>
+            {confirmClear
+              ? <button type="button" onClick={() => { clearReceipts(); setConfirmClear(false); toast('Receipts cleared', 'info') }} className="btn-danger px-3 py-2 text-[10px]">Confirm clear</button>
+              : <button type="button" onClick={() => setConfirmClear(true)} className="btn-ghost px-3 py-2 text-[10px]">Clear</button>
+            }
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-5" role="group" aria-label="Activity summary">
