@@ -91,7 +91,7 @@ export default function VaultHome() {
           <div className="skeleton h-12 w-full" />
         </div>
         <button onClick={refreshVault} className="btn-ghost mt-4 text-xs">
-          ↻ Retry
+          Retry
         </button>
       </div>
     )
@@ -111,7 +111,7 @@ export default function VaultHome() {
           Create Vault
         </Link>
         <button onClick={refreshVault} className="btn-ghost mt-3 text-xs">
-          ↻ Refresh
+          Refresh
         </button>
       </div>
     )
@@ -134,160 +134,168 @@ export default function VaultHome() {
   }
 
   return (
-    <div className="page-enter stagger space-y-4">
+    <div className="page-enter space-y-4">
       <header>
         <p className="eyebrow">VAULT · ON-CHAIN MANDATE</p>
         <h1 className="page-title">Treasury</h1>
       </header>
 
-      {/* ── Balance hero ── */}
-      <div className="card px-5 py-6 text-center">
-        <p className="label">Vault Balance</p>
-        <p className="mt-2 mono-value text-4xl font-bold text-nomos-text">
-          {(vault.balanceSats / 1e8).toFixed(8)}
-        </p>
-        <p className="mt-1 text-xs text-nomos-muted">BCH</p>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start">
+        <div className="space-y-4 lg:col-start-1 lg:row-start-1">
+          {/* ── Balance hero ── */}
+          <div className="card px-5 py-6 text-center">
+            <p className="label">Vault Balance</p>
+            <p className="mt-2 mono-value text-4xl font-bold text-nomos-text">
+              {(vault.balanceSats / 1e8).toFixed(8)}
+            </p>
+            <p className="mt-1 text-xs text-nomos-muted">BCH</p>
 
-        {/* Address */}
-        <button
-          onClick={copyAddress}
-          className="mx-auto mt-4 block max-w-full truncate font-mono text-[10px] text-nomos-muted hover:text-nomos-accent transition-colors duration-200"
-          title="Copy contract address"
-        >
-          {copied ? '✓ Copied' : vault.address}
-        </button>
+            {/* Address */}
+            <button
+              onClick={copyAddress}
+              className="mx-auto mt-4 block max-w-full truncate font-mono text-[10px] text-nomos-muted hover:text-nomos-accent transition-colors duration-200"
+              title="Copy contract address"
+            >
+              {copied ? '✓ Copied' : vault.address}
+            </button>
 
-        {/* QR toggle */}
-        <button
-          onClick={() => setShowQr(q => !q)}
-          className="mt-2 text-[10px] text-nomos-accent/60 hover:text-nomos-accent transition-colors duration-200"
-        >
-          {showQr ? 'Hide QR' : 'Show QR'}
-        </button>
-        {showQr && (
-          <div className="mt-3 flex justify-center">
-            <canvas ref={qrRef} className="rounded-2xl" />
+            {/* QR toggle */}
+            <button
+              onClick={() => setShowQr(q => !q)}
+              className="mt-2 text-[10px] text-nomos-accent/60 hover:text-nomos-accent transition-colors duration-200"
+            >
+              {showQr ? 'Hide QR' : 'Show QR'}
+            </button>
+            {showQr && (
+              <div className="mt-3 flex justify-center">
+                <canvas ref={qrRef} className="rounded-2xl" />
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      {/* ── Top Up ── */}
-      <div className="card p-5">
-        <p className="label mb-3">Top Up Vault</p>
-        <p className="text-xs text-nomos-muted mb-3">
-          Send BCH to this address to add funds. It is the token-aware form of the vault address above; both lock to the same contract.
-        </p>
-        <button
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(vault.tokenAddress)
-              setDepositCopied(true)
-              setTimeout(() => setDepositCopied(false), 1500)
-              toast('Token-aware deposit address copied', 'success')
-            } catch {
-              toast('Could not copy deposit address', 'error')
-            }
-          }}
-          className="w-full truncate rounded-2xl bg-nomos-surface-raised/60 px-4 py-3 font-mono text-[10px] text-nomos-muted-bright hover:text-nomos-accent transition-colors duration-200 text-left"
-          title="Copy deposit address"
-        >
-          {depositCopied ? '✓ Copied' : vault.tokenAddress}
-        </button>
-        <button
-          onClick={() => setShowDepositQr(q => !q)}
-          className="mt-2 text-[10px] text-nomos-accent/60 hover:text-nomos-accent transition-colors duration-200"
-        >
-          {showDepositQr ? 'Hide QR' : 'Show QR'}
-        </button>
-        {showDepositQr && (
-          <div className="mt-3 flex justify-center">
-            <canvas ref={depositQrRef} className="rounded-2xl" />
+          {/* ── Top Up ── */}
+          <div className="card p-5">
+            <p className="label mb-3">Top Up Vault</p>
+            <p className="text-xs text-nomos-muted mb-3">
+              Send BCH to this address to add funds. It is the token-aware form of the vault address above; both lock to the same contract.
+            </p>
+            <button
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(vault.tokenAddress)
+                  setDepositCopied(true)
+                  setTimeout(() => setDepositCopied(false), 1500)
+                  toast('Token-aware deposit address copied', 'success')
+                } catch {
+                  toast('Could not copy deposit address', 'error')
+                }
+              }}
+              className="w-full truncate rounded-2xl bg-nomos-surface-raised/60 px-4 py-3 font-mono text-[10px] text-nomos-muted-bright hover:text-nomos-accent transition-colors duration-200 text-left"
+              title="Copy deposit address"
+            >
+              {depositCopied ? '✓ Copied' : vault.tokenAddress}
+            </button>
+            <button
+              onClick={() => setShowDepositQr(q => !q)}
+              className="mt-2 text-[10px] text-nomos-accent/60 hover:text-nomos-accent transition-colors duration-200"
+            >
+              {showDepositQr ? 'Hide QR' : 'Show QR'}
+            </button>
+            {showDepositQr && (
+              <div className="mt-3 flex justify-center">
+                <canvas ref={depositQrRef} className="rounded-2xl" />
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      {isLowBalance && (
-        <div className="card border-nomos-pending/25 p-4">
-          <p className="text-sm font-semibold text-nomos-pending">Low balance · Get BCH / Get PUSD</p>
-          <p className="mt-1 text-xs leading-relaxed text-nomos-muted">
-            Your vault has less than 10,000 sats. Swap and bridge options are previews and cannot fund this vault yet.
-          </p>
-          <Link to="/bridge" className="mt-3 inline-block text-xs font-medium text-nomos-accent hover:underline">
-            View swap/bridge preview →
-          </Link>
-        </div>
-      )}
-
-      {/* ── Active mandate ── */}
-      <MandateCard
-        mandate={{
-          dailyLimitSats: vault.mandate.dailyLimitSats,
-          spentSats: spentToday,
-          allowlistEnabled: vault.mandate.allowlistEnabled,
-          allowlistCount: vault.mandate.allowlist.length,
-          agentSet: Boolean(vault.mandate.agentPk),
-          rescueSet: Boolean(vault.mandate.rescuePk),
-        }}
-        title="Active mandate"
-        footer={(
-          <>
-            <SpendSparkline receipts={receipts} dailyLimitSats={vault.mandate.dailyLimitSats} />
-            <div className="mt-2 flex items-center justify-between gap-3 font-mono text-[9px]">
-              <span className="text-nomos-muted" title="The covenant day is derived from tx.locktime / 86400.">Covenant day {covenantDay}</span>
-              <a href={CONTRACT_SOURCE_URL} target="_blank" rel="noreferrer" className="link-action">Contract source</a>
-            </div>
-          </>
-        )}
-      />
-
-      {/* ── Allowlist ── */}
-      {vault.mandate.allowlistEnabled && vault.mandate.allowlist.length > 0 && (
-        <div className="card p-5">
-          <p className="label mb-3">Allowed Destinations</p>
-          <div className="space-y-1.5">
-            {vault.mandate.allowlist.map((addr, i) => (
-              <p key={i} className="truncate font-mono text-[10px] text-nomos-muted-bright">
-                {addr}
+          {isLowBalance && (
+            <div className="card border-nomos-pending/25 p-4">
+              <p className="text-sm font-semibold text-nomos-pending">Low balance · Get BCH / Get PUSD</p>
+              <p className="mt-1 text-xs leading-relaxed text-nomos-muted">
+                Your vault has less than 10,000 sats. Swap and bridge options are previews and cannot fund this vault yet.
               </p>
-            ))}
+              <Link to="/bridge" className="mt-3 inline-block text-xs font-medium text-nomos-accent hover:underline">
+                View swap/bridge preview
+              </Link>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-4 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          {/* ── Active mandate ── */}
+          <MandateCard
+            mandate={{
+              dailyLimitSats: vault.mandate.dailyLimitSats,
+              spentSats: spentToday,
+              allowlistEnabled: vault.mandate.allowlistEnabled,
+              allowlistCount: vault.mandate.allowlist.length,
+              agentSet: Boolean(vault.mandate.agentPk),
+              rescueSet: Boolean(vault.mandate.rescuePk),
+            }}
+            title="Active mandate"
+            footer={(
+              <>
+                <SpendSparkline receipts={receipts} dailyLimitSats={vault.mandate.dailyLimitSats} />
+                <div className="mt-2 flex items-center justify-between gap-3 font-mono text-[9px]">
+                  <span className="text-nomos-muted" title="The covenant day is derived from tx.locktime / 86400.">Covenant day {covenantDay}</span>
+                  <a href={CONTRACT_SOURCE_URL} target="_blank" rel="noreferrer" className="link-action">Contract source</a>
+                </div>
+              </>
+            )}
+          />
+
+          {/* ── Allowlist ── */}
+          {vault.mandate.allowlistEnabled && vault.mandate.allowlist.length > 0 && (
+            <div className="card p-5">
+              <p className="label mb-3">Allowed Destinations</p>
+              <div className="space-y-1.5">
+                {vault.mandate.allowlist.map((addr, i) => (
+                  <p key={i} className="truncate font-mono text-[10px] text-nomos-muted-bright">
+                    {addr}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-4 lg:col-start-1 lg:row-start-2">
+          {/* ── Action grid ── */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-3 lg:grid-cols-3">
+            <Link to="/mandate" className="btn-ghost py-3 text-center text-xs">
+              Mandate
+            </Link>
+            <Link to="/pay" className="btn-primary py-3 text-center text-sm">
+              Pay
+            </Link>
+            <Link to="/activity" className="btn-ghost py-3 text-center text-xs">
+              Activity
+            </Link>
+            <Link to="/proof" className="btn-ghost py-3 text-center text-xs">
+              Proof checker
+            </Link>
+            <Link to="/bridge" className="btn-ghost py-3 text-center text-xs">
+              Bridge preview
+            </Link>
+          </div>
+
+          {/* ── Rescue ── */}
+          {vaultConfig.rescuePk && (
+            <Link to="/rescue" className="btn-danger block w-full py-2.5 text-center text-xs">
+              Emergency Rescue
+            </Link>
+          )}
+
+          {/* ── Bottom controls ── */}
+          <div className="flex gap-3">
+            <button onClick={refreshVault} className="btn-ghost flex-1 py-2 text-xs">
+              Refresh
+            </button>
+            <button onClick={disconnect} className="btn-danger flex-1 py-2 text-xs">
+              Disconnect
+            </button>
           </div>
         </div>
-      )}
-
-      {/* ── Action grid ── */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-3">
-        <Link to="/mandate" className="btn-ghost py-3 text-center text-xs">
-          Mandate
-        </Link>
-        <Link to="/pay" className="btn-primary py-3 text-center text-sm">
-          Pay
-        </Link>
-        <Link to="/activity" className="btn-ghost py-3 text-center text-xs">
-          Activity
-        </Link>
-        <Link to="/proof" className="btn-ghost py-3 text-center text-xs">
-          Proof checker
-        </Link>
-        <Link to="/bridge" className="btn-ghost py-3 text-center text-xs">
-          Bridge preview
-        </Link>
-      </div>
-
-      {/* ── Rescue ── */}
-      {vaultConfig.rescuePk && (
-        <Link to="/rescue" className="btn-danger block w-full py-2.5 text-center text-xs">
-          Emergency Rescue
-        </Link>
-      )}
-
-      {/* ── Bottom controls ── */}
-      <div className="flex gap-3">
-        <button onClick={refreshVault} className="btn-ghost flex-1 py-2 text-xs">
-          ↻ Refresh
-        </button>
-        <button onClick={disconnect} className="btn-danger flex-1 py-2 text-xs">
-          Disconnect
-        </button>
       </div>
     </div>
   )
