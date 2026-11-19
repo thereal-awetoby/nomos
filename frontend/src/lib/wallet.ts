@@ -8,6 +8,8 @@ import type { DappConnectionManager } from '@wizardconnect/dapp'
 import {
   hash160,
   encodeCashAddress,
+  encodeTransaction,
+  binToHex as libBinToHex,
   stringify,
 } from '@bitauth/libauth'
 
@@ -150,6 +152,31 @@ export async function connectWc2(): Promise<WalletConnection> {
 // ── Signing ───────────────────────────────────────────────
 
 /**
+ * WizardConnect relays requests with plain JSON.stringify, and wallets decode
+ * `transaction` with hexToBin. So the transaction goes as raw hex, byte arrays
+ * as plain hex, and bigints in libauth's `<bigint: Xn>` form.
+ */
+function toRelayValue(value: unknown): unknown {
+  if (typeof value === 'bigint') return `<bigint: ${value.toString()}n>`
+  if (value instanceof Uint8Array) return libBinToHex(value)
+  if (Array.isArray(value)) return value.map(toRelayValue)
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, toRelayValue(v)]))
+  }
+  return value
+}
+
+function toWizardRequest(wcTxObj: any): { transaction: string; sourceOutputs: any[]; broadcast?: boolean; userPrompt?: string } {
+  const { transaction, sourceOutputs, ...options } = wcTxObj ?? {}
+  const txHex = typeof transaction === 'string' ? transaction : libBinToHex(encodeTransaction(transaction))
+  return {
+    ...(toRelayValue(options) as object),
+    transaction: txHex,
+    sourceOutputs: (toRelayValue(sourceOutputs ?? []) as any[]),
+  }
+}
+
+/**
  * Sign a WC transaction object via the active wallet session.
  * Returns { signedTransaction, signedTransactionHash? }
  */
@@ -159,28 +186,24 @@ export async function signWcTransaction(
   inputPaths?: [number, string, number][],
   wcIndex: number = 0,
 ): Promise<{ txid: string; signedTransaction: string }> {
-  // The tx object holds bigint amounts and Uint8Arrays, which JSON cannot
-  // encode. Both relays send JSON, so convert with libauth's stringify (the
-  // format BCH wallets parse), as the CashScript WalletConnect guide does.
-  const txObj = JSON.parse(stringify(wcTxObj))
-
   if (provider === 'wizardconnect') {
     if (!wcManager) throw new Error('No active WizardConnect session')
+    const request = toWizardRequest(wcTxObj)
     // WizardConnect (hdwalletv1) identifies keys by path NAME ('receive',
     // 'change', 'defi') plus address index, not by a derivation string. Nomos
     // uses the receive key at the index where we found funds for every input,
     // so sign them all with it unless told otherwise.
-    const inputCount: number = txObj?.sourceOutputs?.length ?? 1
+    const inputCount: number = request.sourceOutputs.length || 1
     const paths = inputPaths ?? Array.from({ length: inputCount }, (_, i) => [i, 'receive', wcIndex] as [number, string, number])
-    const result = await wcManager.signTransaction({
-      transaction: txObj,
-      inputPaths: paths,
+    const result: any = await wcManager.signTransaction({
+      transaction: request as any,
+      inputPaths: paths as any,
     })
     // hdwalletv1 wallets return only the signed hex and never broadcast;
     // the caller broadcasts.
     return {
       txid: '',
-      signedTransaction: result.signedTransaction ?? '',
+      signedTransaction: result?.signedTransaction ?? result?.signedTransactionHex ?? '',
     }
   }
 
@@ -190,7 +213,9 @@ export async function signWcTransaction(
     const result = await wc2SignClient.request({
       topic: wc2Session.topic,
       chainId: 'bch:bitcoincash',
-      request: { method: 'bch_signTransaction', params: txObj },
+      // WC2 wallets parse libauth's extended JSON (bigint and Uint8Array
+      // markers), as in the CashScript WalletConnect guide.
+      request: { method: 'bch_signTransaction', params: JSON.parse(stringify(wcTxObj)) },
     })
     return {
       txid: result?.signedTransactionHash ?? '',
