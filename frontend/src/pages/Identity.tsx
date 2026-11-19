@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   DEFAULT_RELAYS,
   isNostrIdentifier,
@@ -54,7 +55,10 @@ export default function Identity() {
   return (
     <div className="page-enter space-y-6">
       <header>
-        <h1 className="font-mono text-2xl font-bold text-nomos-text">Nostr Identity</h1>
+        <Link to="/" className="text-xs text-nomos-muted transition-colors hover:text-nomos-accent">
+          ← Home
+        </Link>
+        <h1 className="mt-3 font-mono text-2xl font-bold text-nomos-text">Nostr Identity</h1>
         <p className="mt-2 text-sm leading-relaxed text-nomos-muted">
           Look up the BCH address a Nostr identity published. No Nomos server is
           involved: your browser queries NIP-05 domains when needed and public
