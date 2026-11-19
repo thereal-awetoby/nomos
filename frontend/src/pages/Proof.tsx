@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import RefusalProofPanel from '../components/RefusalProofPanel'
 import { getLocalProofs, localProofsUpdatedEvent, removeLocalProof, type RefusalProof } from '../lib/proofs'
+import { CONTRACT_SOURCE_URL } from '../lib/contract'
 import { useToast } from '../components/Toast'
 
 function verdictLabel(proof: RefusalProof): string {
@@ -78,6 +79,23 @@ export default function Proof() {
         <h1 className="font-mono text-2xl font-bold text-nomos-text">Refusal proofs</h1>
         <p className="mt-2 text-xs leading-relaxed text-nomos-muted">Ask a BCH node to evaluate a signed transaction, or inspect locally saved node replies. No wallet is required to check raw transaction hex.</p>
       </header>
+
+      <section className="card p-5 sm:p-6" aria-labelledby="covenant-rules-title">
+        <p className="eyebrow mb-1">ON-CHAIN RULES</p>
+        <h2 id="covenant-rules-title" className="text-lg font-semibold text-nomos-text">What the vault covenant checks</h2>
+        <pre className="mt-3 overflow-x-auto rounded-xl bg-nomos-surface-raised/50 p-3 font-mono text-[10px] leading-relaxed text-nomos-muted-bright"><code>{`currentDay = tx.locktime / 86400
+effectiveSpent = currentDay == storedDay ? spentToday : 0
+require(effectiveSpent + amount <= dailyLimit)`}</code></pre>
+        <p className="mt-3 text-xs leading-relaxed text-nomos-muted">
+          The covenant also checks the optional destination allowlist and the continuing vault NFT state. This excerpt is explanatory; read the contract for the full rules.
+        </p>
+        <p className="mt-2 text-xs leading-relaxed text-nomos-muted">
+          A consensus-invalid transaction cannot be included in a valid block, so it cannot pay a mining fee. This checker only records a node's point-in-time response: a script error does not identify which input script failed or prove the Nomos covenant caused it. Missing-input and policy rejections may not establish consensus invalidity; check the chain independently for confirmation.
+        </p>
+        <a href={CONTRACT_SOURCE_URL} target="_blank" rel="noreferrer" className="mt-3 inline-block text-xs text-nomos-accent hover:underline">
+          Read the full CashScript source →
+        </a>
+      </section>
 
       <RefusalProofPanel
         onProofSaved={refreshProofs}

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
-import { remainingToday } from '../lib/contract'
+import { CONTRACT_SOURCE_URL, currentDayMarker, remainingToday } from '../lib/contract'
 import { qrColors, THEME_CHANGE_EVENT } from '../lib/theme'
 import SpendGauge from '../components/SpendGauge'
 import SpendSparkline from '../components/SpendSparkline'
@@ -120,6 +120,7 @@ export default function VaultHome() {
   const remaining = remainingToday(vault.mandate)
   const spentToday = Math.max(0, vault.mandate.dailyLimitSats - remaining)
   const isLowBalance = vault.balanceSats < 10_000
+  const covenantDay = currentDayMarker()
 
   const copyAddress = async () => {
     try {
@@ -244,6 +245,22 @@ export default function VaultHome() {
           </div>
         </div>
         <SpendSparkline receipts={receipts} dailyLimitSats={vault.mandate.dailyLimitSats} />
+        <div className="mt-3 flex items-center justify-between gap-3 text-[10px]">
+          <span
+            className="text-nomos-muted/60"
+            title="The covenant derives its day from tx.locktime / 86400. This preview uses the app's current locktime estimate."
+          >
+            Covenant day {covenantDay}
+          </span>
+          <a
+            href={CONTRACT_SOURCE_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="text-nomos-muted/60 transition-colors hover:text-nomos-accent"
+          >
+            Enforced by NomosVault.cash →
+          </a>
+        </div>
       </div>
 
       {/* ── Allowlist ── */}

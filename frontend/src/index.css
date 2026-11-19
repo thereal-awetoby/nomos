@@ -200,6 +200,9 @@
   :root[data-theme='light'] .spinner {
     border-color: rgba(23,31,42,0.15);
   }
+  :root[data-theme='light'] .date-divider > div {
+    background: rgba(23,31,42,0.10);
+  }
   :root[data-theme='light'] .site-banner {
     border-bottom-color: rgba(23,31,42,0.10) !important;
   }

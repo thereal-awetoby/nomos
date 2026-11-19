@@ -1,7 +1,37 @@
+import { useMemo } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import ReceiptCard from '../components/Receipt'
 import { useWallet } from '../context/WalletContext'
 import { useToast } from '../components/Toast'
+import type { Receipt } from '../lib/types'
+
+/** Group locally saved receipts by the user's local calendar date. */
+function groupByDate(receipts: Receipt[]): { label: string; items: Receipt[] }[] {
+  if (receipts.length === 0) return []
+
+  const now = new Date()
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const yesterdayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).getTime()
+  const groups: { today: Receipt[]; yesterday: Receipt[]; earlier: Receipt[] } = {
+    today: [],
+    yesterday: [],
+    earlier: [],
+  }
+
+  for (const receipt of receipts) {
+    const timestamp = new Date(receipt.timestamp)
+    const receiptDay = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate()).getTime()
+    if (receiptDay === todayStart) groups.today.push(receipt)
+    else if (receiptDay === yesterdayStart) groups.yesterday.push(receipt)
+    else groups.earlier.push(receipt)
+  }
+
+  const result: { label: string; items: Receipt[] }[] = []
+  if (groups.today.length > 0) result.push({ label: 'Today', items: groups.today })
+  if (groups.yesterday.length > 0) result.push({ label: 'Yesterday', items: groups.yesterday })
+  if (groups.earlier.length > 0) result.push({ label: 'Earlier', items: groups.earlier })
+  return result
+}
 
 function downloadActivity(receipts: ReturnType<typeof useWallet>['receipts']) {
   const payload = {
@@ -36,6 +66,7 @@ export default function Activity() {
     if (receipt.onChainRefusal?.scriptFailure) total.nodeScriptFailures += 1
     return total
   }, { paidCount: 0, refusedCount: 0, submittedCount: 0, totalSats: 0, nodeScriptFailures: 0 })
+  const dateGroups = useMemo(() => groupByDate(receipts), [receipts])
 
   if (!wallet?.connected) return <Navigate to="/" replace />
 
@@ -93,8 +124,13 @@ export default function Activity() {
 
       {receipts.length === 0 ? (
         <div className="card flex flex-col items-center py-12 text-center">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-nomos-surface-raised/80">
+            <span className="text-2xl" aria-hidden="true">📋</span>
+          </div>
           <p className="text-sm text-nomos-muted">No transactions yet.</p>
-          <p className="mt-2 text-xs text-nomos-muted/60">Payments and local refusals appear here. Node check results are not chain confirmations.</p>
+          <p className="mt-2 max-w-[240px] text-xs leading-relaxed text-nomos-muted/60">
+            Payments and local mandate refusals appear here with receipts you can download, copy, or share. Node responses are not chain confirmations.
+          </p>
           <div className="mt-6 flex gap-3">
             <Link to="/pay" className="btn-primary text-sm">Make a Payment</Link>
             <Link to="/proof" className="btn-secondary text-sm">Check a Proof</Link>
@@ -102,8 +138,18 @@ export default function Activity() {
         </div>
       ) : (
         <>
-          <div className="space-y-3">
-            {receipts.map((receipt) => <ReceiptCard key={receipt.id} receipt={receipt} />)}
+          <div className="space-y-5">
+            {dateGroups.map((group) => (
+              <section key={group.label} aria-label={`${group.label} receipts`}>
+                <div className="date-divider mb-3 flex items-center gap-3">
+                  <h3 className="text-[10px] font-semibold uppercase tracking-wider text-nomos-muted">{group.label}</h3>
+                  <div className="h-px flex-1 bg-nomos-border/10" aria-hidden="true" />
+                </div>
+                <div className="space-y-3">
+                  {group.items.map((receipt) => <ReceiptCard key={receipt.id} receipt={receipt} />)}
+                </div>
+              </section>
+            ))}
           </div>
           <p className="text-center text-[10px] leading-relaxed text-nomos-muted/70">JSON export includes any attached signed raw transaction. Anyone with that hex can attempt to rebroadcast it.</p>
         </>

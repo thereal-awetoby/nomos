@@ -103,9 +103,12 @@ export default function Connect() {
           NOMOS
         </h1>
         <p className="mt-3 max-w-[280px] text-sm leading-relaxed text-nomos-muted">
-          Spend rules the chain enforces.
+          On-chain spend rules for BCH.
           <br />
-          Violate → refuse. Obey → pay + receipt.
+          Set a daily limit. The vault covenant checks each spend.
+        </p>
+        <p className="mt-2 max-w-[280px] text-[10px] leading-relaxed text-nomos-muted/60">
+          No Nomos-operated backend or manual approval queue; your wallet still signs each spend. The CashScript covenant enforces its deployed rules on-chain, so a violating spend is invalid, not merely blocked by this app.
         </p>
       </div>
 
