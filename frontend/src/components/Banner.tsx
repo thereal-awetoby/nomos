@@ -3,7 +3,7 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import ThemeToggle from './ThemeToggle'
 import { useToast } from './Toast'
 import { useWallet } from '../context/WalletContext'
-import { Mark, NetworkChip, shortAddr } from './ui'
+import { shortAddr } from './ui'
 import { OPEN_SHORTCUTS_EVENT } from '../lib/theme'
 
 // ── Site-wide top banner ────────────────────────────────────
@@ -28,8 +28,8 @@ const MENU = [
   { to: '/mandate', label: 'Set mandate', key: 'M' },
   { to: '/activity', label: 'Activity', key: 'A' },
   { to: '/rescue', label: 'Rescue', key: 'R' },
-  { to: '/proof', label: 'Refusal proof checker', key: 'F' },
-  { to: '/simulate', label: 'Mandate simulator', key: 'S' },
+  { to: '/proof', label: 'Proof checker', key: 'F' },
+  { to: '/simulate', label: 'Simulator', key: 'S' },
   { to: '/identity', label: 'Nostr identity', key: 'I' },
   { to: '/bridge', label: 'Get BCH / Get PUSD', key: 'B' },
   { to: '/architecture', label: 'Architecture', key: 'D' },
@@ -43,12 +43,11 @@ const EXTERNAL = [
 ]
 
 function MenuGlyph({ open }: { open: boolean }) {
-  // 4×3 block grid; collapses to an X pattern when open.
   const closed = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
   const cross = [1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1]
   const cells = open ? cross : closed
   return (
-    <svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true" shapeRendering="crispEdges">
+    <svg width="14" height="10" viewBox="0 0 18 14" aria-hidden="true" shapeRendering="crispEdges">
       {cells.map((on, i) => on
         ? <rect key={i} x={(i % 4) * 5} y={Math.floor(i / 4) * 5} width="3" height="3" fill="currentColor" />
         : null)}
@@ -72,9 +71,13 @@ export default function Banner() {
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    const onClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false)
+    }
     window.addEventListener('keydown', onKey)
+    window.addEventListener('mousedown', onClick)
     menuRef.current?.querySelector<HTMLElement>('a, button')?.focus()
-    return () => window.removeEventListener('keydown', onKey)
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('mousedown', onClick) }
   }, [open])
 
   const copyEmberAddress = async () => {
@@ -90,30 +93,29 @@ export default function Banner() {
 
   return (
     <header className="site-banner sticky top-0 z-40 w-full border-b hairline-strong bg-nomos-bg/95 backdrop-blur-sm">
-      <nav aria-label="Site navigation" className="mx-auto flex h-12 max-w-5xl items-center gap-3 px-4">
-        <Link to={homeTo} className="flex items-center gap-2 text-nomos-text" aria-label="Nomos home">
-          <Mark size={18} />
-          <span className="font-mono text-sm font-black tracking-[0.28em]">NOMOS</span>
+      <nav aria-label="Site navigation" className="mx-auto flex h-10 max-w-6xl items-center gap-3 px-4">
+        <Link to={homeTo} className="font-mono text-sm font-black tracking-[0.28em] text-nomos-text" aria-label="Nomos home">
+          NOMOS
         </Link>
+
         {showBack && (
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-nomos-muted hover:text-nomos-text transition-colors"
+            className="font-mono text-[9px] font-semibold uppercase tracking-[0.14em] text-nomos-muted hover:text-nomos-text transition-colors"
             aria-label="Go back"
           >
             [ Back ]
           </button>
         )}
-        <NetworkChip />
 
         {wallet?.connected && (
-          <div className="ml-4 hidden items-center gap-1 md:flex">
+          <div className="ml-2 hidden items-center gap-0.5 md:flex">
             {PRIMARY.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
-                className={({ isActive }) => `px-2.5 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] transition-colors ${
+                className={({ isActive }) => `px-2 py-1 font-mono text-[9px] font-semibold uppercase tracking-[0.14em] transition-colors ${
                   isActive ? 'bg-nomos-surface-raised text-nomos-text' : 'text-nomos-muted hover:text-nomos-text'
                 }`}
               >
@@ -123,7 +125,7 @@ export default function Banner() {
           </div>
         )}
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1.5">
           <ThemeToggle />
           <button
             type="button"
@@ -131,16 +133,16 @@ export default function Banner() {
             aria-expanded={open}
             aria-controls="site-menu"
             aria-label={open ? 'Close menu' : 'Open menu'}
-            className="flex h-8 w-9 items-center justify-center border hairline-strong bg-nomos-surface text-nomos-muted-bright transition-colors hover:text-nomos-text"
+            className="flex h-7 w-7 items-center justify-center border hairline-strong bg-nomos-surface text-nomos-muted-bright transition-colors hover:text-nomos-text"
           >
             <MenuGlyph open={open} />
           </button>
         </div>
       </nav>
 
-      {/* Always-visible strip: links and EMBER address */}
+      {/* Compact strip: links and EMBER address */}
       <div className="border-t hairline">
-        <div className="mx-auto flex max-w-5xl items-center gap-3 overflow-x-auto px-4 py-1.5 font-mono text-[9px] uppercase tracking-[0.12em] text-nomos-muted [scrollbar-width:none]">
+        <div className="mx-auto flex max-w-6xl items-center gap-3 overflow-x-auto px-4 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-nomos-muted [scrollbar-width:none]">
           <a href={WIDGET_FACTORY_URL} target="_blank" rel="noreferrer" className="shrink-0 hover:text-nomos-accent">Widget Factory</a>
           <span aria-hidden="true" className="opacity-40">|</span>
           <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="shrink-0 hover:text-nomos-accent">GitHub</a>
@@ -158,49 +160,68 @@ export default function Banner() {
         </div>
       </div>
 
+      {/* Right-side slide panel */}
       {open && (
-        <div id="site-menu" ref={menuRef} className="absolute inset-x-0 top-full border-b hairline-strong bg-nomos-bg shadow-[0_12px_32px_rgba(0,0,0,0.35)]">
-          <div className="mx-auto max-w-5xl px-4 py-3">
-            <ul className="grid gap-1.5 sm:grid-cols-2">
-              {MENU.map((item) => (
-                <li key={item.to}>
-                  <Link
-                    to={item.to}
-                    className={`flex items-center justify-between border px-3 py-3 font-mono text-xs uppercase tracking-[0.14em] transition-colors hover:bg-nomos-surface-raised ${
-                      pathname === item.to ? 'border-nomos-text/60 bg-nomos-surface text-nomos-text' : 'hairline-strong bg-nomos-surface/70 text-nomos-muted-bright'
-                    }`}
+        <>
+          <div className="fixed inset-0 z-40 bg-black/40" aria-hidden="true" />
+          <div
+            id="site-menu"
+            ref={menuRef}
+            className="fixed right-0 top-0 z-50 flex h-full w-72 flex-col border-l hairline-strong bg-nomos-bg shadow-[-8px_0_24px_rgba(0,0,0,0.3)]"
+          >
+            <div className="flex items-center justify-between border-b hairline px-4 py-3">
+              <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-nomos-muted">Menu</span>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="flex h-7 w-7 items-center justify-center text-nomos-muted hover:text-nomos-text"
+                aria-label="Close menu"
+              >
+                <MenuGlyph open />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-3 py-3">
+              <ul className="space-y-1">
+                {MENU.map((item) => (
+                  <li key={item.to}>
+                    <Link
+                      to={item.to}
+                      className={`flex items-center justify-between px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors hover:bg-nomos-surface-raised ${
+                        pathname === item.to ? 'bg-nomos-surface text-nomos-text' : 'text-nomos-muted-bright'
+                      }`}
+                    >
+                      <span>{item.label}</span>
+                      <kbd className="text-[9px] text-nomos-muted">{item.key}</kbd>
+                    </Link>
+                  </li>
+                ))}
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => { setOpen(false); window.dispatchEvent(new Event(OPEN_SHORTCUTS_EVENT)) }}
+                    className="flex w-full items-center justify-between px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.14em] text-nomos-muted-bright transition-colors hover:bg-nomos-surface-raised"
                   >
-                    <span>{item.label}</span>
-                    <kbd className="font-mono text-[10px] text-nomos-muted">{item.key}</kbd>
-                  </Link>
+                    <span>Keyboard shortcuts</span>
+                    <kbd className="text-[9px] text-nomos-muted">?</kbd>
+                  </button>
                 </li>
-              ))}
-              <li>
-                <button
-                  type="button"
-                  onClick={() => { setOpen(false); window.dispatchEvent(new Event(OPEN_SHORTCUTS_EVENT)) }}
-                  className="flex w-full items-center justify-between border hairline-strong bg-nomos-surface/70 px-3 py-3 font-mono text-xs uppercase tracking-[0.14em] text-nomos-muted-bright transition-colors hover:bg-nomos-surface-raised"
-                >
-                  <span>Keyboard shortcuts</span>
-                  <kbd className="font-mono text-[10px] text-nomos-muted">?</kbd>
-                </button>
-              </li>
-            </ul>
-            <div className="mt-3 grid grid-cols-2 gap-1.5 border-t hairline pt-3 sm:grid-cols-4">
-              {EXTERNAL.map((item) => (
-                <a
-                  key={item.label}
-                  href={item.href}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="border hairline-strong bg-nomos-surface/70 px-3 py-2.5 text-center font-mono text-[10px] uppercase tracking-[0.14em] text-nomos-muted-bright transition-colors hover:text-nomos-accent"
-                >
-                  {item.label}
-                </a>
-              ))}
+              </ul>
+              <div className="mt-3 space-y-1 border-t hairline pt-3">
+                {EXTERNAL.map((item) => (
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block px-3 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-nomos-muted-bright transition-colors hover:text-nomos-accent"
+                  >
+                    {item.label}
+                  </a>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
     </header>
   )

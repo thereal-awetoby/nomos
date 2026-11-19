@@ -24,7 +24,7 @@ export default function Layout() {
         id="main-content"
         role="main"
         tabIndex={-1}
-        className={`relative mx-auto w-full max-w-5xl flex-1 px-4 py-5 focus:outline-none ${hasBottomNav ? 'pb-28 md:pb-10' : 'pb-10'}`}
+        className={`relative mx-auto w-full max-w-6xl flex-1 px-4 py-5 focus:outline-none ${hasBottomNav ? 'pb-28 md:pb-10' : 'pb-10'}`}
       >
         <Outlet />
       </main>
@@ -32,7 +32,7 @@ export default function Layout() {
         role="contentinfo"
         className={`border-t hairline ${hasBottomNav ? 'mb-16 md:mb-0' : ''}`}
       >
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-3 font-mono text-[9px] uppercase tracking-[0.14em] text-nomos-muted">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-3 font-mono text-[9px] uppercase tracking-[0.14em] text-nomos-muted">
           <span>Nomos · BCH BLAZE 2026</span>
           <a href={SOURCE_URL} target="_blank" rel="noreferrer" className="hover:text-nomos-accent">Covenant source: NomosVault.cash</a>
         </div>

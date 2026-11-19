@@ -22,7 +22,7 @@ export default function ThemeToggle() {
     <button
       type="button"
       onClick={() => setTheme(nextTheme)}
-      className="flex h-8 items-center gap-1.5 border hairline-strong bg-nomos-surface px-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-nomos-muted-bright transition-colors hover:text-nomos-text"
+      className="flex h-7 w-7 items-center justify-center border hairline-strong bg-nomos-surface text-nomos-muted-bright transition-colors hover:text-nomos-text"
       aria-label={`Switch to ${nextTheme} theme`}
       title={`Switch to ${nextTheme} theme`}
       aria-pressed={theme === 'light'}
@@ -32,7 +32,6 @@ export default function ThemeToggle() {
         className="inline-block h-2.5 w-2.5 border border-current"
         style={{ background: theme === 'dark' ? 'transparent' : 'currentColor' }}
       />
-      {theme === 'dark' ? 'Dark' : 'Light'}
     </button>
   )
 }
