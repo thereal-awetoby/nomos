@@ -1,0 +1,20 @@
+name: mainnet-demo
+
+on:
+  workflow_dispatch:
+    inputs:
+      private_key:
+        description: 'Throwaway funded WIF for the mainnet demo'
+        required: true
+        type: string
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run mainnet demo
+        run: cd contracts/solidcash && npm ci --no-audit --no-fund && PRIVATE_KEY="${{ inputs.private_key }}" npm run demo:mainnet
