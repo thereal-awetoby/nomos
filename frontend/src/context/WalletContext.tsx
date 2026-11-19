@@ -255,6 +255,18 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(id)
   }, [wallet?.connected, vaultConfig, refreshVault])
 
+  // Refresh when the tab regains focus so returning users see fresh state.
+  useEffect(() => {
+    if (!wallet?.connected || !vaultConfig) return
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        refreshVault().catch(() => { /* silent */ })
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [wallet?.connected, vaultConfig, refreshVault])
+
   return (
     <WalletContext.Provider
       value={{
