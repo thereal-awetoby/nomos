@@ -175,7 +175,7 @@ export default function VaultHome() {
       <div className="card p-5">
         <p className="label mb-3">Top Up Vault</p>
         <p className="text-xs text-nomos-muted mb-3">
-          Send BCH to this address to add funds. Use the token-aware (z…) address so the wallet includes the vault's NFT correctly.
+          Send BCH to this address to add funds. It is the token-aware form of the vault address above; both lock to the same contract.
         </p>
         <button
           onClick={async () => {
