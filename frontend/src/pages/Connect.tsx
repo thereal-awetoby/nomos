@@ -96,7 +96,6 @@ export default function Connect() {
 
   return (
     <div className="page-enter flex min-h-[75vh] flex-col items-center justify-center text-center">
-      {/* Logo */}
       <div className="mb-8">
         <h1 className="font-mono text-5xl font-bold tracking-tighter text-nomos-text">
           NOMOS
@@ -108,7 +107,6 @@ export default function Connect() {
         </p>
       </div>
 
-      {/* Buttons */}
       <div className="flex w-full max-w-sm flex-col gap-3">
         <button
           onClick={handleWizardConnect}

@@ -98,11 +98,12 @@ export default function Banner() {
           NOMOS
         </Link>
 
+        {/* Back: mobile only — desktop has the nav links */}
         {showBack && (
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="font-mono text-[9px] font-semibold uppercase tracking-[0.14em] text-nomos-muted hover:text-nomos-text transition-colors"
+            className="font-mono text-[9px] font-semibold uppercase tracking-[0.14em] text-nomos-muted hover:text-nomos-text transition-colors md:hidden"
             aria-label="Go back"
           >
             [ Back ]
@@ -163,31 +164,33 @@ export default function Banner() {
       {/* Right-side slide panel */}
       {open && (
         <>
-          <div className="fixed inset-0 z-40 bg-black/40" aria-hidden="true" />
+          <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setOpen(false)} aria-hidden="true" />
           <div
             id="site-menu"
             ref={menuRef}
-            className="fixed right-0 top-0 z-50 flex h-full w-72 flex-col border-l hairline-strong bg-nomos-bg shadow-[-8px_0_24px_rgba(0,0,0,0.3)]"
+            className="fixed right-0 top-0 z-50 flex h-full w-72 flex-col border-l hairline bg-nomos-bg shadow-[-12px_0_40px_rgba(0,0,0,0.5)]"
           >
             <div className="flex items-center justify-between border-b hairline px-4 py-3">
-              <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-nomos-muted">Menu</span>
+              <span className="font-mono text-xs font-bold uppercase tracking-[0.14em] text-nomos-text">Menu</span>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="flex h-7 w-7 items-center justify-center text-nomos-muted hover:text-nomos-text"
+                className="flex h-7 w-7 items-center justify-center text-nomos-muted-bright hover:text-nomos-text"
                 aria-label="Close menu"
               >
                 <MenuGlyph open />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto px-3 py-3">
-              <ul className="space-y-1">
+            <div className="flex-1 overflow-y-auto px-2 py-2">
+              <ul className="space-y-0.5">
                 {MENU.map((item) => (
                   <li key={item.to}>
                     <Link
                       to={item.to}
-                      className={`flex items-center justify-between px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors hover:bg-nomos-surface-raised ${
-                        pathname === item.to ? 'bg-nomos-surface text-nomos-text' : 'text-nomos-muted-bright'
+                      className={`flex items-center justify-between border px-3 py-2.5 font-mono text-[11px] uppercase tracking-[0.12em] transition-colors ${
+                        pathname === item.to
+                          ? 'border-nomos-text/40 bg-nomos-surface-raised text-nomos-text'
+                          : 'hairline bg-nomos-surface/50 text-nomos-muted-bright hover:bg-nomos-surface-raised hover:text-nomos-text'
                       }`}
                     >
                       <span>{item.label}</span>
@@ -199,21 +202,21 @@ export default function Banner() {
                   <button
                     type="button"
                     onClick={() => { setOpen(false); window.dispatchEvent(new Event(OPEN_SHORTCUTS_EVENT)) }}
-                    className="flex w-full items-center justify-between px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.14em] text-nomos-muted-bright transition-colors hover:bg-nomos-surface-raised"
+                    className="flex w-full items-center justify-between border hairline bg-nomos-surface/50 px-3 py-2.5 font-mono text-[11px] uppercase tracking-[0.12em] text-nomos-muted-bright transition-colors hover:bg-nomos-surface-raised hover:text-nomos-text"
                   >
                     <span>Keyboard shortcuts</span>
                     <kbd className="text-[9px] text-nomos-muted">?</kbd>
                   </button>
                 </li>
               </ul>
-              <div className="mt-3 space-y-1 border-t hairline pt-3">
+              <div className="mt-3 border-t hairline pt-3 space-y-0.5">
                 {EXTERNAL.map((item) => (
                   <a
                     key={item.label}
                     href={item.href}
                     target="_blank"
                     rel="noreferrer"
-                    className="block px-3 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-nomos-muted-bright transition-colors hover:text-nomos-accent"
+                    className="block px-3 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-nomos-muted-bright transition-colors hover:text-nomos-accent"
                   >
                     {item.label}
                   </a>
