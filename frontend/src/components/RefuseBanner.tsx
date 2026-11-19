@@ -51,7 +51,7 @@ export default function RefuseBanner({
       role="alert"
       aria-live="assertive"
     >
-      <div className="flex items-center justify-between gap-3 px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em]" style={{ background: 'rgb(var(--nomos-refuse))', color: 'rgb(var(--nomos-bg))' }}>
+      <div className="flex items-center justify-between gap-3 px-4 py-2 font-mono text-[11px] font-black uppercase tracking-[0.18em]" style={{ background: 'rgb(var(--nomos-refuse))', color: 'rgb(var(--nomos-bg))' }}>
         <span>Mandate violation</span>
         <span>Not signed</span>
       </div>

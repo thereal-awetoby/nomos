@@ -9,7 +9,7 @@ import { OPEN_SHORTCUTS_EVENT } from '../lib/theme'
 
 // ── Site-wide top banner ────────────────────────────────────
 
-const WIDGET_FACTORY_URL = '#' // TODO: fill after submission
+const WIDGET_FACTORY_URL: string = '' // set to the deck URL; the link is hidden while empty
 const GITHUB_URL = 'https://github.com/thereal-awetoby/nomos'
 const MERCAR_URL = 'https://mercar.asgaya.org/'
 const ASGAYA_URL = 'https://asgaya.org/'
@@ -38,7 +38,7 @@ const MENU = [
 
 const EXTERNAL = [
   { href: GITHUB_URL, label: 'GitHub' },
-  { href: WIDGET_FACTORY_URL, label: 'Widget Factory' },
+  ...(WIDGET_FACTORY_URL ? [{ href: WIDGET_FACTORY_URL, label: 'Widget Factory' }] : []),
   { href: MERCAR_URL, label: 'Mercar P2P' },
   { href: ASGAYA_URL, label: 'Asgaya' },
 ]
@@ -129,8 +129,12 @@ export default function Banner() {
       {/* Compact strip: links and EMBER address */}
       <div className="border-t hairline">
         <div className="mx-auto flex max-w-6xl items-center gap-3 overflow-x-auto px-4 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-nomos-muted [scrollbar-width:none]">
-          <a href={WIDGET_FACTORY_URL} target="_blank" rel="noreferrer" className="shrink-0 hover:text-nomos-accent">Widget Factory</a>
-          <span aria-hidden="true" className="opacity-40">|</span>
+          {WIDGET_FACTORY_URL && (
+            <>
+              <a href={WIDGET_FACTORY_URL} target="_blank" rel="noreferrer" className="shrink-0 hover:text-nomos-accent">Widget Factory</a>
+              <span aria-hidden="true" className="opacity-40">|</span>
+            </>
+          )}
           <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="shrink-0 hover:text-nomos-accent">GitHub</a>
           <span aria-hidden="true" className="opacity-40">|</span>
           <span className="shrink-0">EMBER2026</span>

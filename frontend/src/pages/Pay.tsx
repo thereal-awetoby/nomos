@@ -255,9 +255,11 @@ export default function Pay() {
       <button
         onClick={handlePay}
         disabled={!vault.deployed || amountSats <= 0 || !destination || submitting || (isNostr && !payee)}
-        className="btn-primary w-full"
+        className={`${liveVerdict?.refused ? 'btn-danger' : 'btn-primary'} w-full`}
       >
-        {submitting ? <><span className="spinner mr-2" /> Signing…</> : 'Pay'}
+        {submitting
+          ? <><span className="spinner mr-2" /> Signing…</>
+          : liveVerdict?.refused ? 'Submit anyway · see refusal' : 'Pay'}
       </button>
       <p className="text-center text-[10px] text-nomos-muted">
         Want an explicit node response for a durable mandate violation? <Link to="/proof" className="text-nomos-accent underline">Open the proof checker</Link>.
