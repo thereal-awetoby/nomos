@@ -53,8 +53,8 @@ export default function SpendSparkline({
         <h3 id="seven-day-spend-title" className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-nomos-muted">Seven-day spend</h3>
         <span className="font-mono text-[9px] text-nomos-muted">sats · this device</span>
       </div>
-      <svg viewBox="0 0 280 72" className="h-20 w-full overflow-visible" role="img" shapeRendering="crispEdges" aria-label={`Saved outgoing receipt totals for the last seven local days. ${ariaDescription}. Dashed line marks the current daily limit.`}>
-        <line x1="12" y1="66" x2="268" y2="66" stroke="currentColor" strokeOpacity="0.25" strokeWidth="1" />
+      <svg viewBox="0 0 280 72" preserveAspectRatio="none" className="h-20 w-full overflow-visible" role="img" shapeRendering="crispEdges" aria-label={`Saved outgoing receipt totals for the last seven local days. ${ariaDescription}. Dashed line marks the current daily limit.`}>
+        <line x1="12" y1="66" x2="268" y2="66" stroke="currentColor" strokeOpacity="0.25" strokeWidth="1" vectorEffect="non-scaling-stroke" />
         {days.map((day, index) => {
           const y = barY(day.sats)
           const atCap = dailyLimitSats > 0 && day.sats >= dailyLimitSats
@@ -69,9 +69,9 @@ export default function SpendSparkline({
             </g>
           )
         })}
-        {dailyLimitSats > 0 && <line x1="12" y1={capY} x2="268" y2={capY} stroke="rgb(var(--nomos-refuse))" strokeOpacity="0.7" strokeWidth="1" strokeDasharray="3 3" />}
+        {dailyLimitSats > 0 && <line x1="12" y1={capY} x2="268" y2={capY} stroke="rgb(var(--nomos-refuse))" strokeOpacity="0.7" strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />}
       </svg>
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7" style={{ paddingLeft: `${(12 / 280) * 100}%`, paddingRight: `${(12 / 280) * 100}%` }}>
         {days.map((day) => (
           <div key={localDayKey(day.date)} className="min-w-0 text-center" title={`${day.sats.toLocaleString()} sats`}>
             <p className="font-mono text-[8px] uppercase text-nomos-muted">{day.date.toLocaleDateString(undefined, { weekday: 'narrow' })}</p>
