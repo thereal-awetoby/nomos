@@ -44,6 +44,8 @@ interface WalletCtx {
   setVaultConfig: (c: VaultConfig) => void
   refreshVault: () => Promise<void>
   addReceipt: (r: Receipt) => void
+  /** Patch a stored receipt, for example to attach a node refusal result. */
+  updateReceipt: (id: string, patch: Partial<Receipt>) => void
   updateMandate: (m: Mandate) => void
 }
 
@@ -227,6 +229,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const updateReceipt = useCallback((id: string, patch: Partial<Receipt>) => {
+    setReceipts(prev => {
+      const next = prev.map(receipt => receipt.id === id ? { ...receipt, ...patch } : receipt)
+      save(RECEIPTS_KEY, next)
+      return next
+    })
+  }, [])
+
   const updateMandate = useCallback((m: Mandate) => {
     setVault(prev => (prev ? { ...prev, mandate: m } : prev))
   }, [])
@@ -251,7 +261,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         wallet, vault, vaultConfig, receipts, connecting, error,
         wcState, wcUri, wcQrUri, wcWalletName,
         startWizardConnect, cancelWizardConnect, connectWc2, disconnect,
-        setVaultConfig, refreshVault, addReceipt, updateMandate,
+        setVaultConfig, refreshVault, addReceipt, updateReceipt, updateMandate,
       }}
     >
       {children}

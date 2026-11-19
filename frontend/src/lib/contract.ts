@@ -19,6 +19,8 @@ import type {
   VaultConfig,
   WalletProviderType,
 } from './types'
+import { classifyNodeRejection } from './proofs'
+import type { RefusalProof } from './proofs'
 import { signWcTransaction } from './wallet'
 import { decodeCashAddress, binToHex as libBinToHex, hexToBin, hash160, hashTransaction } from '@bitauth/libauth'
 
@@ -109,14 +111,17 @@ export function wouldRefuse(
   amountSats: number,
   destination: string,
 ): { refused: boolean; reason?: string } {
-  if (amountSats <= 0) return { refused: true, reason: 'Amount must be positive' }
+  if (!Number.isSafeInteger(amountSats) || amountSats <= 0) {
+    return { refused: true, reason: 'Amount must be a positive whole number of satoshis' }
+  }
+  const destinationError = validateCashAddress(destination)
+  if (destinationError) return { refused: true, reason: `Invalid destination: ${destinationError}` }
+
   const remaining = remainingToday(mandate)
   if (amountSats > remaining) {
     return { refused: true, reason: `Exceeds daily limit (${remaining} sats remaining)` }
   }
-  // Compare by key hash so q… and token-aware z… forms of one address match,
-  // exactly as the contract does (it reads the 20-byte hash from the output).
-  if (mandate.allowlistEnabled && !mandate.allowlist.some((a) => sameHash160(a, destination))) {
+  if (mandate.allowlistEnabled && !mandate.allowlist.some((address) => sameAllowlistAddress(address, destination))) {
     return { refused: true, reason: 'Destination not allowlisted' }
   }
   return { refused: false }
@@ -125,6 +130,29 @@ export function wouldRefuse(
 function sameHash160(a: string, b: string): boolean {
   const ha = addrToHash160(a)
   return ha !== '0'.repeat(40) && ha === addrToHash160(b)
+}
+
+/** Match the script's P2PKH-only allowlist rule, not just equal payload bytes. */
+function sameAllowlistAddress(allowed: string, destination: string): boolean {
+  // The covenant compares the payload configured in the constructor to the
+  // hash extracted from a P2PKH output script. A non-P2PKH destination can
+  // never satisfy that output-script parsing step.
+  return !validateAllowlistAddress(destination)
+    && sameHash160(allowed, destination)
+}
+
+/**
+ * Whether a refused payment has a rule violation that stays invalid even if
+ * spend state or the day bucket changes before the signed transaction is sent.
+ * Amounts above the immutable cap and destinations rejected by the configured
+ * allowlist are durable violations; a remaining-budget-only overage is not.
+ */
+export function isDurablyViolating(config: VaultConfig, amountSats: number, destination: string): boolean {
+  if (!Number.isSafeInteger(config.dailyLimitSats) || config.dailyLimitSats <= 0) return false
+  if (!Number.isSafeInteger(amountSats) || amountSats <= 0 || validateCashAddress(destination)) return false
+  if (amountSats > config.dailyLimitSats) return true
+  if (!config.allowlistEnabled) return false
+  return !config.allowedAddrs.slice(0, 5).some((allowed) => sameAllowlistAddress(allowed, destination))
 }
 
 function reverseHex(hex: string): string {
@@ -277,12 +305,29 @@ function findNftUtxo(utxos: Utxo[]): Utxo {
   return nft
 }
 
+function readNftCommitmentState(utxo: Utxo): { spentTodaySats: number; dayMarker: number } {
+  const commitment = (utxo as any).token?.nft?.commitment as string | undefined
+  if (!commitment || !/^[0-9a-f]{32}$/i.test(commitment)) {
+    throw new Error('Vault NFT has no valid 16-byte spend-state commitment')
+  }
+  const spentTodaySats = Number(BigInt(`0x${reverseHex(commitment.slice(0, 16))}`))
+  const dayMarker = Number(BigInt(`0x${reverseHex(commitment.slice(16, 32))}`))
+  if (!Number.isSafeInteger(spentTodaySats) || !Number.isSafeInteger(dayMarker)) {
+    throw new Error('Vault NFT spend state exceeds the safe integer range')
+  }
+  return { spentTodaySats, dayMarker }
+}
+
 /** Plain (non-NFT) UTXOs sitting at the contract address — top-ups. */
 function findPlainUtxos(utxos: Utxo[]): Utxo[] {
   return utxos.filter((u: any) => !u.token?.nft)
 }
 
 // ── Helper: build WC tx object, sign, and broadcast ────────
+
+function isAlreadyKnownTransactionError(message: string): boolean {
+  return /txn-already-known|txn-already-in-mempool|txn-already-in-chain|already in (?:the )?(?:mempool|block ?chain|blockchain)|transaction already exists|already known/i.test(message)
+}
 
 async function buildSignAndBroadcast(
   txBuilder: TransactionBuilder,
@@ -306,7 +351,7 @@ async function buildSignAndBroadcast(
       await getProvider().sendRawTransaction(result.signedTransaction)
     } catch (err: any) {
       const msg = String(err?.message ?? err)
-      if (!/already|known|txn-mempool-conflict/i.test(msg)) throw err
+      if (!isAlreadyKnownTransactionError(msg)) throw err
     }
     return { txid, signedTransaction: result.signedTransaction }
   }
@@ -317,27 +362,30 @@ async function buildSignAndBroadcast(
   throw new Error('Wallet returned neither txid nor signed transaction')
 }
 
-// ── Spend ──────────────────────────────────────────────────
+// ── Spend transaction builder ───────────────────────────────
 
-export async function executeSpend(
+/** Build the normal covenant spend; both pay and proof flows use this path. */
+async function buildSpendTx(
   config: VaultConfig,
-  mandate: Mandate,
   amountSats: number,
   destination: string,
   signerAddress: string,
-  walletProvider: WalletProviderType,
-  destinationLabel?: string,
-  wcIndex: number = 0,
-): Promise<Receipt> {
+): Promise<TransactionBuilder> {
+  if (!Number.isSafeInteger(amountSats) || amountSats <= 0) {
+    throw new Error('Amount must be a positive whole number of satoshis')
+  }
+  const addressError = validateCashAddress(destination)
+  if (addressError) throw new Error(`Invalid destination: ${addressError}`)
+
   const contract = await getContract(config)
   const provider = getProvider()
   const utxos = await contract.getUtxos()
   const nftUtxo = findNftUtxo(utxos)
+  const { spentTodaySats: inputSpent, dayMarker: inputDay } = readNftCommitmentState(nftUtxo)
   const plainUtxos = findPlainUtxos(utxos)
 
   const locktime = txLocktime()
   const amount = BigInt(amountSats)
-
   const txBuilder = new TransactionBuilder({ provider })
 
   txBuilder.addInput(
@@ -349,18 +397,16 @@ export async function executeSpend(
     ),
   )
 
-  // Top-ups (plain UTXOs at the contract) can only be unlocked through
-  // setMandate, which needs the OWNER's signature. Pull them in only when the
-  // owner is paying; an agent pays from the NFT UTXO alone.
+  // Top-ups can only be unlocked through setMandate, which requires the owner.
+  // An agent pays from the NFT UTXO alone.
   const signerIsOwner = isOwnerAddress(signerAddress, config.ownerPk)
   const topUps = signerIsOwner ? plainUtxos : []
   let extraSats = 0n
-  for (const pu of topUps) {
-    txBuilder.addInput(pu, contract.unlock.setMandate(placeholderSignature()))
-    extraSats += pu.satoshis
+  for (const utxo of topUps) {
+    txBuilder.addInput(utxo, contract.unlock.setMandate(placeholderSignature()))
+    extraSats += utxo.satoshis
   }
 
-  // Output 0: covenant continuation (NFT sats + top-up sats − spend − fee)
   const fee = estimateFee({ contractInputs: 1 + topUps.length, tokenOutputs: 1, plainOutputs: 1 })
   if (fee > CONTRACT_MAX_FEE_FROM_NFT + extraSats) {
     throw new Error('Fee too high for this vault layout — update the mandate to merge top-ups first')
@@ -373,15 +419,15 @@ export async function executeSpend(
       : 'Insufficient vault balance')
   }
 
+  // The NFT input, not cached React state, is authoritative for spend state.
   const today = currentDayMarker()
-  const prevSpent = today === mandate.dayMarker ? mandate.spentTodaySats : 0
+  const prevSpent = today === inputDay ? inputSpent : 0
   const newSpent = prevSpent + amountSats
+  if (!Number.isSafeInteger(newSpent)) throw new Error('Updated spend state exceeds the safe integer range')
   const spentHex = reverseHex(BigInt(newSpent).toString(16).padStart(16, '0'))
   const dayHex = reverseHex(BigInt(today).toString(16).padStart(16, '0'))
   const newCommitment = spentHex + dayHex
 
-  // Must be the token-aware address: CashScript refuses to send an NFT to a
-  // plain p2sh address.
   txBuilder.addOutput({
     to: contract.tokenAddress,
     amount: changeSats,
@@ -394,17 +440,29 @@ export async function executeSpend(
       },
     },
   })
-
   txBuilder.addOutput({ to: destination, amount })
   txBuilder.setLocktime(locktime)
+  return txBuilder
+}
 
+export async function executeSpend(
+  config: VaultConfig,
+  mandate: Mandate,
+  amountSats: number,
+  destination: string,
+  signerAddress: string,
+  walletProvider: WalletProviderType,
+  destinationLabel?: string,
+  wcIndex: number = 0,
+): Promise<Receipt> {
+  const txBuilder = await buildSpendTx(config, amountSats, destination, signerAddress)
   const result = await buildSignAndBroadcast(
     txBuilder, walletProvider, `Nomos: pay ${amountSats} sats`, wcIndex,
   )
 
   return {
     id: result.txid || Date.now().toString(),
-    status: 'paid',
+    status: 'submitted',
     amount: amountSats,
     destination,
     destinationLabel,
@@ -413,6 +471,101 @@ export async function executeSpend(
     timestamp: Date.now(),
   }
 }
+
+// ── Refusal proof ──────────────────────────────────────────
+
+export type RefusalAttempt =
+  | { outcome: 'rejected'; proof: RefusalProof }
+  | { outcome: 'accepted'; txid: string }
+
+/** Identify BCH script-validation errors, not transport, input, or policy errors. */
+export function isScriptFailure(message: string): boolean {
+  return classifyNodeRejection(message) === 'script-failure'
+}
+
+/**
+ * Sign a payment that violates a stable covenant rule, but do not broadcast it.
+ * Re-read the vault immediately before signing. Only violations that remain
+ * invalid across a day rollover are eligible: amount > the full daily cap, or
+ * a destination excluded by this vault's immutable allowlist.
+ */
+export async function signViolatingSpend(
+  config: VaultConfig,
+  amountSats: number,
+  destination: string,
+  signerAddress: string,
+  walletProvider: WalletProviderType,
+  wcIndex: number = 0,
+): Promise<string> {
+  if (!isDurablyViolating(config, amountSats, destination)) {
+    throw new Error('This refusal can become legal if the day or spend state changes. Nothing was signed. Use an amount above the full daily limit or a non-allowlisted destination.')
+  }
+  const signerIsOwner = isOwnerAddress(signerAddress, config.ownerPk)
+  const signerIsAgent = Boolean(config.agentPk) && isOwnerAddress(signerAddress, config.agentPk)
+  if (!signerIsOwner && !signerIsAgent) {
+    throw new Error('The connected wallet address does not match the vault owner or agent key. Nothing was signed.')
+  }
+
+  const current = await readVaultState(config)
+  if (!current.deployed) throw new Error('The vault is not deployed, so there is no spend covenant to prove.')
+  const currentCheck = wouldRefuse(current.mandate, amountSats, destination)
+  if (!currentCheck.refused) {
+    throw new Error('This payment no longer breaks the current mandate. Nothing was signed.')
+  }
+
+  const txBuilder = await buildSpendTx(config, amountSats, destination, signerAddress)
+  const wcTxObj = (txBuilder as any).generateWcTransactionObject({
+    broadcast: false,
+    userPrompt: `Nomos refusal proof: sign ${amountSats} sats to ${destination}. This is designed to violate a stable covenant rule. The app will send the signed transaction to a public node; if accepted, it may be mined and spend funds.`,
+  })
+  const signed = await signWcTransaction(walletProvider, wcTxObj, undefined, wcIndex)
+  const rawTx = signed.signedTransaction?.trim().toLowerCase()
+  if (!rawTx || !/^[0-9a-f]+$/.test(rawTx) || rawTx.length % 2 !== 0) {
+    throw new Error('The wallet did not return a valid signed transaction, so no proof was sent.')
+  }
+  return rawTx
+}
+
+/** Send a signed transaction to the configured Electrum server and report its response. */
+export async function broadcastForVerdict(rawTx: string): Promise<RefusalAttempt> {
+  const clean = rawTx.trim().toLowerCase()
+  if (!/^[0-9a-f]+$/.test(clean) || clean.length % 2 !== 0) {
+    throw new Error('That is not a transaction hex string.')
+  }
+  if (clean.length > 200_000) throw new Error('Transaction is too large to check (maximum 100 KB).')
+
+  const txid = hashTransaction(hexToBin(clean))
+  try {
+    await getProvider().sendRawTransaction(clean)
+    return { outcome: 'accepted', txid }
+  } catch (err: any) {
+    const cause = err && typeof err === 'object' ? err.cause : null
+    const isElectrumReply = typeof cause?.code === 'number' && typeof cause?.message === 'string'
+    const nodeError = isElectrumReply ? String(cause.message) : String(err?.message ?? err)
+    if (!isElectrumReply) {
+      throw new Error(`No node verdict was received: ${nodeError}`)
+    }
+
+    if (isAlreadyKnownTransactionError(nodeError)) {
+      return { outcome: 'accepted', txid }
+    }
+
+    return {
+      outcome: 'rejected',
+      proof: {
+        txid,
+        rawTx: clean,
+        nodeError,
+        rejectionKind: classifyNodeRejection(nodeError),
+        scriptFailure: isScriptFailure(nodeError),
+        network: NETWORK,
+        checkedAt: Date.now(),
+      },
+    }
+  }
+}
+
+export const NETWORK_NAME: string = NETWORK
 
 // ── Create vault (genesis) ─────────────────────────────────
 // Mints the vault's mutable state NFT (commitment = 16 zero bytes) straight

@@ -1,23 +1,29 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
-import PaySuccess from '../components/PaySuccess'
+import { useToast } from '../components/Toast'
 import { wouldRefuse, remainingToday, executeSpend, validateCashAddress, EXPLORER_TX_URL } from '../lib/contract'
 import { isNostrIdentifier, resolveNostrPayee, payeeLabel, type NostrPayee } from '../lib/nostr'
 
+function bchToSats(value: string): number {
+  if (!/^\d+(?:\.\d{0,8})?$/.test(value.trim())) return 0
+  const [whole, fractional = ''] = value.trim().split('.')
+  const sats = BigInt(whole) * 100_000_000n + BigInt((fractional + '00000000').slice(0, 8))
+  return sats > BigInt(Number.MAX_SAFE_INTEGER) ? 0 : Number(sats)
+}
+
 export default function Pay() {
   const { wallet, vault, vaultConfig, addReceipt, refreshVault } = useWallet()
+  const { toast } = useToast()
   const [amount, setAmount] = useState('')
   const [destination, setDestination] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<{
-    type: 'success' | 'refused'
+    type: 'success' | 'refused' | 'error'
     message: string
     txHash?: string
+    proofUrl?: string
   } | null>(null)
-  const [showSuccessAnim, setShowSuccessAnim] = useState(false)
-  const onAnimationDone = useCallback(() => setShowSuccessAnim(false), [])
-
   // Nostr pay-by-name: resolve npub / nprofile / name@domain to the BCH
   // address the person published (debounced while typing).
   const [payee, setPayee] = useState<NostrPayee | null>(null)
@@ -49,11 +55,26 @@ export default function Pay() {
 
   const mandate = vault.mandate
   const remaining = remainingToday(mandate)
-  const amountSats = Math.round(parseFloat(amount || '0') * 1e8)
+  const amountSats = bchToSats(amount)
+  const payToPreview = payee?.address ?? destination.trim()
+  const liveVerdict = vault.deployed && amountSats > 0 && payToPreview && (!isNostr || payee)
+    ? wouldRefuse(mandate, amountSats, payToPreview)
+    : null
+  const quickAmounts = [1_000, 10_000, 50_000]
+    .filter((sats) => sats <= remaining)
+    .concat(remaining > 0 && ![1_000, 10_000, 50_000].includes(remaining) ? [remaining] : [])
+    .filter((sats, index, values) => values.indexOf(sats) === index)
 
   const handlePay = async () => {
     if (isNostr && !payee) {
-      setResult({ type: 'refused', message: resolveError || 'Still looking up that Nostr identity…' })
+      const message = resolveError || 'Still looking up that Nostr identity…'
+      setResult({ type: 'error', message })
+      toast(message, 'info')
+      return
+    }
+    if (!vault.deployed) {
+      setResult({ type: 'error', message: 'This vault has no deployed state NFT and cannot make a covenant spend yet.' })
+      toast('Vault is not deployed', 'error')
       return
     }
     const payTo = payee?.address ?? destination.trim()
@@ -62,13 +83,15 @@ export default function Pay() {
     const addrErr = validateCashAddress(payTo)
     if (addrErr) {
       setResult({ type: 'refused', message: `Invalid destination: ${addrErr}` })
+      toast('Invalid destination', 'error')
       return
     }
 
     const check = wouldRefuse(mandate, amountSats, payTo)
     if (check.refused) {
+      const receiptId = `local-refusal-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       const receipt = {
-        id: Date.now().toString(),
+        id: receiptId,
         status: 'refused' as const,
         amount: amountSats,
         destination: payTo,
@@ -78,12 +101,18 @@ export default function Pay() {
         timestamp: Date.now(),
       }
       addReceipt(receipt)
-      setResult({ type: 'refused', message: check.reason || 'Refused by Nomos' })
+      setResult({
+        type: 'refused',
+        message: check.reason || 'Refused by the current mandate check',
+        proofUrl: `/proof?receipt=${encodeURIComponent(receiptId)}&amount=${amountSats}&destination=${encodeURIComponent(payTo)}`,
+      })
+      toast('Blocked by the current mandate check', 'error')
       return
     }
 
     if (!vaultConfig) {
-      setResult({ type: 'refused', message: 'Vault config not set.' })
+      setResult({ type: 'error', message: 'Vault config not set.' })
+      toast('Vault config not set', 'error')
       return
     }
 
@@ -94,10 +123,12 @@ export default function Pay() {
         wallet.address, wallet.provider, label, wallet.wcIndex ?? 0,
       )
       addReceipt(receipt)
-      setResult({ type: 'success', message: 'Paid under mandate', txHash: receipt.txHash })
-      setShowSuccessAnim(true)
+      setResult({ type: 'success', message: 'The wallet/provider returned a transaction ID. Check an explorer for network relay, mining, and confirmation.', txHash: receipt.txHash })
+      toast('Transaction submitted; confirmation is pending', 'success')
     } catch (err: any) {
-      setResult({ type: 'refused', message: err.message || 'Transaction failed' })
+      const message = err.message || 'No transaction was accepted by the node.'
+      setResult({ type: 'error', message })
+      toast('Payment was not confirmed by the node', 'error')
     } finally {
       setSubmitting(false)
     }
@@ -108,7 +139,6 @@ export default function Pay() {
 
   return (
     <div className="page-enter space-y-5">
-      {showSuccessAnim && <PaySuccess onDone={onAnimationDone} />}
       {/* Back nav */}
       <Link to="/vault" className="text-xs text-nomos-muted hover:text-nomos-accent transition-colors duration-200">
         ← Back to vault
@@ -130,12 +160,25 @@ export default function Pay() {
         <label className="label mb-2 block">Amount (BCH)</label>
         <input
           type="number"
+          min="0"
           step="0.00000001"
           value={amount}
           onChange={(e) => { setAmount(e.target.value); setResult(null) }}
           placeholder="0.0001"
           className="input"
         />
+        <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Quick amount buttons">
+          {quickAmounts.length > 0 ? quickAmounts.map((sats) => (
+            <button
+              key={sats}
+              type="button"
+              onClick={() => { setAmount((sats / 1e8).toFixed(8)); setResult(null) }}
+              className="rounded-pill border border-nomos-border/10 px-3 py-1.5 text-[10px] text-nomos-muted-bright transition-colors hover:border-nomos-accent/30 hover:text-nomos-accent"
+            >
+              {sats === remaining ? `Remaining · ${sats.toLocaleString()} sats` : `${sats.toLocaleString()} sats`}
+            </button>
+          )) : <span className="text-[10px] text-nomos-muted">No daily allowance remains today.</span>}
+        </div>
       </div>
 
       {/* Destination */}
@@ -175,25 +218,62 @@ export default function Pay() {
         )}
       </div>
 
+      <section
+        className={`rounded-2xl border p-3 text-xs ${
+          liveVerdict?.refused
+            ? 'border-nomos-refuse/20 bg-nomos-refuse/5'
+            : liveVerdict
+              ? 'border-nomos-accent/20 bg-nomos-accent/5'
+              : 'border-nomos-border/10 bg-nomos-surface/40'
+        }`}
+        aria-live="polite"
+        aria-label="Live mandate verdict preview"
+      >
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-nomos-muted">Live mandate preview · local calculation</p>
+        {!amount || !destination ? (
+          <p className="text-nomos-muted">Enter an amount and destination to preview the current rules.</p>
+        ) : !vault.deployed ? (
+          <p className="text-nomos-refuse">Vault not deployed: there is no state NFT for the covenant to spend yet.</p>
+        ) : amountSats <= 0 ? (
+          <p className="text-nomos-refuse">Enter a positive amount in satoshis (up to 8 decimal places in BCH).</p>
+        ) : isNostr && resolving ? (
+          <p className="text-nomos-muted">Resolving the Nostr destination…</p>
+        ) : isNostr && !payee ? (
+          <p className="text-nomos-refuse">{resolveError || 'The Nostr identity has not resolved to a verified BCH address yet.'}</p>
+        ) : liveVerdict?.refused ? (
+          <p className="font-medium text-nomos-refuse">Would be blocked by the current mandate: {liveVerdict.reason}</p>
+        ) : liveVerdict ? (
+          <p className="font-medium text-nomos-accent">Within the current mandate rules at this snapshot.</p>
+        ) : (
+          <p className="text-nomos-muted">Enter a valid payment to see the current mandate preview.</p>
+        )}
+        <p className="mt-1.5 text-[10px] leading-relaxed text-nomos-muted/70">Preview only: this browser check does not prove vault funds or chain state. The network still evaluates the signed transaction.</p>
+      </section>
+
       <button
         onClick={handlePay}
-        disabled={!amount || !destination || submitting || (isNostr && !payee)}
+        disabled={!vault.deployed || amountSats <= 0 || !destination || submitting || (isNostr && !payee)}
         className="btn-primary w-full"
       >
         {submitting ? <><span className="spinner mr-2" /> Signing…</> : 'Pay'}
       </button>
+      <p className="text-center text-[10px] text-nomos-muted">
+        Want an explicit node response for a durable mandate violation? <Link to="/proof" className="text-nomos-accent underline">Open the proof checker</Link>.
+      </p>
 
       {/* Result */}
       {result && (
         <div className={`card p-5 text-center ${
           result.type === 'success'
             ? 'border-nomos-accent/20 bg-nomos-accent/5'
-            : 'border-nomos-refuse/20 bg-nomos-refuse/5'
+            : result.type === 'refused'
+              ? 'border-nomos-refuse/20 bg-nomos-refuse/5'
+              : 'border-amber-400/20 bg-amber-400/5'
         }`} style={{ borderWidth: '1px', borderStyle: 'solid' }}>
           <p className={`mono-value text-lg font-bold ${
-            result.type === 'success' ? 'text-nomos-accent' : 'text-nomos-refuse'
+            result.type === 'success' ? 'text-nomos-accent' : result.type === 'refused' ? 'text-nomos-refuse' : 'text-amber-400'
           }`}>
-            {result.type === 'success' ? 'Paid under mandate' : 'Refused by Nomos'}
+            {result.type === 'success' ? 'Submitted · awaiting confirmation' : result.type === 'refused' ? 'Blocked by mandate check' : 'No confirmed node verdict'}
           </p>
           <p className="mt-1 text-xs text-nomos-muted-bright">{result.message}</p>
           {result.txHash && (
@@ -202,8 +282,13 @@ export default function Pay() {
               target="_blank" rel="noreferrer"
               className="mt-3 inline-block text-xs text-nomos-accent hover:underline"
             >
-              View on explorer →
+              Check explorer · not confirmed →
             </a>
+          )}
+          {result.proofUrl && (
+            <p className="mt-3 text-xs">
+              <Link to={result.proofUrl} className="text-nomos-accent underline">Check this refusal with a node →</Link>
+            </p>
           )}
         </div>
       )}
