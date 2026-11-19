@@ -22,7 +22,17 @@ import type {
 import { classifyNodeRejection } from './proofs'
 import type { RefusalProof } from './proofs'
 import { signWcTransaction } from './wallet'
-import { decodeCashAddress, binToHex as libBinToHex, hexToBin, hash160, hashTransaction } from '@bitauth/libauth'
+import {
+  decodeCashAddress,
+  binToHex as libBinToHex,
+  hexToBin,
+  hash160,
+  hashTransaction,
+  decodeTransaction,
+  encodeTransaction,
+  decodeAuthenticationInstructions,
+  encodeDataPush,
+} from '@bitauth/libauth'
 
 // ── Artifact ───────────────────────────────────────────────
 let artifactCache: any = null
@@ -335,6 +345,61 @@ function findPlainUtxos(utxos: Utxo[]): Utxo[] {
 
 // ── Helper: build WC tx object, sign, and broadcast ────────
 
+/**
+ * Put back the redeem script of each contract input after the wallet signs.
+ *
+ * Some wallets fill the pubkey placeholder by replacing the first run of 33 zero
+ * bytes in the unlocking bytecode. When the function takes no pubkey argument
+ * (setMandate, rescue), that first run is an unset agent or rescue key inside the
+ * redeem script, so the script no longer hashes to the vault address. The
+ * signature does not cover the unlocking bytecode and was computed over the
+ * original redeem script, so restoring it keeps the signature valid.
+ */
+function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false
+  return true
+}
+
+function restoreContractRedeemScripts(signedHex: string, wcTxObj: any): string {
+  const tx = decodeTransaction(hexToBin(signedHex))
+  if (typeof tx === 'string') throw new Error(`The wallet returned a transaction that could not be decoded: ${tx}`)
+  const sourceOutputs: any[] = wcTxObj?.sourceOutputs ?? []
+  let changed = false
+
+  const inputs = tx.inputs.map((input, index) => {
+    const source = sourceOutputs[index]
+    const original: Uint8Array | undefined = source?.unlockingBytecode
+    if (!source?.contract || !(original instanceof Uint8Array) || original.length === 0) return input
+
+    const originalOps = decodeAuthenticationInstructions(original)
+    const signedOps = decodeAuthenticationInstructions(input.unlockingBytecode)
+    const originalLast = originalOps[originalOps.length - 1] as { data?: Uint8Array } | undefined
+    const signedLast = signedOps[signedOps.length - 1] as { data?: Uint8Array } | undefined
+    if (!originalLast?.data || !signedLast?.data) {
+      throw new Error(`Contract input ${index}: unlocking bytecode has no redeem script push.`)
+    }
+    if (bytesEqual(originalLast.data, signedLast.data)) return input
+    if (originalOps.length !== signedOps.length || originalLast.data.length !== signedLast.data.length) {
+      throw new Error(`Contract input ${index}: the wallet changed the unlocking bytecode layout.`)
+    }
+
+    const tail = encodeDataPush(originalLast.data)
+    const signedTail = encodeDataPush(signedLast.data)
+    const bytes = input.unlockingBytecode
+    if (!bytesEqual(bytes.slice(bytes.length - signedTail.length), signedTail)) {
+      throw new Error(`Contract input ${index}: redeem script is not the final push.`)
+    }
+    changed = true
+    const unlockingBytecode = new Uint8Array(bytes.length - signedTail.length + tail.length)
+    unlockingBytecode.set(bytes.slice(0, bytes.length - signedTail.length))
+    unlockingBytecode.set(tail, bytes.length - signedTail.length)
+    return { ...input, unlockingBytecode }
+  })
+
+  return changed ? libBinToHex(encodeTransaction({ ...tx, inputs })) : signedHex
+}
+
 function isAlreadyKnownTransactionError(message: string): boolean {
   return /txn-already-known|txn-already-in-mempool|txn-already-in-chain|already in (?:the )?(?:mempool|block ?chain|blockchain)|transaction already exists|already known/i.test(message)
 }
@@ -346,24 +411,27 @@ async function buildSignAndBroadcast(
   wcIndex: number = 0,
 ): Promise<{ txid: string; signedTransaction: string }> {
   // CashScript 0.11.x: generateWcTransactionObject (NOT generateWizardConnectTransactionObject)
+  // The wallet only signs. Nomos repairs and broadcasts the transaction itself,
+  // so a wallet-side change to a redeem script never reaches the network.
   const wcTxObj = (txBuilder as any).generateWcTransactionObject({
-    broadcast: true,
+    broadcast: false,
     userPrompt: prompt,
   })
 
   const result = await signWcTransaction(provider, wcTxObj, undefined, wcIndex)
 
   if (result.signedTransaction) {
-    // Always broadcast the signed hex ourselves. If the wallet already did,
-    // the node reports it as known and we carry on with the txid we compute.
-    const txid = hashTransaction(hexToBin(result.signedTransaction))
+    const signedTransaction = restoreContractRedeemScripts(result.signedTransaction, wcTxObj)
+    // If the wallet broadcast anyway, the node reports it as known and we
+    // carry on with the txid we compute.
+    const txid = hashTransaction(hexToBin(signedTransaction))
     try {
-      await getProvider().sendRawTransaction(result.signedTransaction)
+      await getProvider().sendRawTransaction(signedTransaction)
     } catch (err: any) {
       const msg = String(err?.message ?? err)
       if (!isAlreadyKnownTransactionError(msg)) throw err
     }
-    return { txid, signedTransaction: result.signedTransaction }
+    return { txid, signedTransaction }
   }
 
   // Wallet broadcast and only returned the hash
@@ -426,7 +494,7 @@ async function buildSpendTx(
     const stranded = plainUtxos.length > 0 && !signerIsOwner
     throw new Error(stranded
       ? 'Not enough in the vault for an agent payment. Top-ups need the owner: pay as owner or update the mandate to merge them.'
-      : 'Insufficient vault balance')
+      : `The vault holds ${(nftUtxo.satoshis + extraSats).toLocaleString('en-US')} sats, which does not cover ${amountSats.toLocaleString('en-US')} sats plus the network fee. Use a smaller amount.`)
   }
 
   // The NFT input, not cached React state, is authoritative for spend state.
@@ -530,11 +598,13 @@ export async function signViolatingSpend(
     userPrompt: `Nomos refusal proof: sign ${amountSats} sats to ${destination}. This is designed to violate a stable covenant rule. The app will send the signed transaction to a public node; if accepted, it may be mined and spend funds.`,
   })
   const signed = await signWcTransaction(walletProvider, wcTxObj, undefined, wcIndex)
-  const rawTx = signed.signedTransaction?.trim().toLowerCase()
-  if (!rawTx || !/^[0-9a-f]+$/.test(rawTx) || rawTx.length % 2 !== 0) {
+  const returned = signed.signedTransaction?.trim().toLowerCase()
+  if (!returned || !/^[0-9a-f]+$/.test(returned) || returned.length % 2 !== 0) {
     throw new Error('The wallet did not return a valid signed transaction, so no proof was sent.')
   }
-  return rawTx
+  // A changed redeem script would make the node reject the hash, not the
+  // covenant rule, and the proof would test the wrong thing.
+  return restoreContractRedeemScripts(returned, wcTxObj)
 }
 
 /** Send a signed transaction to the configured Electrum server and report its response. */
