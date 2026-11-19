@@ -125,7 +125,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     if (wcState === 'connected' && wcManager) {
       const network = ((import.meta.env.VITE_BCH_NETWORK as string) || 'mainnet') === 'chipnet' ? 'chipnet' : 'mainnet'
       findFundedWcAddress(network).then(({ address, index }) => {
-        console.log(`[nomos] Using receive index ${index}: ${address}`)
         const pubkey = getWcPubkeyHex(index)
         if (address) {
           const conn: WalletConnection = {

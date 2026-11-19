@@ -70,7 +70,6 @@ export async function findFundedWcAddress(
     try {
       const utxos = await provider.getUtxos(addr)
       const bal = utxos.filter((u: any) => !u.token).reduce((s: bigint, u: any) => s + u.satoshis, 0n)
-      console.log(`[nomos] scan index ${i}: ${addr} → ${utxos.length} UTXOs, ${bal} sats`)
       if (bal > 0n) return { address: addr, index: i }
     } catch (e) {
       console.warn(`[nomos] scan index ${i} failed:`, e)
