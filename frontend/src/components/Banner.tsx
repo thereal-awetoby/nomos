@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, NavLink, useLocation } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import ThemeToggle from './ThemeToggle'
 import { useToast } from './Toast'
 import { useWallet } from '../context/WalletContext'
@@ -56,12 +56,16 @@ function MenuGlyph({ open }: { open: boolean }) {
   )
 }
 
+const BACK_HIDDEN = new Set(['/', '/vault'])
+
 export default function Banner() {
   const { toast } = useToast()
   const { wallet } = useWallet()
   const { pathname } = useLocation()
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const showBack = wallet?.connected && !BACK_HIDDEN.has(pathname)
 
   useEffect(() => { setOpen(false) }, [pathname])
 
@@ -91,6 +95,16 @@ export default function Banner() {
           <Mark size={18} />
           <span className="font-mono text-sm font-black tracking-[0.28em]">NOMOS</span>
         </Link>
+        {showBack && (
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-nomos-muted hover:text-nomos-text transition-colors"
+            aria-label="Go back"
+          >
+            [ Back ]
+          </button>
+        )}
         <NetworkChip />
 
         {wallet?.connected && (
