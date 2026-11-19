@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import ThemeToggle from './ThemeToggle'
 import { useToast } from './Toast'
@@ -145,14 +146,15 @@ export default function Banner() {
         </div>
       </div>
 
-      {/* Right-side slide panel */}
-      {open && (
+      {/* Right-side slide panel. Rendered into <body>: the header's backdrop-filter
+          would otherwise make it the containing block and clip the fixed panel. */}
+      {open && createPortal(
         <>
-          <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div className="fixed inset-0 z-[60] bg-black/50" onClick={() => setOpen(false)} aria-hidden="true" />
           <div
             id="site-menu"
             ref={menuRef}
-            className="fixed right-0 top-0 z-50 flex h-full w-72 flex-col border-l hairline bg-nomos-bg shadow-[-12px_0_40px_rgba(0,0,0,0.5)]"
+            className="fixed right-0 top-0 z-[70] flex h-[100dvh] w-72 max-w-[85vw] flex-col border-l hairline bg-nomos-bg shadow-[-12px_0_40px_rgba(0,0,0,0.5)]"
           >
             <div className="flex items-center justify-between border-b hairline px-4 py-3">
               <span className="font-mono text-xs font-bold uppercase tracking-[0.14em] text-nomos-text">Menu</span>
@@ -208,7 +210,8 @@ export default function Banner() {
               </div>
             </div>
           </div>
-        </>
+        </>,
+        document.body,
       )}
     </header>
   )
