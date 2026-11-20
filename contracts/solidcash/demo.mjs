@@ -10,8 +10,10 @@
 // The wallet is owner, agent and rescue co-signer here, and receives the
 // payments and the final sweep, so a run costs only network fees.
 // SolidCash also reserves two state NFTs (1,200 sats each) and a 5,000-sat
-// fee estimate at deploy; unused fee comes back as change. Mainnet needs
-// about 15,000 sats; chipnet about 30,000.
+// fee estimate at deploy; unused fee comes back as change. Contract calls
+// also need at least two separate coins in the wallet for fees, so on mainnet
+// fund about 20,000 sats split into a 14,000-sat coin plus a few small ones.
+// Chipnet needs about 30,000.
 
 import { readFileSync } from 'node:fs';
 import { Signer, SignatureTemplate } from '@solidcash/solidcash';
@@ -54,28 +56,39 @@ await vault.waitForDeployment();
 console.log('  category:', vault.categoryId);
 console.log('  deploy:  ', tx(vault.deploymentTransaction().txid));
 
-console.log(`\nPay ${sats(pay)} sats (under the limit)…`);
-const paid = await vault.call.pay(myPkh, pay, me, sig).setLocktime(locktime).transfer(lock, pay).send();
-console.log('  PAID:', tx(paid.txid));
-console.log('  spentToday on-chain:', await vault.state.spentToday());
-
-console.log(`\nPay ${sats(over)} more the same day (${sats(pay + over)} > ${sats(limit)})…`);
+// Once the vault exists, always try to rescue what is left in it, even if a
+// step fails: a run with a short-lived key must not leave funds behind.
+let ok = true;
+let paidSats = 0n;
 try {
-  const r = await vault.call.pay(myPkh, over, me, sig).setLocktime(locktime).transfer(lock, over).send();
-  console.log('  NOT REFUSED (unexpected):', tx(r.txid));
-  process.exit(1);
+  console.log(`\nPay ${sats(pay)} sats (under the limit)…`);
+  const paid = await vault.call.pay(myPkh, pay, me, sig).setLocktime(locktime).transfer(lock, pay).send();
+  paidSats = pay;
+  console.log('  PAID:', tx(paid.txid));
+  console.log('  spentToday on-chain:', await vault.state.spentToday());
+
+  console.log(`\nPay ${sats(over)} more the same day (${sats(pay + over)} > ${sats(limit)})…`);
+  try {
+    const r = await vault.call.pay(myPkh, over, me, sig).setLocktime(locktime).transfer(lock, over).send();
+    paidSats += over;
+    console.log('  NOT REFUSED (unexpected):', tx(r.txid));
+    ok = false;
+  } catch (e) {
+    const m = String(e.message ?? e);
+    console.log('  REFUSED by the contract before broadcast:', m.match(/failing require[^\n]*/)?.[0] ?? m.split('\n')[0]);
+  }
 } catch (e) {
-  const m = String(e.message ?? e);
-  console.log('  REFUSED by the contract before broadcast:', m.match(/failing require[^\n]*/)?.[0] ?? m.split('\n')[0]);
+  console.log('  Step failed:', String(e.message ?? e).split('\n')[0]);
+  ok = false;
 }
 
-const rest = deposit - pay;
+const rest = deposit - paidSats;
 console.log(`\nRescue the remaining ${sats(rest)} sats back to the wallet (owner + co-signer)…`);
 try {
   const swept = await vault.call.rescue(myPkh, rest, sig, sig).transfer(lock, rest).send();
   console.log('  RESCUED:', tx(swept.txid));
 } catch (e) {
-  console.log('  Rescue failed; the funds stay in the vault and can be rescued again:', String(e.message ?? e).split('\n')[0]);
-  process.exit(1);
+  console.log('  Rescue failed; the funds stay in the vault:', String(e.message ?? e).split('\n')[0]);
+  ok = false;
 }
-process.exit(0);
+process.exit(ok ? 0 : 1);
