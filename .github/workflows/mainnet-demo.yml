@@ -33,4 +33,4 @@ jobs:
           cp /tmp/demo-output.txt demo-output.txt
           git add demo-output.txt
           git commit -m "Mainnet demo output" || echo "nothing to commit"
-          git push origin demo-output
+          git push --force origin demo-output
