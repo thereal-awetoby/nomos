@@ -32,7 +32,7 @@ const MENU = [
   { to: '/proof', label: 'Proof checker', key: 'F' },
   { to: '/simulate', label: 'Simulator', key: 'S' },
   { to: '/identity', label: 'Nostr identity', key: 'I' },
-  { to: '/bridge', label: 'Get BCH / Get PUSD', key: 'B' },
+  { to: '/bridge', label: 'Swap PUSD / USDC', key: 'B' },
   { to: '/architecture', label: 'Architecture', key: 'D' },
 ]
 

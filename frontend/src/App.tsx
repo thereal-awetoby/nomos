@@ -13,7 +13,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/activity': 'Activity',
   '/rescue': 'Rescue',
   '/proof': 'Proof Checker',
-  '/bridge': 'Bridge',
+  '/bridge': 'Swap',
   '/identity': 'Nostr Identity',
   '/simulate': 'Simulator',
   '/architecture': 'Architecture',

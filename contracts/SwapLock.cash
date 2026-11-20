@@ -1,0 +1,26 @@
+pragma cashscript ^0.11.0;
+
+// Nomos swap lock: one side of a cross-chain atomic swap on Bitcoin Cash.
+// Holds whatever is sent to it (PUSD CashTokens plus a little BCH for fees).
+//
+// The recipient claims by revealing the secret whose sha256 is secretHash.
+// The same hash locks the other chain's side (contracts/evm/SwapLock.sol), so
+// claiming one side publishes the secret that unlocks the other.
+// After refundAfter (a unix time), the sender can take the funds back.
+
+contract SwapLock(
+    pubkey recipientPk,
+    pubkey refundPk,
+    bytes32 secretHash,
+    int refundAfter
+) {
+    function claim(sig recipientSig, bytes32 secret) {
+        require(sha256(secret) == secretHash);
+        require(checkSig(recipientSig, recipientPk));
+    }
+
+    function refund(sig refundSig) {
+        require(tx.time >= refundAfter);
+        require(checkSig(refundSig, refundPk));
+    }
+}

@@ -210,13 +210,10 @@ export default function VaultHome() {
 
           {isLowBalance && (
             <div className="card border-nomos-pending/25 p-4">
-              <p className="text-sm font-semibold text-nomos-pending">Low balance · Get BCH / Get PUSD</p>
+              <p className="text-sm font-semibold text-nomos-pending">Low balance</p>
               <p className="mt-1 text-xs leading-relaxed text-nomos-muted">
-                Your vault has less than 10,000 sats. Swap and bridge options are previews and cannot fund this vault yet.
+                Your vault has less than 10,000 sats. Top it up from your wallet with the address above.
               </p>
-              <Link to="/bridge" className="mt-3 inline-block text-xs font-medium text-nomos-accent hover:underline">
-                View swap/bridge preview
-              </Link>
             </div>
           )}
         </div>
@@ -275,7 +272,7 @@ export default function VaultHome() {
               Proof checker
             </Link>
             <Link to="/bridge" className="btn-ghost py-3 text-center text-xs">
-              Bridge preview
+              Swap PUSD / USDC
             </Link>
           </div>
 
