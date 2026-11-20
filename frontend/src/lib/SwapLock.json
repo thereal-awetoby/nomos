@@ -45,7 +45,7 @@
   "bytecode": "OP_4 OP_PICK OP_0 OP_NUMEQUAL OP_IF OP_6 OP_ROLL OP_SHA256 OP_3 OP_ROLL OP_EQUALVERIFY OP_4 OP_ROLL OP_SWAP OP_CHECKSIG OP_NIP OP_NIP OP_NIP OP_ELSE OP_4 OP_ROLL OP_1 OP_NUMEQUALVERIFY OP_3 OP_ROLL OP_CHECKLOCKTIMEVERIFY OP_DROP OP_3 OP_ROLL OP_ROT OP_CHECKSIG OP_NIP OP_NIP OP_ENDIF",
   "source": "pragma cashscript ^0.11.0;\n\n// Nomos swap lock: one side of a cross-chain atomic swap on Bitcoin Cash.\n// Holds whatever is sent to it (PUSD CashTokens plus a little BCH for fees).\n//\n// The recipient claims by revealing the secret whose sha256 is secretHash.\n// The same hash locks the other chain's side (contracts/evm/SwapLock.sol), so\n// claiming one side publishes the secret that unlocks the other.\n// After refundAfter (a unix time), the sender can take the funds back.\n\ncontract SwapLock(\n    pubkey recipientPk,\n    pubkey refundPk,\n    bytes32 secretHash,\n    int refundAfter\n) {\n    function claim(sig recipientSig, bytes32 secret) {\n        require(sha256(secret) == secretHash);\n        require(checkSig(recipientSig, recipientPk));\n    }\n\n    function refund(sig refundSig) {\n        require(tx.time >= refundAfter);\n        require(checkSig(refundSig, refundPk));\n    }\n}\n",
   "debug": {
-    "bytecode": "5479009c63567aa8537a88547a7cac7777777767547a519d537ab175537a7bac77777768",
+    "bytecode": "5479009c63567aa8537a88547a7cac777767547a519d537ab175537a7bac777768",
     "sourceMap": "17:4:20:5;;;;;18:23:18:29;;:16::30:1;:34::44:0;;:8::46:1;19:25:19:37:0;;:39::50;:8::53:1;17:4:20:5;;;;22::25::0;;;;23:27:23:38;;:8::40:1;;24:25:24:34:0;;:36::44;:8::47:1;22:4:25:5;;11:0:26:1",
     "logs": [],
     "requires": [

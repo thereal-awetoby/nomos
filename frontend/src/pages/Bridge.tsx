@@ -218,7 +218,7 @@ export default function Bridge() {
     try {
       other = JSON.parse(counterparty)
     } catch {
-      throw new Error('Paste the counterparty's swap details exactly as they copied them')
+      throw new Error("Paste the counterparty's swap details exactly as they copied them")
     }
     if (!/^0[23][0-9a-f]{64}$/i.test(other?.bchPk ?? '') || !isEvmAddress(other?.baseAddress ?? '')) {
       throw new Error('The counterparty details need a BCH public key and a Base address')
@@ -297,7 +297,7 @@ export default function Bridge() {
       disabled: Boolean(baseLock),
       run: () => run('Locking USDC', async () => {
         needBase()
-        if (now() > base.refundAfter - 2 * HOUR) throw new Error('Too close to this lock's refund time; start a new offer')
+        if (now() > base.refundAfter - 2 * HOUR) throw new Error("Too close to this lock's refund time; start a new offer")
         const { hash } = await lockUsdc(offer.secretHash, base.recipient, BigInt(offer.usdcUnits), base.refundAfter)
         updateProgress({ baseLockHash: hash })
       }),
@@ -359,7 +359,7 @@ export default function Bridge() {
             run: () => run('Claiming USDC', async () => {
               needBase()
               const found = await findBchSecret(offer, claimTxid)
-              if (!found) throw new Error('That transaction does not reveal this swap's secret')
+              if (!found) throw new Error("That transaction does not reveal this swap's secret")
               updateProgress({ baseClaimHash: await claimUsdc(`0x${found}`) })
             }),
           },
