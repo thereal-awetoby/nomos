@@ -51,10 +51,9 @@ import {
   privateKeyToP2pkhCashAddress,
   privateKeyToP2pkhLockingBytecode,
   secp256k1,
-  sha256,
 } from '@bitauth/libauth';
 import { convertMnemonicToSeedBytes, computeAccountHash } from '@xo-cash/crypto';
-import { parseTemplate, generateTemplateIdentifier, serializeInvitation } from '@xo-cash/utils';
+import { parseTemplate, generateTemplateIdentifier, scriptToScriptHash, serializeInvitation } from '@xo-cash/utils';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const XO_DIR = resolve(__dirname, '..');
@@ -346,9 +345,9 @@ async function main() {
 
   // Vault locking bytecode + script hash from the CashScript contract.
   const vaultRawBytecode = contract.bytecode;
-  const vaultScriptHash = binToHex(sha256.hash(hexToBin(vaultRawBytecode)));
+  const vaultScriptHash = scriptToScriptHash(hexToBin(vaultRawBytecode));
   const ownerLockingBytecode = binToHex(privateKeyToP2pkhLockingBytecode({ privateKey: owner.privateKey }));
-  const ownerScriptHash = binToHex(sha256.hash(hexToBin(ownerLockingBytecode)));
+  const ownerScriptHash = scriptToScriptHash(hexToBin(ownerLockingBytecode));
   log(`  vault script hash: ${vaultScriptHash}`);
   log(`  owner script hash: ${ownerScriptHash}`);
 
