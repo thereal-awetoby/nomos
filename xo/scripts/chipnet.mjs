@@ -300,8 +300,15 @@ function spentTodayFromCommitment(commitmentHexStr) {
   return Number(BigInt(commitmentHexStr.slice(0, 16), 16));
 }
 
-async function confirmedVaultUtxos(engine, vaultScriptHash) {
-  const unspent = await engine.listUnspentOutputs();
+async function confirmedVaultUtxos(engine, vaultScriptHash, vaultRawBytecode, templateIdentifier) {
+  // Use fetchUnspentOutputsForLockingBytecode directly instead of
+  // engine.listUnspentOutputs: the engine's tracked UTXO status depends on
+  // block-header processing, which fails on chipnet when
+  // @electrum-cash/application's checkpoint is stale (~306k vs actual ~339k).
+  // fetchUnspentOutputsForLockingBytecode queries Electrum directly and
+  // derives confirmed/pending from the block height, bypassing the checkpoint.
+  const { fetchUnspentOutputsForLockingBytecode } = await import('@xo-cash/engine');
+  const unspent = await fetchUnspentOutputsForLockingBytecode(vaultRawBytecode, templateIdentifier);
   return unspent.filter(
     (u) => u.scriptHash === vaultScriptHash && u.status === 'confirmed' && u.selectable && u.reservedBy === undefined,
   );
@@ -440,6 +447,23 @@ async function main() {
   log(`  engine vault script hash: ${engineVaultScriptHash}`);
 
   // ── Step 0: funding ───────────────────────────────────────────────────────
+  // ── Step 0: funding ───────────────────────────────────────────────────────
+  // First check if the vault already exists (e.g. a previous run broadcast the
+  // genesis tx but couldn't track the confirmation due to a stale chipnet
+  // checkpoint). If so, skip funding + genesis and proceed to the pay flow.
+  // Accept confirmed OR pending (mempool) vault UTXOs — the genesis tx may
+  // still be in the mempool.
+  log('\n[0] Checking for existing vault…');
+  {
+    const { fetchUnspentOutputsForLockingBytecode } = await import('@xo-cash/engine');
+    const allVault = await fetchUnspentOutputsForLockingBytecode(vaultRawBytecode, owner.templateIdentifier);
+    const existing = allVault.find((u) => u.tokenNftCommitment !== undefined);
+    if (existing) {
+      log(`  vault NFT UTXO already exists: ${existing.outpointTransactionHash}:${existing.outpointIndex} (${existing.valueSatoshis} sats, status: ${existing.status})`);
+      log('  skipping funding + genesis, proceeding to pay flow');
+    }
+  }
+
   log('\n[0] Waiting for funding…');
   let fundingUtxo = null;
   const fundingDeadline = Date.now() + 2 * 60 * 60 * 1000;
@@ -492,7 +516,7 @@ async function main() {
     const vaultDeadline = Date.now() + 30 * 60 * 1000;
     let nftVaultUtxo1 = null;
     while (Date.now() < vaultDeadline) {
-      nftVaultUtxo1 = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash))
+      nftVaultUtxo1 = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash, vaultRawBytecode, owner.templateIdentifier))
         .find((u) => u.tokenNftCommitment !== undefined);
       if (nftVaultUtxo1) break;
       await new Promise((r) => setTimeout(r, 15_000));
@@ -578,7 +602,7 @@ async function main() {
     return invitation;
   }
 
-  let nftVaultUtxo1 = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash)).find((u) => u.tokenNftCommitment !== undefined);
+  let nftVaultUtxo1 = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash, vaultRawBytecode, owner.templateIdentifier)).find((u) => u.tokenNftCommitment !== undefined);
   if (!nftVaultUtxo1) fail('vault NFT output not found after genesis');
   const pay1 = await pay(2, PAY_1_SATOSHIS, nftVaultUtxo1);
   const pay1Result = await ownerEngine.executeAction(pay1.invitationIdentifier, { broadcastTransaction: true });
@@ -588,7 +612,7 @@ async function main() {
   await waitForTxVisible(pay1Result.builtTransaction.transactionHash);
 
   // ── Step 3: pay #2 (follow-up, same day, from step 2's state) ────────────
-  let nftVaultUtxo2 = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash)).find((u) => u.tokenNftCommitment !== undefined);
+  let nftVaultUtxo2 = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash, vaultRawBytecode, owner.templateIdentifier)).find((u) => u.tokenNftCommitment !== undefined);
   if (!nftVaultUtxo2) fail('vault NFT output not found after pay #1');
   const pay2 = await pay(3, PAY_2_SATOSHIS, nftVaultUtxo2);
   const pay2Result = await ownerEngine.executeAction(pay2.invitationIdentifier, { broadcastTransaction: true });
@@ -599,7 +623,7 @@ async function main() {
 
   // ── Step 4: pay #3 (over the daily limit — expect rejection) ─────────────
   log(`\n[4] Pay ${PAY_3_SATOSHIS} sats more (12,000 > 10,000) — expect rejection…`);
-  let nftVaultUtxo3 = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash)).find((u) => u.tokenNftCommitment !== undefined);
+  let nftVaultUtxo3 = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash, vaultRawBytecode, owner.templateIdentifier)).find((u) => u.tokenNftCommitment !== undefined);
   if (!nftVaultUtxo3) fail('vault NFT output not found after pay #2');
   const pay3 = await pay(4, PAY_3_SATOSHIS, nftVaultUtxo3);
   let rejectionMessage = null;
@@ -626,7 +650,7 @@ async function main() {
 
   // ── Step 5: rescue (ONE invitation, both keys) ───────────────────────────
   log('\n[5] Rescue — sweep the vault back to the owner with owner + rescuer…');
-  let nftVaultUtxoRescue = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash)).find((u) => u.tokenNftCommitment !== undefined);
+  let nftVaultUtxoRescue = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash, vaultRawBytecode, owner.templateIdentifier)).find((u) => u.tokenNftCommitment !== undefined);
   if (!nftVaultUtxoRescue) fail('vault NFT output not found before rescue');
   const withdrawSatoshis = BigInt(nftVaultUtxoRescue.valueSatoshis) - BigInt(MINER_FEE_SATOSHIS);
 
