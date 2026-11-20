@@ -333,11 +333,11 @@ async function main() {
     ownerPub,                        // agentPk (owner acts as agent)
     BigInt(DAILY_LIMIT_SATOSHIS),    // dailyLimitSats
     false,                           // allowlistEnabled
-    hexToBin(ZERO_COMMITMENT.slice(0, 40)), // allowedAddr1-5 (20-byte zero hashes)
-    hexToBin(ZERO_COMMITMENT.slice(0, 40)),
-    hexToBin(ZERO_COMMITMENT.slice(0, 40)),
-    hexToBin(ZERO_COMMITMENT.slice(0, 40)),
-    hexToBin(ZERO_COMMITMENT.slice(0, 40)),
+    new Uint8Array(20),              // allowedAddr1-5 (20-byte zero hashes)
+    new Uint8Array(20),
+    new Uint8Array(20),
+    new Uint8Array(20),
+    new Uint8Array(20),
     rescuerPub,                      // rescuePk
   ];
   const contract = new Contract(artifact, contractParams, { provider: new ElectrumNetworkProvider('chipnet') });
