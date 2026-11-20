@@ -22,33 +22,34 @@ jobs:
         id: keys
         working-directory: xo
         run: |
-          KEYS_JSON=$(node scripts/chipnet.mjs keys)
-          echo "$KEYS_JSON" >> "$GITHUB_OUTPUT"
+          node scripts/chipnet.mjs keys > /tmp/keys.json
           # Mask secrets so they never appear in logs
-          echo "::add-mask::$(echo "$KEYS_JSON" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);console.log(j.OWNER_MNEMONIC)})')"
-          echo "::add-mask::$(echo "$KEYS_JSON" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);console.log(j.OWNER_KEY)})')"
-          echo "::add-mask::$(echo "$KEYS_JSON" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);console.log(j.RESCUER_MNEMONIC)})')"
-          echo "::add-mask::$(echo "$KEYS_JSON" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);console.log(j.RESCUER_KEY)})')"
+          echo "::add-mask::$(jq -r .OWNER_MNEMONIC /tmp/keys.json)"
+          echo "::add-mask::$(jq -r .OWNER_KEY /tmp/keys.json)"
+          echo "::add-mask::$(jq -r .RESCUER_MNEMONIC /tmp/keys.json)"
+          echo "::add-mask::$(jq -r .RESCUER_KEY /tmp/keys.json)"
           # Export to env for later steps
-          echo "OWNER_MNEMONIC=$(echo "$KEYS_JSON" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{console.log(JSON.parse(s).OWNER_MNEMONIC)})')" >> "$GITHUB_ENV"
-          echo "OWNER_KEY=$(echo "$KEYS_JSON" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{console.log(JSON.parse(s).OWNER_KEY)})')" >> "$GITHUB_ENV"
-          echo "RESCUER_MNEMONIC=$(echo "$KEYS_JSON" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{console.log(JSON.parse(s).RESCUER_MNEMONIC)})')" >> "$GITHUB_ENV"
-          echo "RESCUER_KEY=$(echo "$KEYS_JSON" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{console.log(JSON.parse(s).RESCUER_KEY)})')" >> "$GITHUB_ENV"
-          echo "OWNER_ADDRESS=$(echo "$KEYS_JSON" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{console.log(JSON.parse(s).OWNER_ADDRESS)})')" >> "$GITHUB_OUTPUT"
+          echo "OWNER_MNEMONIC=$(jq -r .OWNER_MNEMONIC /tmp/keys.json)" >> "$GITHUB_ENV"
+          echo "OWNER_KEY=$(jq -r .OWNER_KEY /tmp/keys.json)" >> "$GITHUB_ENV"
+          echo "RESCUER_MNEMONIC=$(jq -r .RESCUER_MNEMONIC /tmp/keys.json)" >> "$GITHUB_ENV"
+          echo "RESCUER_KEY=$(jq -r .RESCUER_KEY /tmp/keys.json)" >> "$GITHUB_ENV"
+          echo "OWNER_ADDRESS=$(jq -r .OWNER_ADDRESS /tmp/keys.json)" >> "$GITHUB_OUTPUT"
 
       - name: Publish funding address to demo-output
         run: |
           git config user.name "thereal_awetoby"
           git config user.email "awedavid2007@gmail.com"
           git checkout -B demo-output
-          echo "# XO chipnet demo" > README-demo.md
-          echo "" >> README-demo.md
-          echo "Fund this chipnet address with at least 60,000 sats:" >> README-demo.md
-          echo "" >> README-demo.md
-          echo "\`${{ steps.keys.outputs.OWNER_ADDRESS }}\`" >> README-demo.md
-          echo "" >> README-demo.md
-          echo "The workflow is waiting for the funds (up to 2 hours), then it will" >> README-demo.md
-          echo "run the Nomos vault demo and commit the results here." >> README-demo.md
+          {
+            echo "# XO chipnet demo"
+            echo ""
+            echo "Fund this chipnet address with at least 60,000 sats:"
+            echo ""
+            echo '`${{ steps.keys.outputs.OWNER_ADDRESS }}`'
+            echo ""
+            echo "The workflow is waiting for the funds (up to 2 hours), then it will"
+            echo "run the Nomos vault demo and commit the results here."
+          } > README-demo.md
           git add README-demo.md
           git commit --no-verify -m "XO chipnet demo: funding address"
           git push origin demo-output --force
@@ -59,9 +60,8 @@ jobs:
           echo "Waiting for funding at $ADDRESS (up to 2 hours)…"
           DEADLINE=$(( $(date +%s) + 7200 ))
           while [ "$(date +%s)" -lt "$DEADLINE" ]; do
-            # Query a chipnet block explorer API for the address balance
             BALANCES=$(curl -s "https://chipnet.chaingraph.cash/api/address/$ADDRESS" 2>/dev/null || true)
-            SATS=$(echo "$BALANCES" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const j=JSON.parse(s);const t=j.totalReceived||j.balance||0;console.log(Math.floor(t*100000000))}catch{console.log(0)}})' 2>/dev/null || echo 0)
+            SATS=$(echo "$BALANCES" | jq -r '(.totalReceived // .balance // 0) * 100000000 | floor' 2>/dev/null || echo 0)
             if [ "$SATS" -ge 60000 ]; then
               echo "Funded: $SATS sats"
               exit 0
