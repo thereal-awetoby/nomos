@@ -1,0 +1,742 @@
+Nomos XO chipnet demo — engine-derived keys verified for both accounts.
+  owner address (fund this): bchtest:qqjm5vzp2fr0vqrm5prl2g3xfsws0xf2scw70mfhy8
+  rescuer address:           bchtest:qqxv6hxdtfmv5nu94fd0f5h429yxyp4dz5nxt9l9v6
+
+Compiling NomosVault.cash…
+  contract address: bchtest:pdmvyxulcv487tkfdwa664vdchs7wtdlx78pthfq9w0enyz8quvsslkezprue
+  contract token address: bchtest:rdmvyxulcv487tkfdwa664vdchs7wtdlx78pthfq9w0enyz8quvssd99rcz9j
+  vault script hash: 2c40e31600aaa1e8f126209949f2d85b06c77aae43d3e8fa4bffb1273a7a4a60
+  owner script hash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2
+  engine up, template imported
+  Electrum reports 1 unspent output(s) for owner script hash
+    undefined:undefined — undefined sats
+  engine vault script hash: 2c40e31600aaa1e8f126209949f2d85b06c77aae43d3e8fa4bffb1273a7a4a60
+
+[0] Checking for existing vault…
+
+[0] Waiting for funding…
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to process transaction update: Error: Could not validate a block header on height 339735: The requested header is ahead of the current checkpoint at height 307184
+Failed to process transaction update: Error: Could not validate a block header on height 339699: The requested header is ahead of the current checkpoint at height 307184
+Failed to process transaction update: Error: Could not validate a block header on height 339735: The requested header is ahead of the current checkpoint at height 307184
+Failed to process transaction update: Error: Could not validate a block header on height 339735: The requested header is ahead of the current checkpoint at height 308192
+Failed to process transaction update: Error: Could not validate a block header on height 339699: The requested header is ahead of the current checkpoint at height 308192
+Failed to process transaction update: Error: Could not validate a block header on height 339735: The requested header is ahead of the current checkpoint at height 308192
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+  engine reports 1 unspent outputs
+    d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66:1 — 8000 sats — scriptHash: 2814167e7f4647e9c88790d3a16f7c7b4674e6d8920be4482b28357a91b6efa2 — reservedBy: none
+Failed to synchronize block headers, will retry later: Error: Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671' at height 332451 claims target 486604799, expected 437753688.
+    at validateBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1460:89)
+    at async processBlockHeader (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1787:29)
+    at async synchronizeBlockHeaders (file:///home/runner/work/nomos/nomos/xo/node_modules/@electrum-cash/application/dist/index.mjs:1999:59)
+
+No funded UTXO of ≥ 60000 sats found for bchtest:qqjm5vzp2fr0vqrm5prl2g3xfsws0xf2scw70mfhy8.
+Fund the address, wait for confirmation, then run again.
