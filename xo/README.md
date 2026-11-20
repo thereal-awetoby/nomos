@@ -53,6 +53,9 @@ today (`remainingToday`).
 
 ## Chipnet demo script
 
+See [REPRODUCE.md](REPRODUCE.md) for the offline checks and a record of what
+the live chipnet attempt reached, including the blockers encountered.
+
 `scripts/chipnet.mjs` runs the full vault lifecycle on chipnet:
 
 ```

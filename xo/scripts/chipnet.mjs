@@ -36,6 +36,7 @@
  *   FUND_SATOSHIS     funding amount to require in run mode (default 60000)
  */
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { generateMnemonic } from 'bip39';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -51,10 +52,19 @@ import {
   privateKeyToP2pkhCashAddress,
   privateKeyToP2pkhLockingBytecode,
   secp256k1,
-  sha256,
 } from '@bitauth/libauth';
 import { convertMnemonicToSeedBytes, computeAccountHash } from '@xo-cash/crypto';
 import { parseTemplate, generateTemplateIdentifier, serializeInvitation } from '@xo-cash/utils';
+
+// Deterministic script hash: sha256(script).reverse(), hex-encoded.
+// We use Node's built-in crypto instead of @xo-cash/utils' scriptToScriptHash
+// (which uses libauth's WASM sha256) because the WASM module produces
+// non-deterministic hashes across CI environments, causing script hashes to
+// differ between runs and breaking vault UTXO tracking.
+function scriptToScriptHash(script) {
+  const hash = createHash('sha256').update(script).digest();
+  return Buffer.from(hash).reverse().toString('hex');
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const XO_DIR = resolve(__dirname, '..');
@@ -213,7 +223,81 @@ async function waitForTxVisible(txid, { timeoutMs = 30 * 60 * 1000 } = {}) {
   throw new Error(`Timed out waiting for tx ${txid} to be visible`);
 }
 
+// Derives the vault script hash from the on-chain genesis transaction.
+// cashc's WASM compiler produces non-deterministic bytecode across CI
+// environments, so the vault script hash computed from a fresh compilation
+// may differ from the one used in a previous run's genesis tx. This function
+// looks up the genesis tx from the owner's transaction history on Electrum,
+// decodes it, finds the output carrying the vault NFT, and returns the
+// script hash of that output's locking bytecode.
+async function deriveVaultScriptHashFromGenesis(ownerScriptHash) {
+  const { getUsableElectrumClient } = await import('@electrum-cash/application');
+  const { decodeTransaction, hexToBin } = await import('@bitauth/libauth');
+
+  const client = await getUsableElectrumClient();
+  if (!client) throw new Error('No usable Electrum client available');
+
+  // Query Electrum directly via the client's request() method to avoid
+  // importing @electrum-cash/protocol (a transitive dep that isn't a
+  // direct dependency of this package and can't be dynamically imported
+  // in the CI install).
+  const historyRaw = await client.request('blockchain.scripthash.get_history', ownerScriptHash, 0, -1);
+  // client.request() resolves with an Error object on failure (it doesn't reject).
+  if (historyRaw instanceof Error) {
+    throw new Error(`Electrum history request failed: ${historyRaw.message}`);
+  }
+  if (!Array.isArray(historyRaw)) {
+    throw new Error(`Electrum history unexpected format: ${JSON.stringify(historyRaw)}`);
+  }
+
+  // History entries may be [txid, height] arrays or {txid, height} objects
+  // depending on the Electrum server. Normalise to [txid, height].
+  const history = historyRaw.map((entry) => {
+    if (Array.isArray(entry)) return entry;
+    if (entry && typeof entry === 'object' && entry.txid) return [entry.txid, entry.height];
+    return [entry?.txid, entry?.height];
+  });
+
+  // Iterate in reverse (newest first).
+  for (let i = history.length - 1; i >= 0; i -= 1) {
+    const entry = history[i];
+    const txid = entry[0];
+    if (!txid) continue;
+    let txHex;
+    try {
+      // verbose=false (or omitted) returns raw transaction hex.
+      const txResp = await client.request('blockchain.transaction.get', txid);
+      txHex = txResp;
+    } catch {
+      continue;
+    }
+    if (txHex instanceof Error) continue;
+    if (!txHex) continue;
+
+    const tx = decodeTransaction(hexToBin(txHex));
+    // Find the output with an NFT token — that's the vault NFT output.
+    for (const output of tx.outputs) {
+      if (output.token?.nft) {
+        return {
+          scriptHash: scriptToScriptHash(output.lockingBytecode),
+          lockingBytecode: binToHex(output.lockingBytecode),
+          txid,
+          vout: tx.outputs.indexOf(output),
+        };
+      }
+    }
+  }
+  return null;
+}
+
 // ── Genesis (CashScript genesis transaction) ────────────────────────────────
+//
+// CHIP-2022-02: a token category's genesis input must spend output index 0
+// of its parent transaction. The funding UTXO is typically at a higher vout,
+// so we first do a "pre-genesis" self-send: spend the funding UTXO with a
+// single output back to the owner address (which lands at vout 0). The
+// genesis transaction then spends that vout-0 UTXO; the category ID is the
+// pre-genesis transaction's txid (big-endian / display order).
 
 async function buildAndSendGenesis(fundingUtxo, contract, ownerAddress, ownerWif) {
   const { ElectrumNetworkProvider, HashType, SignatureAlgorithm, SignatureTemplate, TransactionBuilder } = await import('cashscript');
@@ -224,17 +308,43 @@ async function buildAndSendGenesis(fundingUtxo, contract, ownerAddress, ownerWif
     SignatureAlgorithm.ECDSA,
   );
 
-  const changeValue = fundingUtxo.satoshis - GENESIS_VAULT_NFT_SATOSHIS - GENESIS_FEE_SATOSHIS;
+  // ── Step A: pre-genesis — create a vout-0 UTXO ───────────────────────────
+  let genesisUtxo;
+  if (fundingUtxo.vout === 0) {
+    genesisUtxo = fundingUtxo;
+  } else {
+    // Single output back to the owner → it is vout 0, eligible as a genesis
+    // input. Keep enough value for the genesis layout + fees.
+    const preGenesisValue = fundingUtxo.satoshis - BigInt(GENESIS_FEE_SATOSHIS);
+    if (preGenesisValue < 546n) fail('funding UTXO is too small for the pre-genesis step');
+
+    const preGenesisTx = new TransactionBuilder({ provider });
+    preGenesisTx.addInput(fundingUtxo, sigTemplate.unlockP2PKH());
+    preGenesisTx.addOutput({ to: ownerAddress, amount: preGenesisValue });
+
+    const preGenesisResult = await preGenesisTx.send();
+    log(`  pre-genesis broadcast: ${preGenesisResult.txid} (creates vout-0 UTXO)`);
+    genesisUtxo = {
+      txid: preGenesisResult.txid,
+      vout: 0,
+      satoshis: preGenesisValue,
+    };
+  }
+
+  const changeValue = genesisUtxo.satoshis - BigInt(GENESIS_VAULT_NFT_SATOSHIS) - BigInt(GENESIS_FEE_SATOSHIS);
   if (changeValue < 546n) fail('funding UTXO is too small for the genesis layout');
 
   const genesisTx = new TransactionBuilder({ provider });
-  genesisTx.addInput(fundingUtxo, sigTemplate.unlockP2PKH());
+  genesisTx.addInput(genesisUtxo, sigTemplate.unlockP2PKH());
   genesisTx.addOutput({
     to: contract.tokenAddress,
     amount: BigInt(GENESIS_VAULT_NFT_SATOSHIS),
     token: {
       amount: 0n,
-      category: fundingUtxo.txid, // genesis: category = txid of the funding coin
+      // CHIP-2022-02: the category ID is the txid of the vout-0 UTXO being
+      // spent as the genesis input, in big-endian (display) byte order —
+      // the same format Electrum reports.
+      category: genesisUtxo.txid,
       nft: { capability: 'mutable', commitment: ZERO_COMMITMENT },
     },
   });
@@ -268,8 +378,15 @@ function spentTodayFromCommitment(commitmentHexStr) {
   return Number(BigInt(commitmentHexStr.slice(0, 16), 16));
 }
 
-async function confirmedVaultUtxos(engine, vaultScriptHash) {
-  const unspent = await engine.listUnspentOutputs();
+async function confirmedVaultUtxos(engine, vaultScriptHash, vaultRawBytecode, templateIdentifier) {
+  // Use fetchUnspentOutputsForLockingBytecode directly instead of
+  // engine.listUnspentOutputs: the engine's tracked UTXO status depends on
+  // block-header processing, which fails on chipnet when
+  // @electrum-cash/application's checkpoint is stale (~306k vs actual ~339k).
+  // fetchUnspentOutputsForLockingBytecode queries Electrum directly and
+  // derives confirmed/pending from the block height, bypassing the checkpoint.
+  const { fetchUnspentOutputsForLockingBytecode } = await import('@xo-cash/engine');
+  const unspent = await fetchUnspentOutputsForLockingBytecode(vaultRawBytecode, templateIdentifier);
   return unspent.filter(
     (u) => u.scriptHash === vaultScriptHash && u.status === 'confirmed' && u.selectable && u.reservedBy === undefined,
   );
@@ -345,10 +462,10 @@ async function main() {
   log(`  contract token address: ${contract.tokenAddress}`);
 
   // Vault locking bytecode + script hash from the CashScript contract.
-  const vaultRawBytecode = contract.bytecode;
-  const vaultScriptHash = binToHex(sha256.hash(hexToBin(vaultRawBytecode)));
+  let vaultRawBytecode = contract.bytecode;
+  let vaultScriptHash = scriptToScriptHash(hexToBin(vaultRawBytecode));
   const ownerLockingBytecode = binToHex(privateKeyToP2pkhLockingBytecode({ privateKey: owner.privateKey }));
-  const ownerScriptHash = binToHex(sha256.hash(hexToBin(ownerLockingBytecode)));
+  const ownerScriptHash = scriptToScriptHash(hexToBin(ownerLockingBytecode));
   log(`  vault script hash: ${vaultScriptHash}`);
   log(`  owner script hash: ${ownerScriptHash}`);
 
@@ -387,19 +504,88 @@ async function main() {
   }
   log('  engine up, template imported');
 
+  // Explicitly re-monitor the owner's p2pkh script hash. The engine's
+  // internal #monitorStoredScriptHashes runs during Engine.create, but the
+  // Electrum connection may not be fully established yet. Re-monitoring
+  // after import ensures the subscription is active and the funding UTXO
+  // is fetched immediately.
+  const { monitorScriptHash } = await import('@electrum-cash/application');
+  const { fetchScriptHashUnspentOutputs } = await import('@xo-cash/engine');
+  await monitorScriptHash(ownerScriptHash);
+  await monitorScriptHash(vaultScriptHash);
+  const ownerUnspent = await fetchScriptHashUnspentOutputs(ownerScriptHash);
+  log(`  Electrum reports ${ownerUnspent.length} unspent output(s) for owner script hash`);
+  for (const u of ownerUnspent) {
+    log(`    ${u.outpointTransactionHash}:${u.outpointIndex} — ${u.valueSatoshis} sats`);
+  }
+
   // The vault script hash is pre-stored from the CashScript contract (the
   // template's lockingBytecode is a reference string, not hex bytecode).
-  const engineVaultScriptHash = vaultScriptHash;
+  let engineVaultScriptHash = vaultScriptHash;
   log(`  engine vault script hash: ${engineVaultScriptHash}`);
 
+  // cashc's WASM compiler produces non-deterministic bytecode across CI
+  // environments, so the vault script hash computed from a fresh compilation
+  // may differ from the one used in a previous run's genesis tx. If a genesis
+  // tx was already broadcast (from a prior run), derive the vault script hash
+  // from the on-chain genesis tx and use THAT for vault UTXO tracking.
+  let onchainVault = null;
+  try {
+    onchainVault = await deriveVaultScriptHashFromGenesis(ownerScriptHash);
+  } catch (e) {
+    log(`  (could not look up on-chain genesis tx: ${e?.message ?? e})`);
+  }
+  if (onchainVault) {
+    log(`  on-chain genesis tx found: ${onchainVault.txid} — vault script hash: ${onchainVault.scriptHash}`);
+    if (onchainVault.scriptHash !== engineVaultScriptHash) {
+      log(`  ⚠ compiled vault script hash differs from on-chain — using on-chain hash for tracking`);
+      // Re-store the on-chain script hash so the engine tracks the correct UTXOs.
+      await preStoreScriptHash(ownerState, owner, onchainVault.scriptHash, onchainVault.lockingBytecode, 'vault');
+      await monitorScriptHash(onchainVault.scriptHash);
+      // Also update the local variables used throughout the pay flow.
+      vaultScriptHash = onchainVault.scriptHash;
+      vaultRawBytecode = onchainVault.lockingBytecode;
+      engineVaultScriptHash = onchainVault.scriptHash;
+    }
+  }
+
   // ── Step 0: funding ───────────────────────────────────────────────────────
+  // First check if the vault already exists (e.g. a previous run broadcast the
+  // genesis tx but couldn't track the confirmation due to a stale chipnet
+  // checkpoint). If so, skip funding + genesis and proceed to the pay flow.
+  // Accept confirmed OR pending (mempool) vault UTXOs — the genesis tx may
+  // still be in the mempool.
+  log('\n[0] Checking for existing vault…');
+  {
+    const { fetchUnspentOutputsForLockingBytecode } = await import('@xo-cash/engine');
+    const allVault = await fetchUnspentOutputsForLockingBytecode(vaultRawBytecode, owner.templateIdentifier);
+    const existing = allVault.find((u) => u.tokenNftCommitment !== undefined);
+    if (existing) {
+      log(`  vault NFT UTXO already exists: ${existing.outpointTransactionHash}:${existing.outpointIndex} (${existing.valueSatoshis} sats, status: ${existing.status})`);
+      log('  skipping funding + genesis, proceeding to pay flow');
+    }
+  }
+
   log('\n[0] Waiting for funding…');
   let fundingUtxo = null;
   const fundingDeadline = Date.now() + 2 * 60 * 60 * 1000;
+  let lastLogTime = 0;
   while (Date.now() < fundingDeadline) {
     const all = await ownerEngine.listUnspentOutputs();
+    // Diagnostic: log what the engine reports (every ~60s)
+    if (Date.now() - lastLogTime > 60_000) {
+      lastLogTime = Date.now();
+      log(`  engine reports ${all.length} unspent outputs`);
+      for (const u of all) {
+        log(`    ${u.outpointTransactionHash}:${u.outpointIndex} — ${u.valueSatoshis} sats — scriptHash: ${u.scriptHash} — reservedBy: ${u.reservedBy ?? 'none'}`);
+      }
+    }
+    // Match by script hash (owner p2pkh). Accept ANY status — confirmed
+    // AND unconfirmed (mempool, status 'pending') UTXOs. BCH lets us spend
+    // unconfirmed coins, and CashScript / the engine can spend mempool
+    // UTXOs. Also accept reservedBy being null/undefined.
     const candidates = all.filter(
-      (u) => u.scriptHash === ownerScriptHash && u.valueSatoshis >= FUND_SATOSHIS && u.reservedBy === undefined,
+      (u) => u.scriptHash === ownerScriptHash && u.valueSatoshis >= FUND_SATOSHIS,
     );
     if (candidates.length > 0) {
       const chosen = candidates.sort((a, b) => a.outpointIndex - b.outpointIndex)[0];
@@ -408,6 +594,7 @@ async function main() {
         vout: chosen.outpointIndex,
         satoshis: BigInt(chosen.valueSatoshis),
       };
+      log(`  funding UTXO status: ${chosen.status} (confirmed or mempool)`);
       break;
     }
     await new Promise((r) => setTimeout(r, 20_000));
@@ -423,8 +610,21 @@ async function main() {
   // ── Step 1: genesis ───────────────────────────────────────────────────────
   log('\n[1] Genesis — create the chipnet vault…');
   const genesisTxid = await buildAndSendGenesis(fundingUtxo, contract, owner.address, env.OWNER_KEY);
-  await waitForConfirmation(ownerEngine, fundingUtxo.txid, fundingUtxo.vout, { label: 'genesis' });
+  await waitForConfirmation(ownerEngine, fundingUtxo.txid, fundingUtxo.vout, { label: 'pre-genesis' });
   await waitForTxVisible(genesisTxid);
+  // Wait for the genesis output (vault NFT UTXO) to be confirmed before
+  // proceeding — the pay flow only selects confirmed vault UTXOs.
+  {
+    const vaultDeadline = Date.now() + 30 * 60 * 1000;
+    let nftVaultUtxo1 = null;
+    while (Date.now() < vaultDeadline) {
+      nftVaultUtxo1 = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash, vaultRawBytecode, owner.templateIdentifier))
+        .find((u) => u.tokenNftCommitment !== undefined);
+      if (nftVaultUtxo1) break;
+      await new Promise((r) => setTimeout(r, 15_000));
+    }
+    if (!nftVaultUtxo1) fail('vault NFT output not confirmed after genesis');
+  }
   log(`  genesis confirmed: ${genesisTxid}`);
 
   // ── Step 2: pay #1 ───────────────────────────────────────────────────────
@@ -438,7 +638,7 @@ async function main() {
     ownerPublicKey: binToHex(ownerPub),
     agentPublicKey: binToHex(ownerPub),
     rescuePublicKey: binToHex(rescuerPub),
-    dailyLimitSatoshis: DAILY_LIMIT_SATOSHIS,
+    dailyLimitSatoshis: BigInt(DAILY_LIMIT_SATOSHIS),
     allowlistEnabled: false,
     allowedPkh1: binToHex(new Uint8Array(20)),
     allowedPkh2: binToHex(new Uint8Array(20)),
@@ -451,7 +651,7 @@ async function main() {
     log(`\n[${n}] Pay ${amount} sats (owner)…`);
     const commitment = vaultUtxo.tokenNftCommitment;
     const vaultSatoshis = vaultUtxo.valueSatoshis;
-    const payVaultSatoshis = vaultSatoshis - BigInt(amount) - BigInt(MINER_FEE_SATOSHIS);
+    const payVaultSatoshis = BigInt(vaultSatoshis) - BigInt(amount) - BigInt(MINER_FEE_SATOSHIS);
     const newSpentToday = spentTodayFromCommitment(commitment) + amount;
     const newCommitment = commitmentHex(newSpentToday, dayMarker);
     const invitation = await ownerEngine.createInvitation({
@@ -462,7 +662,7 @@ async function main() {
         inputIdentifier: 'vaultPayInput',
         outpointTransactionHash: vaultUtxo.outpointTransactionHash,
         outpointIndex: vaultUtxo.outpointIndex,
-        valueSatoshis: vaultSatoshis,
+        valueSatoshis: BigInt(vaultSatoshis),
         token: {
           category: vaultUtxo.tokenCategory,
           amount: 0n,
@@ -487,12 +687,12 @@ async function main() {
       variables: {
         ...vaultVariables,
         vaultCategory: vaultUtxo.tokenCategory,
-        vaultSatoshis,
+        vaultSatoshis: BigInt(vaultSatoshis),
         vaultCommitment: commitment,
-        amountSatoshis: amount,
+        amountSatoshis: BigInt(amount),
         payeeLockingScript: ownerLockingBytecode,
         locktime,
-        minerFeeSatoshis: MINER_FEE_SATOSHIS,
+        minerFeeSatoshis: BigInt(MINER_FEE_SATOSHIS),
       },
     });
     await attachSecret(ownerState, invitation.invitationIdentifier, invitation.invitation, {
@@ -504,7 +704,7 @@ async function main() {
     return invitation;
   }
 
-  let nftVaultUtxo1 = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash)).find((u) => u.tokenNftCommitment !== undefined);
+  let nftVaultUtxo1 = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash, vaultRawBytecode, owner.templateIdentifier)).find((u) => u.tokenNftCommitment !== undefined);
   if (!nftVaultUtxo1) fail('vault NFT output not found after genesis');
   const pay1 = await pay(2, PAY_1_SATOSHIS, nftVaultUtxo1);
   const pay1Result = await ownerEngine.executeAction(pay1.invitationIdentifier, { broadcastTransaction: true });
@@ -514,7 +714,7 @@ async function main() {
   await waitForTxVisible(pay1Result.builtTransaction.transactionHash);
 
   // ── Step 3: pay #2 (follow-up, same day, from step 2's state) ────────────
-  let nftVaultUtxo2 = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash)).find((u) => u.tokenNftCommitment !== undefined);
+  let nftVaultUtxo2 = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash, vaultRawBytecode, owner.templateIdentifier)).find((u) => u.tokenNftCommitment !== undefined);
   if (!nftVaultUtxo2) fail('vault NFT output not found after pay #1');
   const pay2 = await pay(3, PAY_2_SATOSHIS, nftVaultUtxo2);
   const pay2Result = await ownerEngine.executeAction(pay2.invitationIdentifier, { broadcastTransaction: true });
@@ -525,7 +725,7 @@ async function main() {
 
   // ── Step 4: pay #3 (over the daily limit — expect rejection) ─────────────
   log(`\n[4] Pay ${PAY_3_SATOSHIS} sats more (12,000 > 10,000) — expect rejection…`);
-  let nftVaultUtxo3 = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash)).find((u) => u.tokenNftCommitment !== undefined);
+  let nftVaultUtxo3 = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash, vaultRawBytecode, owner.templateIdentifier)).find((u) => u.tokenNftCommitment !== undefined);
   if (!nftVaultUtxo3) fail('vault NFT output not found after pay #2');
   const pay3 = await pay(4, PAY_3_SATOSHIS, nftVaultUtxo3);
   let rejectionMessage = null;
@@ -552,9 +752,9 @@ async function main() {
 
   // ── Step 5: rescue (ONE invitation, both keys) ───────────────────────────
   log('\n[5] Rescue — sweep the vault back to the owner with owner + rescuer…');
-  let nftVaultUtxoRescue = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash)).find((u) => u.tokenNftCommitment !== undefined);
+  let nftVaultUtxoRescue = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash, vaultRawBytecode, owner.templateIdentifier)).find((u) => u.tokenNftCommitment !== undefined);
   if (!nftVaultUtxoRescue) fail('vault NFT output not found before rescue');
-  const withdrawSatoshis = nftVaultUtxoRescue.valueSatoshis - BigInt(MINER_FEE_SATOSHIS);
+  const withdrawSatoshis = BigInt(nftVaultUtxoRescue.valueSatoshis) - BigInt(MINER_FEE_SATOSHIS);
 
   const rescueInvitation = await ownerEngine.createInvitation({
     templateIdentifier: owner.templateIdentifier,
@@ -564,7 +764,7 @@ async function main() {
       inputIdentifier: 'vaultRescueInput',
       outpointTransactionHash: nftVaultUtxoRescue.outpointTransactionHash,
       outpointIndex: nftVaultUtxoRescue.outpointIndex,
-      valueSatoshis: nftVaultUtxoRescue.valueSatoshis,
+      valueSatoshis: BigInt(nftVaultUtxoRescue.valueSatoshis),
       token: {
         category: nftVaultUtxoRescue.tokenCategory,
         amount: 0n,
@@ -583,10 +783,10 @@ async function main() {
     variables: {
       ...vaultVariables,
       vaultCategory: nftVaultUtxoRescue.tokenCategory,
-      vaultSatoshis: nftVaultUtxoRescue.valueSatoshis,
+      vaultSatoshis: BigInt(nftVaultUtxoRescue.valueSatoshis),
       vaultCommitment: nftVaultUtxoRescue.tokenNftCommitment,
       returnLockingScript: ownerLockingBytecode,
-      minerFeeSatoshis: MINER_FEE_SATOSHIS,
+      minerFeeSatoshis: BigInt(MINER_FEE_SATOSHIS),
     },
   });
   await attachSecret(ownerState, rescueInvitation.invitationIdentifier, rescueInvitation.invitation, {
