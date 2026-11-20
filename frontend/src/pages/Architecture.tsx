@@ -102,8 +102,8 @@ const COVERAGE: CoverageRow[] = [
   },
   {
     track: 'Stablecoin Bridge',
-    repository: 'StableSwap / HTLC prototypes and a disabled Bridge preview',
-    boundary: 'No PUSD pool or cross-chain integration is claimed.',
+    repository: 'PUSD and USDC atomic swap: SwapLock.cash on Bitcoin Cash, SwapLock.sol on Base, and the Swap page',
+    boundary: 'Peer-to-peer: each swap needs a counterparty; no pool or market maker is run by Nomos.',
   },
   {
     track: 'Decentralized Identity',

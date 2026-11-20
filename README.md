@@ -86,6 +86,40 @@ audited or deployed; the UI keeps all swap actions disabled. See
 [`docs/BRIDGE_DESIGN.md`](docs/BRIDGE_DESIGN.md) and
 [`docs/MAINNET_PROOFS.md`](docs/MAINNET_PROOFS.md).
 
+## Swap PUSD and USDC (Bitcoin Cash and Base)
+
+The **Swap** page (`/bridge`) trades PUSD on Bitcoin Cash for USDC on Base, in
+either direction, between two people, with no custodian. It is a hash-time-lock
+atomic swap:
+
+1. The offer creator makes a random 32-byte secret and shares only its sha256
+   hash, inside an offer link.
+2. Each side locks its stablecoin behind that hash: PUSD in
+   [`contracts/SwapLock.cash`](contracts/SwapLock.cash) on Bitcoin Cash, USDC in
+   [`contracts/evm/SwapLock.sol`](contracts/evm/SwapLock.sol) on Base.
+3. The creator claims the other side's funds, which publishes the secret on
+   that chain. The counterparty reads it there and claims the creator's funds.
+4. The creator's lock refunds after 24 hours and the counterparty's after 12,
+   so the creator must claim (revealing the secret) while the counterparty
+   still has time to claim.
+
+| | Bitcoin Cash | Base |
+|---|---|---|
+| Asset | PUSD, category `2469acc5…2544`, 2 decimals | USDC `0x8335…2913` (Circle), 6 decimals |
+| Lock | `SwapLock.cash`: `claim(sig, secret)` checks `sha256(secret)` and the recipient's signature; `refund(sig)` after `tx.time` passes the deadline | `SwapLock.sol`: `lock`, `claim(secret)` (anyone may submit; tokens go to the recipient), `refund` after the deadline |
+| Wallet | Paytaca over WizardConnect | Browser wallet (EIP-1193) or WalletConnect |
+
+Both contracts were checked before deployment. `SwapLock.cash` (compiled with
+cashc 0.11.5) was run in the BCH VM through CashScript's mock network: a claim
+with the right secret and key passes; a wrong secret, the wrong key, an early
+refund and a refund by the recipient fail at their exact `require`.
+`SwapLock.sol` (solc 0.8.24) was run on a local Foundry node against a mock
+USDC: lock, reuse of a hash, wrong secret, early and late claims, third-party
+claim, reading the secret back from the `Claimed` event, and refund.
+
+Each swap needs a counterparty; Nomos runs no pool or market maker. Offers can
+be found through Mercar or any chat and are completed on this page.
+
 ## BCH hash-time-lock prototype
 
 `contracts/solidcash/HashedTimeLock.scash` is a BCH-only HTLC primitive: the
@@ -293,9 +327,9 @@ node test/vault.test.mjs
   shortcuts can be disabled in the palette and are ignored in editable fields.
 - The root page includes link-preview/theme metadata and a web app manifest
   with SVG icons; no offline service worker is included.
-- The Bridge route is a disabled preview with Swap, Bridge In, and Bridge Out
-  tabs. Mercar and Asgaya are external links only; they are not integrated
-  bridge providers. Do not send funds based on this preview.
+- The Swap route (`/bridge`) runs PUSD and USDC atomic swaps between Bitcoin
+  Cash and Base. Mercar and Asgaya are external links; offers found there are
+  completed on the Swap page.
 
 ## Bounty and ecosystem coverage
 
@@ -307,7 +341,7 @@ or awards:
 | BCH BLAZE 2026 | Nomos BCH spend-mandate project and linked chipnet proof | No prize or audit claim |
 | Build with XO / Migrate to XO | `xo/nomos.template.json` plus offline parser/compiler checks | Not yet run in XO's live engine |
 | SolidCash | Vault, StableSwap, and BCH HTLC contracts with mock-network tests | Prototypes only; no StableSwap/HTLC deployment |
-| Stablecoin Bridge ($750 PUSD) | StableSwap and BCH-side HTLC prototypes plus preview UI | No mainnet pool or cross-chain integration |
+| Stablecoin Bridge ($750 PUSD) | PUSD (Bitcoin Cash) and USDC (Base) atomic swap in both directions: `SwapLock.cash`, `SwapLock.sol` and the Swap page | Peer-to-peer; each swap needs a counterparty |
 | Nostr identity | Pay by Nostr name, and a BCH and Nostr key link (NIP-39 claim plus on-chain anchor) with challenge-response login | No Nomos backend; relays may withhold results |
 | Community Choice | EMBER2026 vote address listed in the README and banner | No vote result claimed |
 | Mercar / Asgaya | External links in the interface | No transaction or bridge integration |

@@ -53,7 +53,7 @@ async function getArtifact(): Promise<any> {
 // ── Network ────────────────────────────────────────────────
 const NETWORK = ((import.meta.env.VITE_BCH_NETWORK as string) || 'mainnet') as Network
 
-function getProvider(): NetworkProvider {
+export function getProvider(): NetworkProvider {
   return new ElectrumNetworkProvider(NETWORK)
 }
 
@@ -406,7 +406,7 @@ function isAlreadyKnownTransactionError(message: string): boolean {
   return /txn-already-known|txn-already-in-mempool|txn-already-in-chain|already in (?:the )?(?:mempool|block ?chain|blockchain)|transaction already exists|already known/i.test(message)
 }
 
-async function buildSignAndBroadcast(
+export async function buildSignAndBroadcast(
   txBuilder: TransactionBuilder,
   provider: WalletProviderType,
   prompt: string,
@@ -667,7 +667,7 @@ export async function getWalletBalance(walletAddress: string): Promise<number> {
   return Number(utxos.reduce((s: bigint, u: any) => s + u.satoshis, 0n))
 }
 
-function p2pkhFee(inputs: number, tokenOutputs: number, plainOutputs: number): bigint {
+export function p2pkhFee(inputs: number, tokenOutputs: number, plainOutputs: number): bigint {
   const bytes =
     TX_OVERHEAD_BYTES +
     inputs * P2PKH_INPUT_BYTES +

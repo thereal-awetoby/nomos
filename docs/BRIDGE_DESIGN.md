@@ -1,5 +1,12 @@
 # Nomos bridge and stable-swap design
 
+## Cross-chain swap (live)
+
+PUSD on Bitcoin Cash and USDC on Base are swapped with a hash-time-lock atomic
+swap: `contracts/SwapLock.cash`, `contracts/evm/SwapLock.sol` and the Swap page.
+See the "Swap PUSD and USDC" section of the README. The rest of this document
+covers the earlier same-chain StableSwap and BCH-only HTLC prototypes.
+
 ## Scope
 
 The planned bridge surface is for converting BCH and PUSD (ParyonUSD) on
