@@ -223,7 +223,7 @@ async function buildAndSendGenesis(fundingUtxo, contract, ownerAddress, ownerWif
     SignatureAlgorithm.ECDSA,
   );
 
-  const changeValue = fundingUtxo.satoshis - GENESIS_VAULT_NFT_SATOSHIS - GENESIS_FEE_SATOSHIS;
+  const changeValue = fundingUtxo.satoshis - BigInt(GENESIS_VAULT_NFT_SATOSHIS) - BigInt(GENESIS_FEE_SATOSHIS);
   if (changeValue < 546n) fail('funding UTXO is too small for the genesis layout');
 
   const genesisTx = new TransactionBuilder({ provider });
@@ -421,8 +421,10 @@ async function main() {
         log(`    ${u.outpointTransactionHash}:${u.outpointIndex} — ${u.valueSatoshis} sats — scriptHash: ${u.scriptHash} — reservedBy: ${u.reservedBy ?? 'none'}`);
       }
     }
-    // Match by script hash (owner p2pkh). Also accept reservedBy being
-    // null/undefined — some engine versions set reservedBy on tracked UTXOs.
+    // Match by script hash (owner p2pkh). Accept ANY status — confirmed
+    // AND unconfirmed (mempool, status 'pending') UTXOs. BCH lets us spend
+    // unconfirmed coins, and CashScript / the engine can spend mempool
+    // UTXOs. Also accept reservedBy being null/undefined.
     const candidates = all.filter(
       (u) => u.scriptHash === ownerScriptHash && u.valueSatoshis >= FUND_SATOSHIS,
     );
@@ -433,6 +435,7 @@ async function main() {
         vout: chosen.outpointIndex,
         satoshis: BigInt(chosen.valueSatoshis),
       };
+      log(`  funding UTXO status: ${chosen.status} (confirmed or mempool)`);
       break;
     }
     await new Promise((r) => setTimeout(r, 20_000));
@@ -463,7 +466,7 @@ async function main() {
     ownerPublicKey: binToHex(ownerPub),
     agentPublicKey: binToHex(ownerPub),
     rescuePublicKey: binToHex(rescuerPub),
-    dailyLimitSatoshis: DAILY_LIMIT_SATOSHIS,
+    dailyLimitSatoshis: BigInt(DAILY_LIMIT_SATOSHIS),
     allowlistEnabled: false,
     allowedPkh1: binToHex(new Uint8Array(20)),
     allowedPkh2: binToHex(new Uint8Array(20)),
@@ -476,7 +479,7 @@ async function main() {
     log(`\n[${n}] Pay ${amount} sats (owner)…`);
     const commitment = vaultUtxo.tokenNftCommitment;
     const vaultSatoshis = vaultUtxo.valueSatoshis;
-    const payVaultSatoshis = vaultSatoshis - BigInt(amount) - BigInt(MINER_FEE_SATOSHIS);
+    const payVaultSatoshis = BigInt(vaultSatoshis) - BigInt(amount) - BigInt(MINER_FEE_SATOSHIS);
     const newSpentToday = spentTodayFromCommitment(commitment) + amount;
     const newCommitment = commitmentHex(newSpentToday, dayMarker);
     const invitation = await ownerEngine.createInvitation({
@@ -487,7 +490,7 @@ async function main() {
         inputIdentifier: 'vaultPayInput',
         outpointTransactionHash: vaultUtxo.outpointTransactionHash,
         outpointIndex: vaultUtxo.outpointIndex,
-        valueSatoshis: vaultSatoshis,
+        valueSatoshis: BigInt(vaultSatoshis),
         token: {
           category: vaultUtxo.tokenCategory,
           amount: 0n,
@@ -512,12 +515,12 @@ async function main() {
       variables: {
         ...vaultVariables,
         vaultCategory: vaultUtxo.tokenCategory,
-        vaultSatoshis,
+        vaultSatoshis: BigInt(vaultSatoshis),
         vaultCommitment: commitment,
-        amountSatoshis: amount,
+        amountSatoshis: BigInt(amount),
         payeeLockingScript: ownerLockingBytecode,
         locktime,
-        minerFeeSatoshis: MINER_FEE_SATOSHIS,
+        minerFeeSatoshis: BigInt(MINER_FEE_SATOSHIS),
       },
     });
     await attachSecret(ownerState, invitation.invitationIdentifier, invitation.invitation, {
@@ -579,7 +582,7 @@ async function main() {
   log('\n[5] Rescue — sweep the vault back to the owner with owner + rescuer…');
   let nftVaultUtxoRescue = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash)).find((u) => u.tokenNftCommitment !== undefined);
   if (!nftVaultUtxoRescue) fail('vault NFT output not found before rescue');
-  const withdrawSatoshis = nftVaultUtxoRescue.valueSatoshis - BigInt(MINER_FEE_SATOSHIS);
+  const withdrawSatoshis = BigInt(nftVaultUtxoRescue.valueSatoshis) - BigInt(MINER_FEE_SATOSHIS);
 
   const rescueInvitation = await ownerEngine.createInvitation({
     templateIdentifier: owner.templateIdentifier,
@@ -589,7 +592,7 @@ async function main() {
       inputIdentifier: 'vaultRescueInput',
       outpointTransactionHash: nftVaultUtxoRescue.outpointTransactionHash,
       outpointIndex: nftVaultUtxoRescue.outpointIndex,
-      valueSatoshis: nftVaultUtxoRescue.valueSatoshis,
+      valueSatoshis: BigInt(nftVaultUtxoRescue.valueSatoshis),
       token: {
         category: nftVaultUtxoRescue.tokenCategory,
         amount: 0n,
@@ -608,10 +611,10 @@ async function main() {
     variables: {
       ...vaultVariables,
       vaultCategory: nftVaultUtxoRescue.tokenCategory,
-      vaultSatoshis: nftVaultUtxoRescue.valueSatoshis,
+      vaultSatoshis: BigInt(nftVaultUtxoRescue.valueSatoshis),
       vaultCommitment: nftVaultUtxoRescue.tokenNftCommitment,
       returnLockingScript: ownerLockingBytecode,
-      minerFeeSatoshis: MINER_FEE_SATOSHIS,
+      minerFeeSatoshis: BigInt(MINER_FEE_SATOSHIS),
     },
   });
   await attachSecret(ownerState, rescueInvitation.invitationIdentifier, rescueInvitation.invitation, {
