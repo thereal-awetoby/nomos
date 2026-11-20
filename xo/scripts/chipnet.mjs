@@ -396,10 +396,21 @@ async function main() {
   log('\n[0] Waiting for funding…');
   let fundingUtxo = null;
   const fundingDeadline = Date.now() + 2 * 60 * 60 * 1000;
+  let lastLogTime = 0;
   while (Date.now() < fundingDeadline) {
     const all = await ownerEngine.listUnspentOutputs();
+    // Diagnostic: log what the engine reports (every ~60s)
+    if (Date.now() - lastLogTime > 60_000) {
+      lastLogTime = Date.now();
+      log(`  engine reports ${all.length} unspent outputs`);
+      for (const u of all) {
+        log(`    ${u.outpointTransactionHash}:${u.outpointIndex} — ${u.valueSatoshis} sats — scriptHash: ${u.scriptHash} — reservedBy: ${u.reservedBy ?? 'none'}`);
+      }
+    }
+    // Match by script hash (owner p2pkh). Also accept reservedBy being
+    // null/undefined — some engine versions set reservedBy on tracked UTXOs.
     const candidates = all.filter(
-      (u) => u.scriptHash === ownerScriptHash && u.valueSatoshis >= FUND_SATOSHIS && u.reservedBy === undefined,
+      (u) => u.scriptHash === ownerScriptHash && u.valueSatoshis >= FUND_SATOSHIS,
     );
     if (candidates.length > 0) {
       const chosen = candidates.sort((a, b) => a.outpointIndex - b.outpointIndex)[0];
