@@ -73,8 +73,9 @@ PRIVATE_KEY=<funded mainnet WIF> npm run demo:mainnet
 
 Deploys a vault, pays under the daily limit, tries to pay over it the same day
 and is refused by the contract, then rescues the remaining deposit back to the
-wallet. On mainnet the limit is 5,000 sats with a 10,000-sat deposit, so a run
-costs only network fees (fund the wallet with about 15,000 sats).
+wallet. On mainnet the limit is 2,000 sats with a 5,000-sat deposit, so a run
+costs only network fees. Fund the wallet with about 15,000 sats: deploying also
+reserves two state NFTs and a fee estimate, and the unused part comes back.
 
 ## Notes
 

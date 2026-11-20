@@ -9,7 +9,9 @@
 //
 // The wallet is owner, agent and rescue co-signer here, and receives the
 // payments and the final sweep, so a run costs only network fees.
-// Mainnet needs about 15,000 sats; chipnet about 30,000.
+// SolidCash also reserves two state NFTs (1,200 sats each) and a 5,000-sat
+// fee estimate at deploy; unused fee comes back as change. Mainnet needs
+// about 15,000 sats; chipnet about 30,000.
 
 import { readFileSync } from 'node:fs';
 import { Signer, SignatureTemplate } from '@solidcash/solidcash';
@@ -20,7 +22,7 @@ import { decodePrivateKeyWif, hash160 } from '@bitauth/libauth';
 const NETWORK = process.argv[2] ?? 'chipnet';
 const SETTINGS = {
   chipnet: { limit: 10_000n, deposit: 20_000n, pay: 3_000n, over: 8_000n, tx: (id) => `https://chipnet.chaingraph.cash/tx/${id}` },
-  mainnet: { limit: 5_000n, deposit: 10_000n, pay: 2_000n, over: 4_000n, tx: (id) => `https://blockchair.com/bitcoin-cash/transaction/${id}` },
+  mainnet: { limit: 2_000n, deposit: 5_000n, pay: 1_000n, over: 1_500n, tx: (id) => `https://blockchair.com/bitcoin-cash/transaction/${id}` },
 }[NETWORK];
 if (!SETTINGS) { console.error('Network must be chipnet or mainnet'); process.exit(1); }
 const { limit, deposit, pay, over, tx } = SETTINGS;
