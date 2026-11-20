@@ -364,6 +364,11 @@ async function main() {
   // owner engine can sign BOTH sides of the rescue invitation.
   const ownerState = await openState(owner);
   await preStoreScriptHash(ownerState, owner, ownerScriptHash, ownerLockingBytecode, 'p2pkh-owner');
+  // Pre-store the vault script hash (from the CashScript contract) so the
+  // engine tracks vault NFT UTXOs. The template's lockingBytecode is a
+  // reference string resolved internally, not a hex bytecode — so we
+  // register the contract's actual script hash directly.
+  await preStoreScriptHash(ownerState, owner, vaultScriptHash, vaultRawBytecode, 'vault');
   const ownerSpenderSecret = await preStoreSecret(ownerState, owner, 'spenderKey');
   const ownerOwnerSecret = await preStoreSecret(ownerState, owner, 'ownerKey');
   const rescuerRescueSecret = await preStoreSecret(ownerState, owner, 'rescueKey');
@@ -382,16 +387,9 @@ async function main() {
   }
   log('  engine up, template imported');
 
-  // The vault script hash comes from the template the engine just imported.
-  // The template's vault locking script identifier is 'vault' (not
-  // 'nomosRedeem').
-  const vaultScriptHashData = await ownerEngine.listScriptHashData({ templateIdentifier: owner.templateIdentifier });
-  const vaultData = vaultScriptHashData.find((d) => d.lockingScriptIdentifier === 'vault');
-  if (!vaultData) {
-    log(`  available locking script identifiers: ${vaultScriptHashData.map((d) => d.lockingScriptIdentifier).join(', ')}`);
-    fail('vault script hash not found after template import');
-  }
-  const engineVaultScriptHash = vaultData.scriptHash;
+  // The vault script hash is pre-stored from the CashScript contract (the
+  // template's lockingBytecode is a reference string, not hex bytecode).
+  const engineVaultScriptHash = vaultScriptHash;
   log(`  engine vault script hash: ${engineVaultScriptHash}`);
 
   // ── Step 0: funding ───────────────────────────────────────────────────────
