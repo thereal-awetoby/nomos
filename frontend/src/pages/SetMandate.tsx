@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
-import { executeSetMandate, executeCreateVault, validateAllowlistAddress, validateCashAddress, getWalletBalance, MIN_VAULT_DEPOSIT_SATS } from '../lib/contract'
+import { executeSetMandate, executeCreateVault, validateAllowlistAddress, validateCashAddress, getWalletBalance, MIN_VAULT_DEPOSIT_SATS, verifyAnchor } from '../lib/contract'
 import { isNostrIdentifier, resolveNostrPayee } from '../lib/nostr'
 import type { Mandate, VaultConfig } from '../lib/types'
 
@@ -68,15 +68,16 @@ export default function SetMandate() {
 
     const rawEntries = allowlistInput.split('\n').map(s => s.trim()).filter(Boolean).slice(0, 5)
 
-    // Allowlist entries may be Nostr names; resolve each to the address its
-    // owner published. The contract stores the address, so this happens once.
+    // Allowlist entries may be Nostr names; resolve each to its linked address
+    // (both keys signed), else the address its owner published. The contract
+    // stores the address, so this happens once.
     const parsedAddrs: string[] = []
     if (allowlistEnabled) {
       for (const entry of rawEntries) {
         if (!isNostrIdentifier(entry)) { parsedAddrs.push(entry); continue }
         try {
           setStep(`Looking up ${entry.slice(0, 24)} on Nostr…`)
-          const p = await resolveNostrPayee(entry, validateCashAddress)
+          const p = await resolveNostrPayee(entry, validateCashAddress, verifyAnchor)
           parsedAddrs.push(p.address)
         } catch (err: any) {
           setStep(null)

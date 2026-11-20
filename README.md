@@ -157,8 +157,11 @@ No more pasting addresses. In **Pay**, type a Nostr identity (`npub…`,
 
 1. The name resolves to a Nostr key through NIP-05 (the person's own domain)
    or straight from the npub. No Nomos server is involved.
-2. Nomos reads the BCH address that key published, using the format Paytaca
-   and OPTN wallets already write: kind `30078`, `d = paytaca:bch-address`.
+2. If the key has a proven link (below), Nomos pays the linked address and
+   shows "Linked · both keys signed" with the anchor transaction. Otherwise
+   it reads the address the key published, in the format Paytaca and OPTN
+   wallets already write: kind `30078`, `d = paytaca:bch-address`, signed by
+   the Nostr key only. A setting in Pay allows linked addresses only.
 3. The event's signature is checked in the browser, so a relay can't swap in
    a different address. If the person removed their address, the newest event
    wins and the payment is blocked.
@@ -166,7 +169,8 @@ No more pasting addresses. In **Pay**, type a Nostr identity (`npub…`,
    allowlist apply to Nostr payees too. Allowlist entries can also be Nostr
    names; they're resolved once when you save the mandate.
 
-Receipts show who you paid by name as well as the address.
+Receipts show who you paid by name as well as the address, and the anchor
+transaction and claim event when the address was linked.
 
 ## Linking a BCH address to a Nostr key
 
@@ -205,9 +209,21 @@ either key:
   the transaction through libauth's BCH virtual machine with its source outputs.
   Nothing is sent; the signed transaction only pays the address back to itself.
 
-Both responses can be copied and checked by another app against the same
-link. The code is in `frontend/src/lib/nostr.ts` (Nostr side) and
-`frontend/src/lib/contract.ts` (BCH side).
+Nomos hands out each response with the link it claims (address, npub,
+anchor txid). Another app checks it against the challenge it issued, then
+fetches the claim from relays and the anchor from a BCH node again, with no
+call to Nomos. The **Check someone's signed response** panel on
+`/identity` does this in the browser.
+
+A link can be shared as `nomos.asgaya.org/identity?verify=<npub, name or
+address>`, which runs every check in the visitor's browser. The Nostr key can
+remove a link by republishing its identity list without the claim.
+
+The full protocol, including the response format, removal, rotation and what
+a link does not prove, is in
+[`docs/IDENTITY_PROTOCOL.md`](docs/IDENTITY_PROTOCOL.md). The verification
+code is `frontend/src/lib/identity.ts`, with the Nostr side in
+`frontend/src/lib/nostr.ts` and the BCH side in `frontend/src/lib/contract.ts`.
 
 ## Try it
 
@@ -353,6 +369,8 @@ or awards:
 - [`docs/JUDGE_PATH.md`](docs/JUDGE_PATH.md) — local test and UI walkthrough.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — application components,
   routes, contract surfaces, and current scope.
+- [`docs/IDENTITY_PROTOCOL.md`](docs/IDENTITY_PROTOCOL.md) — the BCH and
+  Nostr identity link: formats, verification, challenge-response, removal.
 - [`docs/SECURITY.md`](docs/SECURITY.md) — trust boundaries, prototype risks,
   and verification gaps; not an audit.
 - [`docs/BRIDGE_DESIGN.md`](docs/BRIDGE_DESIGN.md) — StableSwap and HTLC

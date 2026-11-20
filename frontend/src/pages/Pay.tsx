@@ -5,8 +5,14 @@ import { useToast } from '../components/Toast'
 import { Panel } from '../components/ui'
 import SpentMeter from '../components/SpentMeter'
 import RefuseBanner, { refusalRule } from '../components/RefuseBanner'
-import { wouldRefuse, remainingToday, executeSpend, validateCashAddress, EXPLORER_TX_URL } from '../lib/contract'
+import { wouldRefuse, remainingToday, executeSpend, validateCashAddress, verifyAnchor, EXPLORER_TX_URL } from '../lib/contract'
 import { isNostrIdentifier, resolveNostrPayee, payeeLabel, type NostrPayee } from '../lib/nostr'
+
+const REQUIRE_LINK_KEY = 'nomos:requireLink'
+
+function readRequireLink(): boolean {
+  try { return localStorage.getItem(REQUIRE_LINK_KEY) === '1' } catch { return false }
+}
 
 function bchToSats(value: string): number {
   if (!/^\d+(?:\.\d{0,8})?$/.test(value.trim())) return 0
@@ -33,6 +39,13 @@ export default function Pay() {
   const [resolving, setResolving] = useState(false)
   const [resolveError, setResolveError] = useState<string | null>(null)
   const isNostr = isNostrIdentifier(destination)
+  // Optional policy: pay Nostr names only when both keys signed for the address.
+  const [requireLink, setRequireLink] = useState(readRequireLink)
+  const toggleRequireLink = (on: boolean) => {
+    setRequireLink(on)
+    try { localStorage.setItem(REQUIRE_LINK_KEY, on ? '1' : '0') } catch { /* storage is optional */ }
+  }
+  const unlinkedBlocked = isNostr && Boolean(payee) && !payee?.link && requireLink
 
   useEffect(() => {
     setPayee(null)
@@ -42,7 +55,7 @@ export default function Pay() {
     const timer = setTimeout(async () => {
       setResolving(true)
       try {
-        const p = await resolveNostrPayee(destination, validateCashAddress)
+        const p = await resolveNostrPayee(destination, validateCashAddress, verifyAnchor)
         if (!cancelled) setPayee(p)
       } catch (err: any) {
         if (!cancelled) setResolveError(err?.message || 'Could not resolve this Nostr identity')
@@ -76,6 +89,12 @@ export default function Pay() {
       toast(message, 'info')
       return
     }
+    if (unlinkedBlocked) {
+      const message = 'This Nostr identity has not linked its address with both keys, and you chose to pay linked identities only.'
+      setResult({ type: 'error', message })
+      toast('Not a linked identity', 'info')
+      return
+    }
     if (!vault.deployed) {
       setResult({ type: 'error', message: 'This vault has no deployed state NFT and cannot make a covenant spend yet.' })
       toast('Vault is not deployed', 'error')
@@ -83,6 +102,9 @@ export default function Pay() {
     }
     const payTo = payee?.address ?? destination.trim()
     const label = payee ? payeeLabel(payee) : undefined
+    const destinationLink = payee?.link
+      ? { npub: payee.npub, anchorTxid: payee.link.anchorTxid, eventId: payee.link.eventId }
+      : undefined
 
     const addrErr = validateCashAddress(payTo)
     if (addrErr) {
@@ -101,6 +123,7 @@ export default function Pay() {
         amount: amountSats,
         destination: payTo,
         destinationLabel: label,
+        destinationLink,
         reason: check.reason,
         mandate,
         timestamp: Date.now(),
@@ -127,7 +150,7 @@ export default function Pay() {
         vaultConfig, mandate, amountSats, payTo,
         wallet.address, wallet.provider, label, wallet.wcIndex ?? 0,
       )
-      addReceipt(receipt)
+      addReceipt({ ...receipt, destinationLink })
       setResult({ type: 'success', message: 'The wallet/provider returned a transaction ID. Check an explorer for network relay, mining, and confirmation.', txHash: receipt.txHash })
       toast('Transaction submitted; confirmation is pending', 'success')
     } catch (err: any) {
@@ -205,18 +228,33 @@ export default function Pay() {
                   <img src={payee.picture} alt="" referrerPolicy="no-referrer" className="h-8 w-8 shrink-0 rounded-full object-cover" />
                 )}
                 <div className="min-w-0">
-                  <p className="truncate text-nomos-text">
-                    {payee.displayName || payeeLabel(payee)}
-                    <span className="ml-1.5 text-[10px] text-nomos-accent">✓ signed by this key</span>
-                  </p>
+                  <p className="truncate text-nomos-text">{payee.displayName || payeeLabel(payee)}</p>
                   <p className="truncate font-mono text-[10px] text-nomos-muted">{payee.address}</p>
-                  <p className="text-[10px] text-nomos-muted/70">
-                    Published {new Date(payee.publishedAt * 1000).toLocaleDateString()}
-                  </p>
+                  {payee.link ? (
+                    <p className="text-[10px] text-nomos-accent">
+                      Linked · both keys signed ·{' '}
+                      <a href={`${EXPLORER_TX_URL}${payee.link.anchorTxid}`} target="_blank" rel="noreferrer" className="underline">
+                        anchor {payee.link.anchorTxid.slice(0, 8)}
+                      </a>
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-nomos-muted">
+                      Published address, signed by this Nostr key only · not linked · {new Date(payee.publishedAt * 1000).toLocaleDateString()}
+                    </p>
+                  )}
+                  {payee.publishedAddress && (
+                    <p className="text-[10px] text-nomos-muted">Its published address differs; paying the linked one.</p>
+                  )}
                 </div>
               </div>
             )}
           </div>
+        )}
+        {isNostr && (
+          <label className="mt-2 flex items-center gap-2 text-[10px] text-nomos-muted-bright">
+            <input type="checkbox" checked={requireLink} onChange={(e) => toggleRequireLink(e.target.checked)} />
+            Pay Nostr names only when the address is linked by both keys
+          </label>
         )}
       </div>
 
@@ -242,6 +280,8 @@ export default function Pay() {
           <p className="text-nomos-muted">Resolving the Nostr destination…</p>
         ) : isNostr && !payee ? (
           <p className="text-nomos-refuse">{resolveError || 'The Nostr identity has not resolved to a verified BCH address yet.'}</p>
+        ) : unlinkedBlocked ? (
+          <p className="text-nomos-muted-bright">Not linked by both keys. Turn off "linked only" to pay the published address.</p>
         ) : liveVerdict?.refused ? (
           <p className="font-medium text-nomos-refuse">Would be blocked by the current mandate: {liveVerdict.reason}</p>
         ) : liveVerdict ? (
@@ -254,7 +294,7 @@ export default function Pay() {
 
       <button
         onClick={handlePay}
-        disabled={!vault.deployed || amountSats <= 0 || !destination || submitting || (isNostr && !payee)}
+        disabled={!vault.deployed || amountSats <= 0 || !destination || submitting || (isNostr && !payee) || unlinkedBlocked}
         className={`${liveVerdict?.refused ? 'btn-danger' : 'btn-primary'} w-full`}
       >
         {submitting

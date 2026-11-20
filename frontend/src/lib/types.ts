@@ -36,6 +36,8 @@ export interface Receipt {
   destination: string
   /** who the destination is, when paid by Nostr name */
   destinationLabel?: string
+  /** set when the Nostr payee's address was proven by both keys */
+  destinationLink?: { npub: string; anchorTxid: string; eventId: string }
   reason?: string
   txHash?: string
   mandate: Mandate

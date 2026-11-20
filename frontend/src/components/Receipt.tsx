@@ -39,6 +39,7 @@ function receiptToText(receipt: ReceiptType, dateStr: string, timeStr: string): 
     `Date: ${dateStr} ${timeStr}`,
     `${amountLabel}: ${(receipt.amount / 1e8).toFixed(8)} BCH`,
     `To: ${receipt.destinationLabel && kind === 'payment' ? `${receipt.destinationLabel} ` : ''}${receipt.destination}`,
+    receipt.destinationLink ? `Identity link: ${receipt.destinationLink.npub}, anchor ${receipt.destinationLink.anchorTxid}, claim ${receipt.destinationLink.eventId}` : '',
     receipt.reason ? `Reason: ${receipt.reason}` : '',
     `Mandate: daily limit ${(receipt.mandate.dailyLimitSats / 1e8).toFixed(8)} BCH${kind === 'payment' ? `; remaining before ${(remainingAt(receipt.mandate, receipt.timestamp) / 1e8).toFixed(8)} BCH` : ''}`,
     receipt.txHash ? `TX: ${EXPLORER_TX_URL}${receipt.txHash}` : '',
@@ -195,6 +196,19 @@ export default function ReceiptCard({ receipt }: { receipt: ReceiptType }) {
               {receipt.destination && <span className="block truncate text-[10px] text-nomos-muted-bright">{receipt.destination}</span>}
             </dd>
           </div>}
+          {receipt.destinationLink && (
+            <div className="kv">
+              <dt>Identity link</dt>
+              <dd className="text-right">
+                <a href={`${EXPLORER_TX_URL}${receipt.destinationLink.anchorTxid}`} target="_blank" rel="noreferrer" className="text-nomos-accent underline">
+                  anchor {receipt.destinationLink.anchorTxid.slice(0, 10)}
+                </a>
+                <span className="block truncate text-[10px] text-nomos-muted-bright" title={receipt.destinationLink.eventId}>
+                  claim {receipt.destinationLink.eventId.slice(0, 10)}
+                </span>
+              </dd>
+            </div>
+          )}
           <div className="kv"><dt>Time</dt><dd>{isoTime}</dd></div>
           <div className="kv"><dt>Daily limit</dt><dd>{fmtBch(receipt.mandate.dailyLimitSats)} BCH</dd></div>
           {kind === 'payment' && <div className="kv"><dt>Remaining before</dt><dd>{fmtBch(remainingBefore)} BCH</dd></div>}

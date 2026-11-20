@@ -10,6 +10,9 @@
 // No server of ours sits in the middle: names resolve over NIP-05 (the
 // person's own domain) and relays, and the event's signature is checked here,
 // so a relay can't swap in a different address without the person's key.
+//
+// When the key has also linked a BCH address (NIP-39 claim plus an on-chain
+// anchor, see below), that address is used instead: both keys signed for it.
 
 import { SimplePool } from 'nostr-tools/pool'
 import { verifyEvent } from 'nostr-tools/pure'
@@ -35,10 +38,14 @@ export interface NostrPayee {
   input: string
   pubkeyHex: string
   npub: string
-  /** resolved BCH address, exactly as the person published it */
+  /** the BCH address to pay: the linked one if there is a proven link, else the published one */
   address: string
-  /** when the address event was published (unix seconds) */
+  /** when the address event or link claim was published (unix seconds) */
   publishedAt: number
+  /** set when both keys signed for `address` (NIP-39 claim + BCH anchor) */
+  link?: { anchorTxid: string; eventId: string }
+  /** the Paytaca-format published address, when it differs from a linked one */
+  publishedAddress?: string
   displayName?: string
   picture?: string
   nip05?: string
@@ -96,49 +103,77 @@ function newest(events: Event[]): Event | undefined {
   return events.sort((a, b) => b.created_at - a.created_at)[0]
 }
 
+/** Checks the BCH half of a link; contract.ts provides it (verifyAnchor). */
+export type AnchorVerifier = (anchorTxid: string, address: string, nostrPubkeyHex: string) => Promise<{ ok: boolean; reason: string }>
+
 /**
- * Resolve a Nostr identity to the BCH address its owner published.
+ * Resolve a Nostr identity to a BCH address.
  * `checkAddress` validates the address for the current network (returns an
  * error string or null), so a chipnet build never pays a mainnet address.
+ * With `verifyAnchor`, a proven BCH and Nostr link wins over the Paytaca
+ * published address; without a link the published address is used.
  */
 export async function resolveNostrPayee(
   input: string,
   checkAddress: (addr: string) => string | null,
+  verifyAnchor?: AnchorVerifier,
 ): Promise<NostrPayee> {
   const { pubkeyHex, relays: hintRelays, nip05 } = await resolvePubkey(input)
   const relays = Array.from(new Set([...hintRelays, ...DEFAULT_RELAYS]))
 
   const pool = new SimplePool()
   try {
-    const [addressEvents, profileEvents] = await Promise.all([
+    const [addressEvents, profileEvents, identityEvents] = await Promise.all([
       pool.querySync(
         relays,
         { kinds: [BCH_ADDRESS_KIND], authors: [pubkeyHex], '#d': [BCH_ADDRESS_D_TAG] },
         { maxWait: QUERY_TIMEOUT_MS },
       ),
       pool.querySync(relays, { kinds: [0], authors: [pubkeyHex] }, { maxWait: QUERY_TIMEOUT_MS }),
+      verifyAnchor
+        ? pool.querySync(relays, { kinds: [IDENTITY_KIND], authors: [pubkeyHex] }, { maxWait: QUERY_TIMEOUT_MS })
+        : Promise.resolve([] as Event[]),
     ])
 
-    // Only trust events this key actually signed
+    // Published address (Paytaca format). Only trust events this key signed.
     const signed = addressEvents.filter(
       (e) => isGenuine(e, pubkeyHex) && e.tags.some((t) => t[0] === 'd' && t[1] === BCH_ADDRESS_D_TAG),
     )
     const latest = newest(signed)
-    if (!latest) {
-      throw new Error('This Nostr identity has not published a BCH address (Paytaca: Settings → Nostr → publish address)')
+    let published = ''
+    if (latest) {
+      try {
+        published = String(JSON.parse(latest.content)?.data?.address ?? '').trim()
+      } catch {
+        /* fall through */
+      }
     }
 
-    let address = ''
-    try {
-      address = String(JSON.parse(latest.content)?.data?.address ?? '').trim()
-    } catch {
-      /* fall through */
+    // Linked address: newest identity list, claims for this network, proven on-chain.
+    let link: { address: string; anchorTxid: string; eventId: string; createdAt: number } | undefined
+    const identityList = newest(identityEvents.filter((e) => isGenuine(e, pubkeyHex)))
+    if (identityList && verifyAnchor) {
+      const claims = claimsFrom(identityList).filter((c) => !checkAddress(c.address))
+      // Prefer the claim matching the published address, then the rest in order.
+      claims.sort((a, b) => Number(b.address === published) - Number(a.address === published))
+      for (const claim of claims) {
+        const check = await verifyAnchor(claim.anchorTxid, claim.address, pubkeyHex)
+        if (check.ok) {
+          link = { address: claim.address, anchorTxid: claim.anchorTxid, eventId: claim.eventId, createdAt: claim.createdAt }
+          break
+        }
+      }
     }
-    // An empty payload is how Paytaca un-publishes; the newest event wins.
-    if (!address) throw new Error('This Nostr identity removed its published BCH address')
 
-    const addrErr = checkAddress(address)
-    if (addrErr) throw new Error(`Published address is not usable here: ${addrErr}`)
+    if (!link) {
+      if (!latest) {
+        throw new Error('This Nostr identity has not published or linked a BCH address (Paytaca: Settings → Nostr → publish address)')
+      }
+      // An empty payload is how Paytaca un-publishes; the newest event wins.
+      if (!published) throw new Error('This Nostr identity removed its published BCH address')
+      const addrErr = checkAddress(published)
+      if (addrErr) throw new Error(`Published address is not usable here: ${addrErr}`)
+    }
 
     let displayName: string | undefined
     let picture: string | undefined
@@ -157,8 +192,10 @@ export async function resolveNostrPayee(
       input: input.trim(),
       pubkeyHex,
       npub: nip19.npubEncode(pubkeyHex),
-      address,
-      publishedAt: latest.created_at,
+      address: link?.address ?? published,
+      publishedAt: link?.createdAt ?? latest!.created_at,
+      link: link ? { anchorTxid: link.anchorTxid, eventId: link.eventId } : undefined,
+      publishedAddress: link && published && published.toLowerCase() !== link.address ? published : undefined,
       displayName,
       picture,
       nip05,
@@ -291,7 +328,7 @@ export async function publishIdentityClaim(address: string, anchorTxid: string):
 
     const event = await signer.signEvent({
       kind: IDENTITY_KIND,
-      created_at: Math.floor(Date.now() / 1000),
+      created_at: Math.max(Math.floor(Date.now() / 1000), (existing?.created_at ?? 0) + 1),
       tags: [...kept, ['i', identity, anchorTxid]],
       content: existing?.content ?? '',
     })
@@ -299,6 +336,39 @@ export async function publishIdentityClaim(address: string, anchorTxid: string):
 
     const results = await Promise.allSettled(pool.publish(DEFAULT_RELAYS, event))
     if (!results.some((r) => r.status === 'fulfilled')) throw new Error('No relay accepted the identity claim')
+    return event
+  } finally {
+    pool.close(DEFAULT_RELAYS)
+  }
+}
+
+/**
+ * Remove a link from the Nostr side: republish the key's identity list
+ * without the claim for `address`. Kind 10011 is replaceable, so the newest
+ * list wins and verifiers stop finding the link. Other claims are kept.
+ */
+export async function removeIdentityClaim(address: string): Promise<Event> {
+  const signer = nostrSigner()
+  if (!signer) throw new Error('No Nostr signer found. Install a NIP-07 extension such as Alby or nos2x.')
+  const pubkeyHex = await signer.getPublicKey()
+  const identity = bchIdentity(address)
+
+  const pool = new SimplePool()
+  try {
+    const existing = newest((await pool.querySync(DEFAULT_RELAYS, { kinds: [IDENTITY_KIND], authors: [pubkeyHex] }, { maxWait: QUERY_TIMEOUT_MS }))
+      .filter((e) => isGenuine(e, pubkeyHex)))
+    if (!existing?.tags.some((t) => t[0] === 'i' && t[1] === identity)) {
+      throw new Error('This Nostr key has no published link for that address')
+    }
+    const event = await signer.signEvent({
+      kind: IDENTITY_KIND,
+      created_at: Math.max(Math.floor(Date.now() / 1000), existing.created_at + 1),
+      tags: existing.tags.filter((t) => !(t[0] === 'i' && t[1] === identity)),
+      content: existing.content,
+    })
+    if (!isGenuine(event, pubkeyHex)) throw new Error('The Nostr signer returned an invalid event')
+    const results = await Promise.allSettled(pool.publish(DEFAULT_RELAYS, event))
+    if (!results.some((r) => r.status === 'fulfilled')) throw new Error('No relay accepted the update')
     return event
   } finally {
     pool.close(DEFAULT_RELAYS)
