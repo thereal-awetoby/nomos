@@ -1,46 +1,42 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import * as nip19 from 'nostr-tools/nip19'
 import { useWallet } from '../context/WalletContext'
 import {
   anchorNostrKey,
-  verifyAnchor,
   signBchChallenge,
   verifyBchChallenge,
   EXPLORER_TX_URL,
 } from '../lib/contract'
 import {
-  findIdentityClaims,
   publishIdentityClaim,
+  removeIdentityClaim,
   nostrSigner,
   signNostrChallenge,
   verifyNostrChallenge,
   newChallenge,
 } from '../lib/nostr'
-import type { IdentityClaim } from '../lib/nostr'
+import { verifyLinks, makeAuthResponse, verifyAuthResponse } from '../lib/identity'
+import type { CheckedClaim, AuthCheck } from '../lib/identity'
 import { Panel, KV, shortAddr } from './ui'
-
-interface CheckedClaim extends IdentityClaim {
-  anchorOk: boolean
-  anchorReason: string
-}
 
 interface Linked {
   address: string
   pubkeyHex: string
+  anchorTxid: string
 }
 
-async function checkClaims(input: string): Promise<CheckedClaim[]> {
-  const claims = await findIdentityClaims(input)
-  return Promise.all(claims.map(async (claim) => {
-    const check = await verifyAnchor(claim.anchorTxid, claim.address, claim.pubkeyHex)
-    return { ...claim, anchorOk: check.ok, anchorReason: check.reason }
-  }))
+function verifyUrl(input: string): string {
+  return `${window.location.origin}/identity?verify=${encodeURIComponent(input.trim())}`
 }
 
 /** Create, verify and authenticate a link between a BCH address and a Nostr key. */
 export default function IdentityLink() {
   const { wallet } = useWallet()
-  const [query, setQuery] = useState('')
+  const [searchParams] = useSearchParams()
+  const [query, setQuery] = useState(() => searchParams.get('verify') ?? '')
+  const [checkedInput, setCheckedInput] = useState('')
+  const [copied, setCopied] = useState<string | null>(null)
   const [checking, setChecking] = useState(false)
   const [claims, setClaims] = useState<CheckedClaim[] | null>(null)
   const [verifyError, setVerifyError] = useState<string | null>(null)
@@ -55,20 +51,54 @@ export default function IdentityLink() {
   const [nonce, setNonce] = useState(newChallenge)
   const [proofResult, setProofResult] = useState<{ ok: boolean; reason: string; proof: string } | null>(null)
 
+  const [issued, setIssued] = useState(newChallenge)
+  const [response, setResponse] = useState('')
+  const [responseBusy, setResponseBusy] = useState(false)
+  const [responseResult, setResponseResult] = useState<{ ok: boolean; checks: AuthCheck[] } | null>(null)
+
+  const copy = (key: string, text: string) => {
+    void navigator.clipboard.writeText(text).then(() => {
+      setCopied(key)
+      setTimeout(() => setCopied(null), 1500)
+    })
+  }
+
   const runCheck = async (input: string) => {
     if (!input.trim() || checking) return
     setChecking(true)
     setVerifyError(null)
     setClaims(null)
     try {
-      const found = await checkClaims(input)
+      const found = await verifyLinks(input)
       setClaims(found)
+      setCheckedInput(input.trim())
       const proven = found.find((c) => c.anchorOk)
-      if (proven) setLinked({ address: proven.address, pubkeyHex: proven.pubkeyHex })
+      if (proven) setLinked({ address: proven.address, pubkeyHex: proven.pubkeyHex, anchorTxid: proven.anchorTxid })
     } catch (err) {
       setVerifyError(err instanceof Error ? err.message : 'Lookup failed')
     } finally {
       setChecking(false)
+    }
+  }
+
+  // A shared verify link (/identity?verify=…) runs the check on open.
+  const autoRan = useRef(false)
+  useEffect(() => {
+    const initial = searchParams.get('verify')
+    if (initial && !autoRan.current) {
+      autoRan.current = true
+      void runCheck(initial)
+    }
+  }, [searchParams]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const checkResponse = async () => {
+    if (!response.trim() || responseBusy) return
+    setResponseBusy(true)
+    setResponseResult(null)
+    try {
+      setResponseResult(await verifyAuthResponse(response, issued))
+    } finally {
+      setResponseBusy(false)
     }
   }
 
@@ -99,7 +129,7 @@ export default function IdentityLink() {
     if (!wallet?.connected || !anchorTxid || !nostrPk) return
     await publishIdentityClaim(wallet.address, anchorTxid)
     setPublished(true)
-    setLinked({ address: wallet.address, pubkeyHex: nostrPk })
+    setLinked({ address: wallet.address, pubkeyHex: nostrPk, anchorTxid })
     setQuery(wallet.address)
     await runCheck(wallet.address)
   })
@@ -108,7 +138,7 @@ export default function IdentityLink() {
     if (!linked) return
     const event = await signNostrChallenge(nonce)
     const check = verifyNostrChallenge(event, linked.pubkeyHex, nonce)
-    setProofResult({ ...check, proof: JSON.stringify(event) })
+    setProofResult({ ...check, proof: JSON.stringify(makeAuthResponse('nostr', nonce, linked, event)) })
   })
 
   const proveBch = () => step('Signing challenge', async () => {
@@ -118,7 +148,16 @@ export default function IdentityLink() {
     }
     const proof = await signBchChallenge(wallet.address, nonce, wallet.provider, wallet.wcIndex ?? 0)
     const check = verifyBchChallenge(proof, linked.address, nonce)
-    setProofResult({ ...check, proof: JSON.stringify(proof) })
+    setProofResult({ ...check, proof: JSON.stringify(makeAuthResponse('bch', nonce, linked, proof)) })
+  })
+
+  const removeLink = (claim: CheckedClaim) => step('Removing link', async () => {
+    const signer = nostrSigner()
+    if (!signer) throw new Error('No Nostr signer found. Install a NIP-07 extension such as Alby or nos2x.')
+    if ((await signer.getPublicKey()) !== claim.pubkeyHex) throw new Error('Only the Nostr key that made this claim can remove it.')
+    await removeIdentityClaim(claim.address)
+    if (linked?.address === claim.address && linked.pubkeyHex === claim.pubkeyHex) setLinked(null)
+    await runCheck(checkedInput || claim.address)
   })
 
   const canCreate = Boolean(wallet?.connected)
@@ -156,8 +195,24 @@ export default function IdentityLink() {
               <a href={`${EXPLORER_TX_URL}${claim.anchorTxid}`} target="_blank" rel="noreferrer" className="underline">{claim.anchorTxid.slice(0, 10)}…</a>
             </KV>
             <p className="mt-1 text-[10px] text-nomos-muted">{claim.anchorReason}</p>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+              <button type="button" onClick={() => copy(`v-${claim.eventId}`, verifyUrl(claim.npub))} className="text-[10px] text-nomos-muted-bright hover:text-nomos-text">
+                {copied === `v-${claim.eventId}` ? 'Copied' : 'Copy verify link'}
+              </button>
+              <button type="button" onClick={() => copy(`e-${claim.eventId}`, claim.eventId)} className="text-[10px] text-nomos-muted-bright hover:text-nomos-text">
+                {copied === `e-${claim.eventId}` ? 'Copied' : 'Copy event id'}
+              </button>
+              {nostrSigner() && (
+                <button type="button" onClick={() => { void removeLink(claim) }} disabled={Boolean(busy)} className="text-[10px] text-nomos-muted-bright hover:text-nomos-text">
+                  Remove link
+                </button>
+              )}
+            </div>
           </div>
         ))}
+        {claims && claims.length > 0 && (
+          <p className="mt-2 text-[10px] text-nomos-muted">A verify link opens this page and runs the same checks in the visitor's browser, against relays and a BCH node.</p>
+        )}
       </Panel>
 
       <Panel title="Link your BCH address to your Nostr key">
@@ -215,10 +270,42 @@ export default function IdentityLink() {
                 >
                   Copy signed response
                 </button>
-                <p className="mt-1 text-[10px] text-nomos-muted">Another app can check this response against the same link without asking Nomos.</p>
+                <p className="mt-1 text-[10px] text-nomos-muted">The response carries the link it claims. Another app checks it against its own challenge, then fetches the link again from relays and the chain.</p>
               </div>
             )}
           </>
+        )}
+      </Panel>
+
+      <Panel title="Check someone's signed response">
+        <p className="text-[11px] leading-relaxed text-nomos-muted">
+          Give this challenge to the person, ask for their signed response, and paste it here. The signature, the Nostr claim and the BCH anchor are all checked in this browser.
+        </p>
+        <KV label="Your challenge">{issued}</KV>
+        <div className="mt-1 flex gap-4">
+          <button type="button" onClick={() => copy('issued', issued)} className="text-[10px] text-nomos-muted-bright hover:text-nomos-text">{copied === 'issued' ? 'Copied' : 'Copy challenge'}</button>
+          <button type="button" onClick={() => { setIssued(newChallenge()); setResponseResult(null) }} className="text-[10px] text-nomos-muted-bright hover:text-nomos-text">New challenge</button>
+        </div>
+        <textarea
+          value={response}
+          onChange={(event) => { setResponse(event.target.value); setResponseResult(null) }}
+          placeholder='{"v":1,"protocol":"nomos-identity",…}'
+          rows={4}
+          className="input mt-3 font-mono text-[10px]"
+          spellCheck={false}
+        />
+        <button type="button" onClick={() => { void checkResponse() }} disabled={!response.trim() || responseBusy} className="btn-primary mt-2 w-full py-2">
+          {responseBusy ? <><span className="spinner mr-2" /> Checking…</> : 'Check response'}
+        </button>
+        {responseResult && (
+          <div className="mt-3 border hairline p-3">
+            <p className={`font-mono text-[10px] font-bold uppercase tracking-[0.14em] ${responseResult.ok ? 'text-nomos-accent' : 'text-nomos-refuse'}`}>
+              {responseResult.ok ? 'Authenticated' : 'Rejected'}
+            </p>
+            {responseResult.checks.map((c) => (
+              <KV key={c.label} label={c.label} tone={c.ok ? 'paid' : 'refused'}>{c.detail}</KV>
+            ))}
+          </div>
         )}
       </Panel>
     </>
