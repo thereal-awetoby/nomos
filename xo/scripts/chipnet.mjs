@@ -235,18 +235,33 @@ async function deriveVaultScriptHashFromGenesis(ownerScriptHash) {
   const { decodeTransaction, hexToBin } = await import('@bitauth/libauth');
 
   const client = await getUsableElectrumClient();
+  if (!client) throw new Error('No usable Electrum client available');
+
   // Query Electrum directly via the client's request() method to avoid
   // importing @electrum-cash/protocol (a transitive dep that isn't a
   // direct dependency of this package and can't be dynamically imported
   // in the CI install).
-  const history = await client.request('blockchain.scripthash.get_history', ownerScriptHash, 0, -1);
+  const historyRaw = await client.request('blockchain.scripthash.get_history', ownerScriptHash, 0, -1);
   // client.request() resolves with an Error object on failure (it doesn't reject).
-  if (history instanceof Error || !Array.isArray(history)) {
-    throw new Error(`Electrum history request failed: ${history?.message || JSON.stringify(history)}`);
+  if (historyRaw instanceof Error) {
+    throw new Error(`Electrum history request failed: ${historyRaw.message}`);
   }
-  // History entries: [txid, height] — iterate in reverse (newest first).
+  if (!Array.isArray(historyRaw)) {
+    throw new Error(`Electrum history unexpected format: ${JSON.stringify(historyRaw)}`);
+  }
+
+  // History entries may be [txid, height] arrays or {txid, height} objects
+  // depending on the Electrum server. Normalise to [txid, height].
+  const history = historyRaw.map((entry) => {
+    if (Array.isArray(entry)) return entry;
+    if (entry && typeof entry === 'object' && entry.txid) return [entry.txid, entry.height];
+    return [entry?.txid, entry?.height];
+  });
+
+  // Iterate in reverse (newest first).
   for (let i = history.length - 1; i >= 0; i -= 1) {
-    const [txid, height] = history[i];
+    const entry = history[i];
+    const txid = entry[0];
     if (!txid) continue;
     let txHex;
     try {
