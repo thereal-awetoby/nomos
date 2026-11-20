@@ -68,16 +68,18 @@ address, funded it, and ran the demo.
    ```
 
    The genesis transaction spent the vout-0 UTXO and created the vault NFT
-   output (CashToken genesis with `nft: { capability: 'mutable' }`) at output
-   index 1, plus a change output at index 2. The change output (8,000 sats)
-   was visible as unspent on the owner script hash.
+   output (CashToken genesis with `nft: { capability: 'mutable' }`) at the
+   vault address, plus 8,000 sats of change back to the owner, which the
+   engine listed as unspent at `d73393f2…:1`. The vault output can be checked
+   on a chipnet explorer at
+   `bchtest:rdmvyxulcv487tkfdwa664vdchs7wtdlx78pthfq9w0enyz8quvssd99rcz9j`.
 
 ### What was not completed
 
-The pay and rescue steps were **not** completed. After the genesis transaction
-was broadcast, subsequent runs could not reliably detect the vault on-chain to
-proceed to the pay invitations. The specific blockers encountered are listed
-below.
+The pay and rescue steps were **not** completed. After the genesis
+transaction was broadcast, the engine could not track the vault on chipnet
+(blocker 3), so the run never reached the pay invitations. The workarounds
+tried in `chipnet.mjs` did not get past this.
 
 ## Blockers encountered
 
@@ -102,38 +104,43 @@ produced runtime errors during the funding and genesis flow.
 **Fix applied:** all satoshi amounts in `chipnet.mjs` are `BigInt` literals
 (e.g. `50_000n`, `10_000n`) and conversions are explicit.
 
-### 3. Stale chipnet block-header checkpoint in `@electrum-cash/application`
+### 3. Chipnet block headers fail validation in `@electrum-cash/application`
 
-`@electrum-cash/application` caches the chipnet block-header checkpoint in
-IndexedDB under the `checkpoints` key, keyed by `uniqueBlockchainHash`.
-`setActiveBlockchain` only stores a checkpoint if one is absent, so a stale
-checkpoint from an earlier run persisted. The cached checkpoint height (~306k)
-was far below the actual chipnet chain tip (~339k), causing
-`engine.listUnspentOutputs()` to throw because the requested block height
-exceeded `currentCheckpoint.height`.
+The engine's Electrum layer stops syncing chipnet headers at height 332,451:
 
-**Fix applied:** `confirmedVaultUtxos` in `chipnet.mjs` bypasses the engine's
-checkpoint-dependent UTXO listing and queries Electrum directly via
-`fetchUnspentOutputsForLockingBytecode`, deriving the output status from each
-entry's `height` field. A "check for existing vault" step was also added at
-the start of the run to detect a previously created vault.
+```
+Header '00000000000ecc7187034ddaa4327af300c23fd57bfd2557af6ca2392a022671'
+at height 332451 claims target 486604799, expected 437753688.
+```
+
+486604799 (`0x1d00ffff`) is the minimum difficulty, which test networks allow
+for a block found more than 20 minutes after the previous one. The validator
+does not apply that test-network rule, so it rejects a valid chipnet header,
+and the header checkpoint stays far behind the tip (about 307k against a tip
+of about 339k). Every transaction update after that fails with "The requested
+header is ahead of the current checkpoint", so the engine cannot see new
+outputs as confirmed, including the vault.
+
+This is not something the template can fix; it happens on any machine using
+this package on chipnet.
+
+**Workarounds tried:** querying Electrum directly instead of
+`engine.listUnspentOutputs()`, and reading the vault script hash back from the
+genesis transaction. Neither got the run to the pay step; the last run's
+lookup failed with `object is not iterable`.
 
 ### Note on contract addresses across runs
 
-The compiled contract address (P2SH32) and token address changed between
-commits. This is **not** due to compiler non-determinism. The contract's
-input parameters (owner and rescuer public keys) were changed between commits
-during development, and changing any vault parameter changes the resulting
-script and therefore the address. Within a single commit, compilation is
-deterministic.
+Some intermediate runs computed a different contract address. This is
+**not** compiler non-determinism: the first and the last runs, with the same
+inputs, both computed vault script hash `2c40e316…` and contract address
+`bchtest:pdmvyxulcv487tkfdwa664vdchs7wtdlx78pthfq9w0enyz8quvsslkezprue`.
+Changing any vault parameter changes the script and therefore the address.
 
-## Script-hash derivation
+## Script-hash derivation (did not work)
 
-Because the vault script hash must match the on-chain genesis output for the
-engine to track the vault UTXO, `chipnet.mjs` derives the vault script hash
-from the on-chain genesis transaction: it queries Electrum for the owner
-script-hash history, decodes each transaction with libauth's
-`decodeTransaction`, finds the output carrying the `token.nft`, and returns
-that output's script hash. `scriptToScriptHash` is implemented with Node's
-`crypto` (`createHash('sha256')` with byte reversal), avoiding any dependency
-on the `@xo-cash/utils` re-export.
+`chipnet.mjs` tries to read the vault script hash from the on-chain genesis
+transaction: it queries Electrum for the owner's history, decodes each
+transaction with libauth's `decodeTransaction` and takes the output carrying
+`token.nft`. In the last run this lookup failed (`object is not iterable`), so
+the script fell back to the compiled script hash, which matched anyway.
