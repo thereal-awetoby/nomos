@@ -22,7 +22,12 @@ jobs:
         id: keys
         working-directory: xo
         run: |
-          node scripts/chipnet.mjs keys > /tmp/keys.json
+          node scripts/chipnet.mjs keys > /tmp/keys.json 2>/tmp/keys-err.txt || {
+            echo "=== keys mode failed ==="
+            cat /tmp/keys-err.txt
+            cat /tmp/keys.json
+            exit 1
+          }
           # Mask secrets so they never appear in logs
           echo "::add-mask::$(jq -r .OWNER_MNEMONIC /tmp/keys.json)"
           echo "::add-mask::$(jq -r .OWNER_KEY /tmp/keys.json)"
