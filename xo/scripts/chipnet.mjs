@@ -353,24 +353,23 @@ async function main() {
   log(`  owner script hash: ${ownerScriptHash}`);
 
   // Pre-store the owner's p2pkh script hash (funding tracking) and secrets
-  // on both accounts BEFORE engine creation so the engines monitor and
-  // track them from the start. Secrets are pinned to derivation index 0,
+  // on the owner's state BEFORE engine creation so the engine monitors and
+  // tracks them from the start. Secrets are pinned to derivation index 0,
   // matching OWNER_KEY / RESCUER_KEY.
+  //
+  // Only ONE engine is created per process: @electrum-cash/application
+  // initializes its cache globally, so a second Engine.create() fails with
+  // "Cannot configure storage for cache after it has been initialized."
+  // The rescuer's rescue secret is pre-stored on the owner's state so the
+  // owner engine can sign BOTH sides of the rescue invitation.
   const ownerState = await openState(owner);
   await preStoreScriptHash(ownerState, owner, ownerScriptHash, ownerLockingBytecode, 'p2pkh-owner');
   const ownerSpenderSecret = await preStoreSecret(ownerState, owner, 'spenderKey');
   const ownerOwnerSecret = await preStoreSecret(ownerState, owner, 'ownerKey');
+  const rescuerRescueSecret = await preStoreSecret(ownerState, owner, 'rescueKey');
 
-  const rescuerState = await openState(rescuer);
-  const rescuerRescueSecret = await preStoreSecret(rescuerState, rescuer, 'rescueKey');
-
-  // Engines.
+  // Engine (single — the Electrum cache is a process-wide singleton).
   const ownerEngine = await Engine.create(owner.mnemonic, {
-    network: 'chipnet',
-    storageType: 'indexeddb',
-    databasePath: DATABASE_PATH,
-  });
-  const rescuerEngine = await Engine.create(rescuer.mnemonic, {
     network: 'chipnet',
     storageType: 'indexeddb',
     databasePath: DATABASE_PATH,
@@ -378,11 +377,10 @@ async function main() {
   try {
     const templateJson = JSON.parse(readFileSync(join(XO_DIR, 'nomos.template.json'), 'utf8'));
     await ownerEngine.importTemplate(templateJson);
-    await rescuerEngine.importTemplate(templateJson);
   } catch (error) {
     fail(`template import failed: ${error?.message ?? error}`);
   }
-  log('  engines up, template imported');
+  log('  engine up, template imported');
 
   // The vault script hash comes from the template the engine just imported.
   const vaultScriptHashData = await ownerEngine.listScriptHashData({ templateIdentifier: owner.templateIdentifier });
@@ -415,7 +413,6 @@ async function main() {
     log(`\nNo funded UTXO of ≥ ${FUND_SATOSHIS} sats found for ${owner.address}.`);
     log('Fund the address, wait for confirmation, then run again.');
     await ownerEngine.stop();
-    await rescuerEngine.stop();
     return;
   }
   log(`  funding UTXO: ${fundingUtxo.txid}:${fundingUtxo.vout} (${fundingUtxo.satoshis} sats)`);
@@ -596,17 +593,19 @@ async function main() {
   });
   await ownerEngine.signInvitation(rescueInvitation.invitationIdentifier, 0);
 
-  // Rescuer joins and signs the same input with its key.
-  const rescuerStored = await rescuerEngine.acceptInvitation(rescueInvitation.invitation, { roleIdentifier: 'rescuer' });
-  await attachSecret(rescuerState, rescuerStored.invitationIdentifier, rescuerStored.invitation, {
+  // Rescuer joins and signs the same input with its key. The rescuer's
+  // secret was pre-stored on the owner's state, so the single owner engine
+  // can accept, sign, and update for the rescuer role too.
+  const rescuerStored = await ownerEngine.acceptInvitation(rescueInvitation.invitation, { roleIdentifier: 'rescuer' });
+  await attachSecret(ownerState, rescuerStored.invitationIdentifier, rescuerStored.invitation, {
     secretIdentifier: 'rescueKey',
     secretLookupKey: rescuerRescueSecret,
-    templateIdentifier: rescuer.templateIdentifier,
+    templateIdentifier: owner.templateIdentifier,
   });
-  await rescuerEngine.signInvitation(rescuerStored.invitationIdentifier, 0);
+  await ownerEngine.signInvitation(rescuerStored.invitationIdentifier, 0);
 
   // The rescuer's updated invitation goes back to the owner's engine.
-  const rescuerUpdated = await rescuerEngine.getInvitation(rescuerStored.invitationIdentifier);
+  const rescuerUpdated = await ownerEngine.getInvitation(rescuerStored.invitationIdentifier);
   await ownerEngine.updateInvitation(rescuerUpdated.invitation);
 
   const rescueResult = await ownerEngine.executeAction(rescueInvitation.invitationIdentifier, { broadcastTransaction: true });
