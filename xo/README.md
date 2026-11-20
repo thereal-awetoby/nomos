@@ -6,6 +6,13 @@ template, for the BCH BLAZE "Build with XO" bounty. It is generated from
 `../contracts/NomosVault.cash`, so it can't drift from the contract the app
 and the chipnet tests use.
 
+Built against **`@xo-cash/engine` `0.1.0-next.17612568780`** (the newest
+`0.1.0-next.*` on npm), with its matching `@xo-cash/types` `0.0.8` and
+`@xo-cash/utils` `0.0.10`. The engine provides the live wallet side: template
+import, invitations (create / accept / update), signing, transaction building
+and broadcasting against a chipnet Electrum server (`chipnet.imaginary.cash`
+by default).
+
 ## Actions
 
 | Action | Role(s) | Transaction |
@@ -44,11 +51,35 @@ today (`remainingToday`).
 14/14 passed
 ```
 
+## Chipnet demo script
+
+`scripts/chipnet.mjs` runs the full vault lifecycle on chipnet:
+
+```
+node scripts/chipnet.mjs fund   → print the chipnet funding address and stop
+node scripts/chipnet.mjs run    → genesis + pays + rescue (needs funded address)
+```
+
+It needs `OWNER_MNEMONIC` / `OWNER_KEY` and `RESCUER_MNEMONIC` / `RESCUER_KEY`
+(chipnet WIFs, derivation index 0 of each mnemonic). Genesis is a raw CashScript
+transaction (`TransactionBuilder` + `SignatureTemplate`, ECDSA) — a template
+action can't do genesis because the NFT category must be the txid of the
+funding coin. After genesis, every step is an XO invitation: pay 3,000, pay
+4,000, an over-limit pay 5,000 (signed and sent to the node, rejection
+recorded), and a rescue co-signed by owner + rescuer. Invitations are saved to
+`invitations/<n>-<action>.json` (no keys).
+
+**`topUp` is not exercised by the script.** The engine's `signInvitation`
+couldn't unlock the funding input for a plain top-up (the composable funding
+UTXO path needs the engine to track an arbitrary p2pkh input, which the current
+engine build doesn't expose cleanly). The required pay/rescue flow is unaffected
+— the genesis funds the vault directly.
+
 ## Not checked yet
 
-- **Not run in the XO engine or debug tool.** The engine needs a live chipnet
-  Electrum connection; the development sandbox has none. Next step: import
-  `nomos.template.json` at https://blaze.xo.cash.
+- **Not run in the XO engine against a live chipnet node.** The development
+  sandbox has no chipnet Electrum connection; the chipnet script above is the
+  next step (fund the printed address, then `run`).
 - **Signatures** (`…schnorr_signature.all_outputs`) can't be compiled offline;
   the tests swap in the exact signature CashScript produced and compare the rest.
 - **Creating a vault** stays in the Nomos app: the state NFT's category must be
