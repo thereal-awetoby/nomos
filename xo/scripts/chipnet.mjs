@@ -213,6 +213,13 @@ async function waitForTxVisible(txid, { timeoutMs = 30 * 60 * 1000 } = {}) {
 }
 
 // ── Genesis (CashScript genesis transaction) ────────────────────────────────
+//
+// CHIP-2022-02: a token category's genesis input must spend output index 0
+// of its parent transaction. The funding UTXO is typically at a higher vout,
+// so we first do a "pre-genesis" self-send: spend the funding UTXO with a
+// single output back to the owner address (which lands at vout 0). The
+// genesis transaction then spends that vout-0 UTXO; the category ID is the
+// pre-genesis transaction's txid (big-endian / display order).
 
 async function buildAndSendGenesis(fundingUtxo, contract, ownerAddress, ownerWif) {
   const { ElectrumNetworkProvider, HashType, SignatureAlgorithm, SignatureTemplate, TransactionBuilder } = await import('cashscript');
@@ -223,17 +230,43 @@ async function buildAndSendGenesis(fundingUtxo, contract, ownerAddress, ownerWif
     SignatureAlgorithm.ECDSA,
   );
 
-  const changeValue = fundingUtxo.satoshis - BigInt(GENESIS_VAULT_NFT_SATOSHIS) - BigInt(GENESIS_FEE_SATOSHIS);
+  // ── Step A: pre-genesis — create a vout-0 UTXO ───────────────────────────
+  let genesisUtxo;
+  if (fundingUtxo.vout === 0) {
+    genesisUtxo = fundingUtxo;
+  } else {
+    // Single output back to the owner → it is vout 0, eligible as a genesis
+    // input. Keep enough value for the genesis layout + fees.
+    const preGenesisValue = fundingUtxo.satoshis - BigInt(GENESIS_FEE_SATOSHIS);
+    if (preGenesisValue < 546n) fail('funding UTXO is too small for the pre-genesis step');
+
+    const preGenesisTx = new TransactionBuilder({ provider });
+    preGenesisTx.addInput(fundingUtxo, sigTemplate.unlockP2PKH());
+    preGenesisTx.addOutput({ to: ownerAddress, amount: preGenesisValue });
+
+    const preGenesisResult = await preGenesisTx.send();
+    log(`  pre-genesis broadcast: ${preGenesisResult.txid} (creates vout-0 UTXO)`);
+    genesisUtxo = {
+      txid: preGenesisResult.txid,
+      vout: 0,
+      satoshis: preGenesisValue,
+    };
+  }
+
+  const changeValue = genesisUtxo.satoshis - BigInt(GENESIS_VAULT_NFT_SATOSHIS) - BigInt(GENESIS_FEE_SATOSHIS);
   if (changeValue < 546n) fail('funding UTXO is too small for the genesis layout');
 
   const genesisTx = new TransactionBuilder({ provider });
-  genesisTx.addInput(fundingUtxo, sigTemplate.unlockP2PKH());
+  genesisTx.addInput(genesisUtxo, sigTemplate.unlockP2PKH());
   genesisTx.addOutput({
     to: contract.tokenAddress,
     amount: BigInt(GENESIS_VAULT_NFT_SATOSHIS),
     token: {
       amount: 0n,
-      category: fundingUtxo.txid, // genesis: category = txid of the funding coin
+      // CHIP-2022-02: the category ID is the txid of the vout-0 UTXO being
+      // spent as the genesis input, in big-endian (display) byte order —
+      // the same format Electrum reports.
+      category: genesisUtxo.txid,
       nft: { capability: 'mutable', commitment: ZERO_COMMITMENT },
     },
   });
@@ -451,8 +484,21 @@ async function main() {
   // ── Step 1: genesis ───────────────────────────────────────────────────────
   log('\n[1] Genesis — create the chipnet vault…');
   const genesisTxid = await buildAndSendGenesis(fundingUtxo, contract, owner.address, env.OWNER_KEY);
-  await waitForConfirmation(ownerEngine, fundingUtxo.txid, fundingUtxo.vout, { label: 'genesis' });
+  await waitForConfirmation(ownerEngine, fundingUtxo.txid, fundingUtxo.vout, { label: 'pre-genesis' });
   await waitForTxVisible(genesisTxid);
+  // Wait for the genesis output (vault NFT UTXO) to be confirmed before
+  // proceeding — the pay flow only selects confirmed vault UTXOs.
+  {
+    const vaultDeadline = Date.now() + 30 * 60 * 1000;
+    let nftVaultUtxo1 = null;
+    while (Date.now() < vaultDeadline) {
+      nftVaultUtxo1 = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash))
+        .find((u) => u.tokenNftCommitment !== undefined);
+      if (nftVaultUtxo1) break;
+      await new Promise((r) => setTimeout(r, 15_000));
+    }
+    if (!nftVaultUtxo1) fail('vault NFT output not confirmed after genesis');
+  }
   log(`  genesis confirmed: ${genesisTxid}`);
 
   // ── Step 2: pay #1 ───────────────────────────────────────────────────────
