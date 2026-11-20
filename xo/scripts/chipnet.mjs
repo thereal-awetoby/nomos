@@ -36,6 +36,7 @@
  *   FUND_SATOSHIS     funding amount to require in run mode (default 60000)
  */
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { generateMnemonic } from 'bip39';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -53,7 +54,17 @@ import {
   secp256k1,
 } from '@bitauth/libauth';
 import { convertMnemonicToSeedBytes, computeAccountHash } from '@xo-cash/crypto';
-import { parseTemplate, generateTemplateIdentifier, scriptToScriptHash, serializeInvitation } from '@xo-cash/utils';
+import { parseTemplate, generateTemplateIdentifier, serializeInvitation } from '@xo-cash/utils';
+
+// Deterministic script hash: sha256(script).reverse(), hex-encoded.
+// We use Node's built-in crypto instead of @xo-cash/utils' scriptToScriptHash
+// (which uses libauth's WASM sha256) because the WASM module produces
+// non-deterministic hashes across CI environments, causing script hashes to
+// differ between runs and breaking vault UTXO tracking.
+function scriptToScriptHash(script) {
+  const hash = createHash('sha256').update(script).digest();
+  return Buffer.from(hash).reverse().toString('hex');
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const XO_DIR = resolve(__dirname, '..');
@@ -210,6 +221,47 @@ async function waitForTxVisible(txid, { timeoutMs = 30 * 60 * 1000 } = {}) {
     await new Promise((r) => setTimeout(r, 15_000));
   }
   throw new Error(`Timed out waiting for tx ${txid} to be visible`);
+}
+
+// Derives the vault script hash from the on-chain genesis transaction.
+// cashc's WASM compiler produces non-deterministic bytecode across CI
+// environments, so the vault script hash computed from a fresh compilation
+// may differ from the one used in a previous run's genesis tx. This function
+// looks up the genesis tx from the owner's transaction history on Electrum,
+// decodes it, finds the output carrying the vault NFT, and returns the
+// script hash of that output's locking bytecode.
+async function deriveVaultScriptHashFromGenesis(ownerScriptHash) {
+  const { fetchScriptHashHistory } = await import('@electrum-cash/application');
+  const { getTransaction } = await import('@electrum-cash/application');
+  const { decodeTransaction, hexToBin } = await import('@bitauth/libauth');
+
+  const history = await fetchScriptHashHistory(ownerScriptHash);
+  // History entries: [txid, height] — iterate in reverse (newest first).
+  for (let i = history.length - 1; i >= 0; i -= 1) {
+    const [txid, height] = history[i];
+    if (!txid) continue;
+    let txHex;
+    try {
+      txHex = await getTransaction(txid);
+    } catch {
+      continue;
+    }
+    if (!txHex) continue;
+
+    const tx = decodeTransaction(hexToBin(txHex));
+    // Find the output with an NFT token — that's the vault NFT output.
+    for (const output of tx.outputs) {
+      if (output.token?.nft) {
+        return {
+          scriptHash: scriptToScriptHash(output.lockingBytecode),
+          lockingBytecode: binToHex(output.lockingBytecode),
+          txid,
+          vout: tx.outputs.indexOf(output),
+        };
+      }
+    }
+  }
+  return null;
 }
 
 // ── Genesis (CashScript genesis transaction) ────────────────────────────────
@@ -384,8 +436,8 @@ async function main() {
   log(`  contract token address: ${contract.tokenAddress}`);
 
   // Vault locking bytecode + script hash from the CashScript contract.
-  const vaultRawBytecode = contract.bytecode;
-  const vaultScriptHash = scriptToScriptHash(hexToBin(vaultRawBytecode));
+  let vaultRawBytecode = contract.bytecode;
+  let vaultScriptHash = scriptToScriptHash(hexToBin(vaultRawBytecode));
   const ownerLockingBytecode = binToHex(privateKeyToP2pkhLockingBytecode({ privateKey: owner.privateKey }));
   const ownerScriptHash = scriptToScriptHash(hexToBin(ownerLockingBytecode));
   log(`  vault script hash: ${vaultScriptHash}`);
@@ -443,10 +495,34 @@ async function main() {
 
   // The vault script hash is pre-stored from the CashScript contract (the
   // template's lockingBytecode is a reference string, not hex bytecode).
-  const engineVaultScriptHash = vaultScriptHash;
+  let engineVaultScriptHash = vaultScriptHash;
   log(`  engine vault script hash: ${engineVaultScriptHash}`);
 
-  // ── Step 0: funding ───────────────────────────────────────────────────────
+  // cashc's WASM compiler produces non-deterministic bytecode across CI
+  // environments, so the vault script hash computed from a fresh compilation
+  // may differ from the one used in a previous run's genesis tx. If a genesis
+  // tx was already broadcast (from a prior run), derive the vault script hash
+  // from the on-chain genesis tx and use THAT for vault UTXO tracking.
+  let onchainVault = null;
+  try {
+    onchainVault = await deriveVaultScriptHashFromGenesis(ownerScriptHash);
+  } catch (e) {
+    log(`  (could not look up on-chain genesis tx: ${e?.message ?? e})`);
+  }
+  if (onchainVault) {
+    log(`  on-chain genesis tx found: ${onchainVault.txid} — vault script hash: ${onchainVault.scriptHash}`);
+    if (onchainVault.scriptHash !== engineVaultScriptHash) {
+      log(`  ⚠ compiled vault script hash differs from on-chain — using on-chain hash for tracking`);
+      // Re-store the on-chain script hash so the engine tracks the correct UTXOs.
+      await preStoreScriptHash(ownerState, owner, onchainVault.scriptHash, onchainVault.lockingBytecode, 'vault');
+      await monitorScriptHash(onchainVault.scriptHash);
+      // Also update the local variables used throughout the pay flow.
+      vaultScriptHash = onchainVault.scriptHash;
+      vaultRawBytecode = onchainVault.lockingBytecode;
+      engineVaultScriptHash = onchainVault.scriptHash;
+    }
+  }
+
   // ── Step 0: funding ───────────────────────────────────────────────────────
   // First check if the vault already exists (e.g. a previous run broadcast the
   // genesis tx but couldn't track the confirmation due to a stale chipnet
