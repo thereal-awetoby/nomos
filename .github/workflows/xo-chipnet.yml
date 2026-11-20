@@ -6,9 +6,10 @@ on:
 
 env:
   # Fixed chipnet testnet mnemonics — deterministic keys for reproducible CI
-  # runs. These are testnet-only keys with no real value. Never use on mainnet.
-  FIXED_OWNER_MNEMONIC: "chipnet owner test wallet nomos demo funds only do not use mainnet seed phrase zero one two three four five six seven eight nine ten eleven twelve"
-  FIXED_RESCUER_MNEMONIC: "chipnet rescuer test wallet nomos demo funds only do not use mainnet seed phrase eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone twentytwo twentythree twentyfour"
+  # runs. These are valid BIP39 testnet-only keys with no real value.
+  # Never use on mainnet.
+  FIXED_OWNER_MNEMONIC: "chest guess viable assist suggest blade spend situate scorpion shrug proof fresh vacant squeeze hole clip cricket sweet pistol armed profit pelican ridge real"
+  FIXED_RESCUER_MNEMONIC: "beauty equal dumb disorder member erase thumb elbow warm virtual repeat abstract clever fiscal vivid tortoise visual twist shift lecture paddle broom cost chronic"
 
 jobs:
   chipnet:
