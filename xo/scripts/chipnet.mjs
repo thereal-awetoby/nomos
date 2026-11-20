@@ -240,17 +240,23 @@ async function deriveVaultScriptHashFromGenesis(ownerScriptHash) {
   // direct dependency of this package and can't be dynamically imported
   // in the CI install).
   const history = await client.request('blockchain.scripthash.get_history', ownerScriptHash, 0, -1);
+  // client.request() resolves with an Error object on failure (it doesn't reject).
+  if (history instanceof Error || !Array.isArray(history)) {
+    throw new Error(`Electrum history request failed: ${history?.message || JSON.stringify(history)}`);
+  }
   // History entries: [txid, height] — iterate in reverse (newest first).
   for (let i = history.length - 1; i >= 0; i -= 1) {
     const [txid, height] = history[i];
     if (!txid) continue;
     let txHex;
     try {
-      const txResp = await client.request('blockchain.transaction.get', txid, true);
+      // verbose=false (or omitted) returns raw transaction hex.
+      const txResp = await client.request('blockchain.transaction.get', txid);
       txHex = txResp;
     } catch {
       continue;
     }
+    if (txHex instanceof Error) continue;
     if (!txHex) continue;
 
     const tx = decodeTransaction(hexToBin(txHex));
