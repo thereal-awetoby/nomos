@@ -1,0 +1,46 @@
+name: mainnet-demo
+
+on:
+  push:
+    branches: [tmp-mainnet-demo]
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      PRIVATE_KEY: L3p6U4EvTYWuiMf2yGdFnttbN4re5JLZGrCMPj8skkxe8GdqYLcn
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run mainnet demo
+        run: |
+          cd frontend && npm ci --no-audit --no-fund && node --input-type=module -e "
+          import { ElectrumNetworkProvider, TransactionBuilder, SignatureTemplate } from 'cashscript';
+          const p = new ElectrumNetworkProvider('mainnet');
+          const key = new SignatureTemplate(process.env.PRIVATE_KEY);
+          const from = 'bitcoincash:qqqgafhhw487hjf9fcxgc5gp7s3wz363uv4jyu3vhf';
+          const to = 'bitcoincash:qpqrel837enktgz3vanchsf7uapj883ruy76h8h7jw';
+          const utxos = await p.getUtxos(from);
+          const total = utxos.reduce((s, u) => s + u.satoshis, 0n);
+          console.log('balance', total);
+          if (total === 0n) process.exit(0);
+          const tb = new TransactionBuilder({ provider: p });
+          for (const u of utxos) tb.addInput(u, key.unlockP2PKH());
+          tb.addOutput({ to, amount: total - BigInt(200 + 150 * utxos.length) });
+          const r = await tb.send();
+          console.log('swept', r.txid);
+          " > /tmp/demo-output.txt 2>&1; echo "exit: $?" >> /tmp/demo-output.txt; cat /tmp/demo-output.txt
+      - name: Save output to a branch
+        if: always()
+        run: |
+          git config user.name "thereal_awetoby"
+          git config user.email "awedavid2007@gmail.com"
+          git checkout -b demo-output
+          cp /tmp/demo-output.txt demo-output.txt
+          git add demo-output.txt
+          git commit -m "Mainnet demo output" || echo "nothing to commit"
+          git push --force origin demo-output
