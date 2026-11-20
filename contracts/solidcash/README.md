@@ -73,9 +73,23 @@ PRIVATE_KEY=<funded mainnet WIF> npm run demo:mainnet
 
 Deploys a vault, pays under the daily limit, tries to pay over it the same day
 and is refused by the contract, then rescues the remaining deposit back to the
-wallet. On mainnet the limit is 2,000 sats with a 5,000-sat deposit, so a run
-costs only network fees. Fund the wallet with about 15,000 sats: deploying also
-reserves two state NFTs and a fee estimate, and the unused part comes back.
+wallet. On mainnet the limit is 2,000 sats with a 5,000-sat deposit. Deploying
+also reserves two state NFTs and a 5,000-sat fee estimate, and each contract call
+needs at least two separate coins in the wallet for fees, so fund about 30,000
+sats split into a 16,000-sat coin plus a few smaller ones. Unspent funds come back.
+
+### Mainnet run, 20 Nov 2026
+
+| Step | Result |
+|------|--------|
+| Deploy NomosVault (limit 2,000 sats, 5,000 deposited) | [`bee48c5f…`](https://blockchair.com/bitcoin-cash/transaction/bee48c5f73f16a9ad83669b4a1350d01e07ebf104d155e2b557837e9fd04113d) · category `3ecf733d…` |
+| Pay 1,000 sats (under the limit) | **Paid** [`93e9fdad…`](https://blockchair.com/bitcoin-cash/transaction/93e9fdadaf3ebc5b5182a5b3dcd527b8ab9c6d8480160276a573b9d7b616aae6) · `spentToday` = 1,000 on-chain |
+| Pay 1,500 more the same day (2,500 > 2,000) | **Refused** at `NomosVault.scash:43`, `Refused by Nomos: daily limit` |
+| Rescue the remaining 4,000 sats (owner + co-signer) | [`305c7a47…`](https://blockchair.com/bitcoin-cash/transaction/305c7a47a2721ba1b290782df991b5a99bc1da7553b734d764f53e5f81ff913f) |
+
+The refused payment failed its `require` when the SDK evaluated the transaction
+in the BCH VM, so it was never broadcast. A node rejecting a signed over-limit
+spend is shown for the CashScript vault in the main README.
 
 ## Notes
 
