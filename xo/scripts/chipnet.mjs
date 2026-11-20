@@ -232,19 +232,22 @@ async function waitForTxVisible(txid, { timeoutMs = 30 * 60 * 1000 } = {}) {
 // script hash of that output's locking bytecode.
 async function deriveVaultScriptHashFromGenesis(ownerScriptHash) {
   const { getUsableElectrumClient } = await import('@electrum-cash/application');
-  const { fetchScriptHashHistory } = await import('@electrum-cash/protocol');
-  const { getTransaction } = await import('@electrum-cash/application');
   const { decodeTransaction, hexToBin } = await import('@bitauth/libauth');
 
   const client = await getUsableElectrumClient();
-  const history = await fetchScriptHashHistory(client, ownerScriptHash);
+  // Query Electrum directly via the client's request() method to avoid
+  // importing @electrum-cash/protocol (a transitive dep that isn't a
+  // direct dependency of this package and can't be dynamically imported
+  // in the CI install).
+  const history = await client.request('blockchain.scripthash.get_history', ownerScriptHash, 0, -1);
   // History entries: [txid, height] — iterate in reverse (newest first).
   for (let i = history.length - 1; i >= 0; i -= 1) {
     const [txid, height] = history[i];
     if (!txid) continue;
     let txHex;
     try {
-      txHex = await getTransaction(txid);
+      const txResp = await client.request('blockchain.transaction.get', txid, true);
+      txHex = txResp;
     } catch {
       continue;
     }
