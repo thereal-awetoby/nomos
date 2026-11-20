@@ -39,15 +39,6 @@ import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { generateMnemonic } from 'bip39';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { compileFile } from 'cashc';
-import {
-  Contract,
-  ElectrumNetworkProvider,
-  HashType,
-  SignatureAlgorithm,
-  SignatureTemplate,
-  TransactionBuilder,
-} from 'cashscript';
 import {
   binToHex,
   binToNumberUint32LE,
@@ -63,10 +54,7 @@ import {
   sha256,
 } from '@bitauth/libauth';
 import { convertMnemonicToSeedBytes, computeAccountHash } from '@xo-cash/crypto';
-import { Engine } from '@xo-cash/engine';
-import { State, createStorageAdapter } from '@xo-cash/state';
 import { parseTemplate, generateTemplateIdentifier, serializeInvitation } from '@xo-cash/utils';
-import { broadcastTransaction, getTransaction } from '@electrum-cash/application';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const XO_DIR = resolve(__dirname, '..');
@@ -153,6 +141,7 @@ function databaseFilenameFor(network) {
 }
 
 async function openState(account) {
+  const { createStorageAdapter, State } = await import('@xo-cash/state');
   const storage = await createStorageAdapter({
     storageType: 'indexeddb',
     databasePath: DATABASE_PATH,
@@ -213,6 +202,7 @@ async function waitForTxVisible(txid, { timeoutMs = 30 * 60 * 1000 } = {}) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
+      const { getTransaction } = await import('@electrum-cash/application');
       const txHex = await getTransaction(txid);
       if (txHex) return true;
     } catch {
@@ -226,6 +216,7 @@ async function waitForTxVisible(txid, { timeoutMs = 30 * 60 * 1000 } = {}) {
 // ── Genesis (CashScript genesis transaction) ────────────────────────────────
 
 async function buildAndSendGenesis(fundingUtxo, contract, ownerAddress, ownerWif) {
+  const { ElectrumNetworkProvider, HashType, SignatureAlgorithm, SignatureTemplate, TransactionBuilder } = await import('cashscript');
   const provider = new ElectrumNetworkProvider('chipnet');
   const sigTemplate = new SignatureTemplate(
     ownerWif,
@@ -329,6 +320,9 @@ async function main() {
 
   // Compile the CashScript contract for genesis.
   log('\nCompiling NomosVault.cash…');
+  const { compileFile } = await import('cashc');
+  const { Contract, ElectrumNetworkProvider } = await import('cashscript');
+  const { Engine } = await import('@xo-cash/engine');
   const artifact = compileFile(CONTRACT_PATH);
   const ownerPub = owner.publicKey;
   const rescuerPub = rescuer.publicKey;
@@ -544,6 +538,7 @@ async function main() {
     // Still send the signed tx to the node and record what the network says.
     try {
       const built = await ownerEngine.buildInvitationTransactionFromMergedCommit(pay3.invitationIdentifier);
+      const { broadcastTransaction } = await import('@electrum-cash/application');
       pay3Txid = await broadcastTransaction(built.serializedTransaction);
       log(`  pay #3 txid (sent to node): ${pay3Txid}`);
     } catch (broadcastError) {
