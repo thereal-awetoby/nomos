@@ -279,10 +279,12 @@ async function confirmedVaultUtxos(engine, vaultScriptHash) {
 
 async function main() {
   if (mode === 'keys') {
-    // Generate fresh mnemonics + derivation-index-0 WIFs + addresses.
+    // Generate mnemonics + derivation-index-0 WIFs + addresses.
+    // Use FIXED_OWNER_MNEMONIC / FIXED_RESCUER_MNEMONIC if set (deterministic
+    // chipnet testnet keys for CI runs); otherwise generate random mnemonics.
     // Output is printed for the workflow to capture; nothing is written to disk.
-    const ownerMnemonic = generateMnemonic(256);
-    const rescuerMnemonic = generateMnemonic(256);
+    const ownerMnemonic = process.env.FIXED_OWNER_MNEMONIC || generateMnemonic(256);
+    const rescuerMnemonic = process.env.FIXED_RESCUER_MNEMONIC || generateMnemonic(256);
     const template = parseTemplate(JSON.parse(readFileSync(join(XO_DIR, 'nomos.template.json'), 'utf8')));
     const templateIdentifier = generateTemplateIdentifier(template);
     const ownerWif = wifFromMnemonic(ownerMnemonic, templateIdentifier, 0);

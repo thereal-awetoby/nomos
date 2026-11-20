@@ -4,9 +4,16 @@ on:
   push:
     branches: [arena/**]
 
+env:
+  # Fixed chipnet testnet mnemonics — deterministic keys for reproducible CI
+  # runs. These are testnet-only keys with no real value. Never use on mainnet.
+  FIXED_OWNER_MNEMONIC: "chipnet owner test wallet nomos demo funds only do not use mainnet seed phrase zero one two three four five six seven eight nine ten eleven twelve"
+  FIXED_RESCUER_MNEMONIC: "chipnet rescuer test wallet nomos demo funds only do not use mainnet seed phrase eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone twentytwo twentythree twentyfour"
+
 jobs:
   chipnet:
     runs-on: ubuntu-latest
+    timeout-minutes: 180
     permissions:
       contents: write
     steps:
@@ -20,7 +27,7 @@ jobs:
         working-directory: xo
         run: npm ci --no-audit --no-fund
 
-      - name: Generate keys on runner
+      - name: Derive keys from fixed mnemonics
         id: keys
         working-directory: xo
         run: |
@@ -61,25 +68,7 @@ jobs:
           git commit --no-verify -m "XO chipnet demo: funding address"
           git push origin demo-output --force
 
-      - name: Wait for funding (up to 2h)
-        run: |
-          ADDRESS="${{ steps.keys.outputs.OWNER_ADDRESS }}"
-          echo "Waiting for funding at $ADDRESS (up to 2 hours)…"
-          DEADLINE=$(( $(date +%s) + 7200 ))
-          while [ "$(date +%s)" -lt "$DEADLINE" ]; do
-            BALANCES=$(curl -s "https://chipnet.chaingraph.cash/api/address/$ADDRESS" 2>/dev/null || true)
-            SATS=$(echo "$BALANCES" | jq -r '(.totalReceived // .balance // 0) * 100000000 | floor' 2>/dev/null || echo 0)
-            if [ "$SATS" -ge 60000 ]; then
-              echo "Funded: $SATS sats"
-              exit 0
-            fi
-            echo "  not funded yet ($SATS sats), retrying in 60s…"
-            sleep 60
-          done
-          echo "Timed out waiting for funding"
-          exit 1
-
-      - name: Run chipnet demo
+      - name: Run chipnet demo (waits for funding via Electrum, up to 2h)
         working-directory: xo
         run: |
           mkdir -p xo-chipnet-data
