@@ -387,6 +387,21 @@ async function main() {
   }
   log('  engine up, template imported');
 
+  // Explicitly re-monitor the owner's p2pkh script hash. The engine's
+  // internal #monitorStoredScriptHashes runs during Engine.create, but the
+  // Electrum connection may not be fully established yet. Re-monitoring
+  // after import ensures the subscription is active and the funding UTXO
+  // is fetched immediately.
+  const { monitorScriptHash } = await import('@electrum-cash/application');
+  const { fetchScriptHashUnspentOutputs } = await import('@xo-cash/engine');
+  await monitorScriptHash(ownerScriptHash);
+  await monitorScriptHash(vaultScriptHash);
+  const ownerUnspent = await fetchScriptHashUnspentOutputs(ownerScriptHash);
+  log(`  Electrum reports ${ownerUnspent.length} unspent output(s) for owner script hash`);
+  for (const u of ownerUnspent) {
+    log(`    ${u.outpointTransactionHash}:${u.outpointIndex} — ${u.valueSatoshis} sats`);
+  }
+
   // The vault script hash is pre-stored from the CashScript contract (the
   // template's lockingBytecode is a reference string, not hex bytecode).
   const engineVaultScriptHash = vaultScriptHash;
