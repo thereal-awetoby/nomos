@@ -383,9 +383,14 @@ async function main() {
   log('  engine up, template imported');
 
   // The vault script hash comes from the template the engine just imported.
+  // The template's vault locking script identifier is 'vault' (not
+  // 'nomosRedeem').
   const vaultScriptHashData = await ownerEngine.listScriptHashData({ templateIdentifier: owner.templateIdentifier });
-  const vaultData = vaultScriptHashData.find((d) => d.lockingScriptIdentifier === 'nomosRedeem');
-  if (!vaultData) fail('vault script hash not found after template import');
+  const vaultData = vaultScriptHashData.find((d) => d.lockingScriptIdentifier === 'vault');
+  if (!vaultData) {
+    log(`  available locking script identifiers: ${vaultScriptHashData.map((d) => d.lockingScriptIdentifier).join(', ')}`);
+    fail('vault script hash not found after template import');
+  }
   const engineVaultScriptHash = vaultData.scriptHash;
   log(`  engine vault script hash: ${engineVaultScriptHash}`);
 
