@@ -231,11 +231,13 @@ async function waitForTxVisible(txid, { timeoutMs = 30 * 60 * 1000 } = {}) {
 // decodes it, finds the output carrying the vault NFT, and returns the
 // script hash of that output's locking bytecode.
 async function deriveVaultScriptHashFromGenesis(ownerScriptHash) {
-  const { fetchScriptHashHistory } = await import('@electrum-cash/application');
+  const { getUsableElectrumClient } = await import('@electrum-cash/application');
+  const { fetchScriptHashHistory } = await import('@electrum-cash/protocol');
   const { getTransaction } = await import('@electrum-cash/application');
   const { decodeTransaction, hexToBin } = await import('@bitauth/libauth');
 
-  const history = await fetchScriptHashHistory(ownerScriptHash);
+  const client = await getUsableElectrumClient();
+  const history = await fetchScriptHashHistory(client, ownerScriptHash);
   // History entries: [txid, height] — iterate in reverse (newest first).
   for (let i = history.length - 1; i >= 0; i -= 1) {
     const [txid, height] = history[i];
