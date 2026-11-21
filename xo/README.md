@@ -47,8 +47,16 @@ today (`remainingToday`).
   at `NomosVault.cash:45`; a rescue with the wrong co-signer at line 93.
 - Changing one vault parameter changes the address, so the checks have teeth.
 
+Then `test/engine.test.mjs` runs the template through XO's own engine: two
+`@xo-cash/engine` instances (owner and rescuer), offline, build and sign a
+payment, a second payment the same day, an over-limit payment and a rescue
+passed between the two engines, and every transaction they build is checked
+in libauth's BCH VM. This test found that the unlocking scripts pushed the
+redeem script twice (see [REPRODUCE.md](REPRODUCE.md#the-template-bug-the-engine-test-found)).
+
 ```
 14/14 passed
+4/4 passed
 ```
 
 ## Chipnet demo script

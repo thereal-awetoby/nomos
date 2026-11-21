@@ -30,6 +30,7 @@ import {
   parseUnits,
   formatUnits,
   isEvmAddress,
+  isSwapLock,
   swapLockAddress,
   hasInjectedWallet,
   connectInjected,
@@ -45,6 +46,7 @@ import {
   usdcBalance,
 } from '../lib/evm'
 import type { BaseLock } from '../lib/evm'
+import { WALLETCONNECT_ENABLED } from '../lib/env'
 const HOUR = 3600
 const INITIATOR_LOCK_S = 24 * HOUR
 const RESPONDER_LOCK_S = 12 * HOUR
@@ -110,6 +112,11 @@ export default function Bridge() {
     }
   }, [offerParam])
 
+  // The offer names its Base contract; older offers fall back to this browser's.
+  const activeContract = offer?.baseContract || contractAddr
+  // null while unknown: nothing on Base is read as trustworthy until this is true.
+  const [contractOk, setContractOk] = useState<boolean | null>(null)
+
   const [secret, setSecret] = useState<string | null>(null)
   const [role, setRole] = useState<Role>('responder')
   const [progress, setProgress] = useState<Progress>({})
@@ -134,6 +141,16 @@ export default function Bridge() {
     setRole(stored ? 'initiator' : 'responder')
     setProgress(load<Progress>(progressKey(offer.secretHash), {}))
   }, [offer])
+
+  useEffect(() => {
+    let cancelled = false
+    setContractOk(null)
+    if (!activeContract) return
+    isSwapLock(activeContract)
+      .then((ok) => { if (!cancelled) setContractOk(ok) })
+      .catch(() => { /* RPC trouble: stay unknown, actions stay off */ })
+    return () => { cancelled = true }
+  }, [activeContract])
 
   useEffect(() => {
     const canvas = qrRef.current
@@ -171,11 +188,11 @@ export default function Bridge() {
       setBchLock(null)
     }
     try {
-      setBaseLock(contractAddr ? await readBaseLock(offer.secretHash) : null)
+      setBaseLock(activeContract ? await readBaseLock(offer.secretHash, activeContract) : null)
     } catch {
       setBaseLock(undefined)
     }
-  }, [offer, contractAddr])
+  }, [offer, activeContract])
 
   useEffect(() => { void refresh() }, [refresh])
 
@@ -226,6 +243,9 @@ export default function Bridge() {
     const pusdUnits = parseUnits(pusdAmount, PUSD_DECIMALS)
     const usdcUnits = parseUnits(usdcAmount, USDC_DECIMALS)
     if (pusdUnits <= 0n || usdcUnits <= 0n) throw new Error('Both amounts must be above zero')
+    if (!contractAddr || !(await isSwapLock(contractAddr))) {
+      throw new Error('The Base contract saved in this browser is not the Nomos SwapLock')
+    }
 
     const s = newSecret()
     const start = now()
@@ -241,6 +261,7 @@ export default function Bridge() {
       responderRefundAfter: start + RESPONDER_LOCK_S,
       baseFromBlock: Math.max(0, (await latestBlock()) - 10),
       createdAt: start,
+      baseContract: contractAddr,
     }
     save(secretKey(next.secretHash), s)
     setParams({ offer: encodeOffer(next) })
@@ -269,7 +290,9 @@ export default function Bridge() {
     const bch = bchLockParams(offer)
     const base = baseLockParams(offer)
     const pusdLocked = Boolean(bchLock && bchLock.pusd >= BigInt(offer.pusdUnits))
-    const baseLockOk = Boolean(baseLock
+    // A lock read from an unverified contract proves nothing, so require the code check.
+    const baseLockOk = Boolean(contractOk === true
+      && baseLock
       && baseLock.token.toLowerCase() === USDC_BASE.toLowerCase()
       && baseLock.recipient.toLowerCase() === base.recipient.toLowerCase()
       && baseLock.amount >= BigInt(offer.usdcUnits)
@@ -294,11 +317,11 @@ export default function Bridge() {
     })
     const lockUsdcStep = (): Step['action'] => ({
       label: 'Approve and lock',
-      disabled: Boolean(baseLock),
+      disabled: Boolean(baseLock) || contractOk !== true,
       run: () => run('Locking USDC', async () => {
         needBase()
         if (now() > base.refundAfter - 2 * HOUR) throw new Error("Too close to this lock's refund time; start a new offer")
-        const { hash } = await lockUsdc(offer.secretHash, base.recipient, BigInt(offer.usdcUnits), base.refundAfter)
+        const { hash } = await lockUsdc(offer.secretHash, base.recipient, BigInt(offer.usdcUnits), base.refundAfter, activeContract)
         updateProgress({ baseLockHash: hash })
       }),
     })
@@ -311,7 +334,7 @@ export default function Bridge() {
           { label: `Counterparty locks ${usdcText(offer.usdcUnits)} on Base`, detail: baseLock ? (baseLockOk ? 'Lock found and matches the offer.' : 'A lock exists but does not match the offer. Do not claim; wait for your refund.') : 'Not locked yet.', done: baseLockOk },
           {
             label: 'Claim the USDC on Base', detail: `This reveals the secret on Base. Claim before ${when(base.refundAfter)}.`, done: baseDone,
-            action: { label: 'Claim', disabled: !baseLockOk || baseDone, run: () => run('Claiming USDC', async () => { needBase(); updateProgress({ baseClaimHash: await claimUsdc(`0x${secret}`) }) }) },
+            action: { label: 'Claim', disabled: !baseLockOk || baseDone, run: () => run('Claiming USDC', async () => { needBase(); updateProgress({ baseClaimHash: await claimUsdc(`0x${secret}`, activeContract) }) }) },
           },
         )
       } else {
@@ -323,7 +346,7 @@ export default function Bridge() {
             action: {
               label: 'Find secret and claim', disabled: !baseDone || Boolean(progress.bchClaimTxid),
               run: () => run('Claiming PUSD', async () => {
-                const found = await findBaseSecret(offer.secretHash, offer.baseFromBlock)
+                const found = await findBaseSecret(offer.secretHash, offer.baseFromBlock, activeContract)
                 if (!found) throw new Error('No claim on Base yet')
                 const w = needBch(offer.responder.bchPk)
                 updateProgress({ bchClaimTxid: await claimPusd(offer, found.slice(2), w.address, w.provider, w.wcIndex ?? 0) })
@@ -360,7 +383,7 @@ export default function Bridge() {
               needBase()
               const found = await findBchSecret(offer, claimTxid)
               if (!found) throw new Error("That transaction does not reveal this swap's secret")
-              updateProgress({ baseClaimHash: await claimUsdc(`0x${found}`) })
+              updateProgress({ baseClaimHash: await claimUsdc(`0x${found}`, activeContract) })
             }),
           },
         },
@@ -383,7 +406,7 @@ export default function Bridge() {
     if (baseLock && !baseLock.done && baseAddr && baseLock.sender.toLowerCase() === baseAddr.toLowerCase() && now() >= base.refundAfter) {
       refunds.push({
         label: 'Refund the USDC', detail: 'The other side did not complete in time.', done: false,
-        action: { label: 'Refund', run: () => run('Refunding USDC', async () => { updateProgress({ baseRefundHash: await refundUsdc(offer.secretHash) }) }) },
+        action: { label: 'Refund', run: () => run('Refunding USDC', async () => { updateProgress({ baseRefundHash: await refundUsdc(offer.secretHash, activeContract) }) }) },
       })
     }
   }
@@ -416,10 +439,17 @@ export default function Bridge() {
         <KV label="Base">{baseAddr ? shortAddr(baseAddr, 6, 4) : 'Not connected'}</KV>
         <KV label="USDC balance">{balances.usdc === undefined ? '—' : usdcText(balances.usdc)}</KV>
         {!baseAddr && (
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className={`mt-3 grid gap-2 ${WALLETCONNECT_ENABLED ? 'grid-cols-2' : 'grid-cols-1'}`}>
             <button type="button" className="btn-ghost text-sm" disabled={!hasInjectedWallet() || Boolean(busy)} onClick={() => { void connectBase('injected') }}>Browser wallet</button>
-            <button type="button" className="btn-ghost text-sm" disabled={Boolean(busy)} onClick={() => { void connectBase('walletconnect') }}>WalletConnect</button>
+            {WALLETCONNECT_ENABLED && (
+              <button type="button" className="btn-ghost text-sm" disabled={Boolean(busy)} onClick={() => { void connectBase('walletconnect') }}>WalletConnect</button>
+            )}
           </div>
+        )}
+        {!baseAddr && !hasInjectedWallet() && (
+          <p className="mt-2 text-sm text-nomos-muted">
+            For the Base side, open this page in a browser with a Base wallet such as MetaMask, Rabby or Coinbase Wallet{WALLETCONNECT_ENABLED ? ', or pair one with WalletConnect' : ''}.
+          </p>
         )}
         {wcUri && (
           <div className="mt-3 flex flex-col items-center gap-2">
@@ -434,16 +464,25 @@ export default function Bridge() {
         )}
       </Panel>
 
-      {!contractAddr && (
+      {!activeContract && (
         <Panel title="Swap contract not on Base yet">
           <p className="text-sm text-nomos-muted">It has to be deployed once. That costs a few cents of ETH on Base.</p>
           <button type="button" className="btn-ghost mt-3 w-full text-sm" disabled={!baseAddr || Boolean(busy)} onClick={() => { void deploy() }}>Deploy SwapLock on Base</button>
         </Panel>
       )}
-      {contractAddr && (
+      {activeContract && (
         <p className="text-xs text-nomos-muted">
-          Base contract <a className="underline" href={`${BASE_EXPLORER_ADDRESS}${contractAddr}`} target="_blank" rel="noreferrer">{shortAddr(contractAddr, 6, 4)}</a>
+          Base contract <a className="underline" href={`${BASE_EXPLORER_ADDRESS}${activeContract}`} target="_blank" rel="noreferrer">{shortAddr(activeContract, 6, 4)}</a>
+          {contractOk === true && ' · code matches contracts/evm/SwapLock.sol'}
+          {contractOk === null && ' · checking its code…'}
         </p>
+      )}
+      {activeContract && contractOk === false && (
+        <Panel title="Not the Nomos swap contract">
+          <p className="text-sm text-nomos-refuse">
+            The Base contract {offer ? 'this offer names' : 'saved in this browser'} does not run the audited SwapLock code. Do not lock or claim anything with it.
+          </p>
+        </Panel>
       )}
       {!offer ? (
         <>
@@ -458,7 +497,7 @@ export default function Bridge() {
                 <input className="input" inputMode="decimal" placeholder="USDC amount" value={usdcAmount} onChange={(e) => setUsdcAmount(e.target.value)} />
               </div>
               <textarea className="input min-h-[64px] font-mono text-sm" placeholder="Counterparty swap details (they copy them from this page)" value={counterparty} onChange={(e) => setCounterparty(e.target.value)} />
-              <button type="button" className="btn-primary w-full" disabled={!contractAddr || Boolean(busy)} onClick={() => { void createOffer() }}>Create offer</button>
+              <button type="button" className="btn-primary w-full" disabled={!contractAddr || contractOk === false || Boolean(busy)} onClick={() => { void createOffer() }}>Create offer</button>
               <p className="text-sm text-nomos-muted">Your lock lasts 24 hours and theirs 12, so you always claim first.</p>
             </div>
           </Panel>

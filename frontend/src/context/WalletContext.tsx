@@ -7,6 +7,7 @@ import {
 } from 'react'
 import type { ReactNode } from 'react'
 import { useWizardConnect } from '@wizardconnect/react'
+import { appIconUrl } from '../lib/env'
 import {
   setWcManager,
   getWcPubkeyHex,
@@ -111,7 +112,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     error: wcError,
   } = useWizardConnect({
     dappName: 'Nomos',
-    dappIcon: window.location.origin + '/favicon.ico',
+    dappIcon: appIconUrl(),
     persistSession: true,
   })
 

@@ -3,6 +3,7 @@
 // + BCH WalletConnect v2 (Cashonize / Paytaca / XO)
 
 import type { WalletConnection, WalletProviderType } from './types'
+import { WC_PROJECT_ID, appIconUrl } from './env'
 import { binToHex } from '@wizardconnect/core'
 import type { DappConnectionManager } from '@wizardconnect/dapp'
 import {
@@ -88,15 +89,16 @@ let wc2SignClient: any = null
 let wc2Session: any = null
 
 export async function connectWc2(): Promise<WalletConnection> {
+  if (!WC_PROJECT_ID) throw new Error('WalletConnect is not set up on this site; use WizardConnect')
   const { SignClient } = await import('@walletconnect/sign-client')
 
   wc2SignClient = await SignClient.init({
-    projectId: import.meta.env.VITE_WC_PROJECT_ID || '',
+    projectId: WC_PROJECT_ID,
     metadata: {
       name: 'Nomos',
       description: 'On-chain spend mandates for BCH',
       url: window.location.origin,
-      icons: [],
+      icons: [appIconUrl()],
     },
   })
 
