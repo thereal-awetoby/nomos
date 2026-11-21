@@ -406,13 +406,10 @@ export default function Bridge() {
   }
   return (
     <div className="page-enter space-y-4">
-      <header>
-        <p className="eyebrow">ATOMIC SWAP · BITCOIN CASH AND BASE</p>
-        <h1 className="page-title">Swap PUSD and USDC</h1>
-        <p className="mt-1.5 max-w-prose text-xs leading-relaxed text-nomos-muted">
-          Trade PUSD on Bitcoin Cash for USDC on Base with another person. Both sides lock funds behind the same secret; claiming one side reveals the secret that unlocks the other, and each lock refunds its sender after a timeout. Nothing is held by Nomos.
-        </p>
-      </header>
+      <h1 className="page-title">Swap PUSD and USDC</h1>
+      <p className="text-sm text-nomos-muted">
+        Trade PUSD on Bitcoin Cash for USDC on Base with another person. Both sides lock to the same secret, and each lock refunds if the other side never pays.
+      </p>
       <Panel title="Wallets">
         <KV label="Bitcoin Cash">{wallet?.connected ? shortAddr(wallet.address, 10, 6) : 'Not connected'}</KV>
         <KV label="PUSD balance">{balances.pusd === undefined ? '—' : pusdText(balances.pusd)}</KV>
@@ -420,31 +417,31 @@ export default function Bridge() {
         <KV label="USDC balance">{balances.usdc === undefined ? '—' : usdcText(balances.usdc)}</KV>
         {!baseAddr && (
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <button type="button" className="btn-ghost py-2 text-[10px]" disabled={!hasInjectedWallet() || Boolean(busy)} onClick={() => { void connectBase('injected') }}>Browser wallet</button>
-            <button type="button" className="btn-ghost py-2 text-[10px]" disabled={Boolean(busy)} onClick={() => { void connectBase('walletconnect') }}>WalletConnect</button>
+            <button type="button" className="btn-ghost text-sm" disabled={!hasInjectedWallet() || Boolean(busy)} onClick={() => { void connectBase('injected') }}>Browser wallet</button>
+            <button type="button" className="btn-ghost text-sm" disabled={Boolean(busy)} onClick={() => { void connectBase('walletconnect') }}>WalletConnect</button>
           </div>
         )}
         {wcUri && (
           <div className="mt-3 flex flex-col items-center gap-2">
             <canvas ref={qrRef} />
-            <button type="button" className="text-[10px] text-nomos-accent hover:underline" onClick={() => { void copy(wcUri, 'Pairing link') }}>Copy pairing link</button>
+            <button type="button" className="text-sm font-medium text-nomos-text hover:underline" onClick={() => { void copy(wcUri, 'Pairing link') }}>Copy pairing link</button>
           </div>
         )}
         {myDetails && (
-          <button type="button" className="mt-3 text-[10px] text-nomos-accent hover:underline" onClick={() => { void copy(myDetails, 'Swap details') }}>
-            Copy my swap details (BCH public key and Base address) to send to a counterparty
+          <button type="button" className="mt-3 text-sm font-medium text-nomos-text hover:underline" onClick={() => { void copy(myDetails, 'Swap details') }}>
+            Copy my swap details
           </button>
         )}
       </Panel>
 
       {!contractAddr && (
-        <Panel title="Base contract not deployed" tone="pending">
-          <p className="text-[11px] leading-relaxed text-nomos-muted">SwapLock (contracts/evm/SwapLock.sol) must exist on Base once. Deploying costs a few cents of ETH on Base.</p>
-          <button type="button" className="btn-ghost mt-3 w-full py-2 text-[10px]" disabled={!baseAddr || Boolean(busy)} onClick={() => { void deploy() }}>Deploy SwapLock on Base</button>
+        <Panel title="Swap contract not on Base yet">
+          <p className="text-sm text-nomos-muted">It has to be deployed once. That costs a few cents of ETH on Base.</p>
+          <button type="button" className="btn-ghost mt-3 w-full text-sm" disabled={!baseAddr || Boolean(busy)} onClick={() => { void deploy() }}>Deploy SwapLock on Base</button>
         </Panel>
       )}
       {contractAddr && (
-        <p className="font-mono text-[9px] text-nomos-muted">
+        <p className="text-xs text-nomos-muted">
           Base contract <a className="underline" href={`${BASE_EXPLORER_ADDRESS}${contractAddr}`} target="_blank" rel="noreferrer">{shortAddr(contractAddr, 6, 4)}</a>
         </p>
       )}
@@ -452,51 +449,51 @@ export default function Bridge() {
         <>
           <Panel title="Create an offer">
             <div className="space-y-2">
-              <select className="input text-xs" value={direction} onChange={(e) => setDirection(e.target.value as SwapDirection)}>
+              <select className="input" value={direction} onChange={(e) => setDirection(e.target.value as SwapDirection)}>
                 <option value="pusd-to-usdc">I give PUSD, I get USDC</option>
                 <option value="usdc-to-pusd">I give USDC, I get PUSD</option>
               </select>
               <div className="grid grid-cols-2 gap-2">
-                <input className="input text-xs" inputMode="decimal" placeholder="PUSD amount" value={pusdAmount} onChange={(e) => setPusdAmount(e.target.value)} />
-                <input className="input text-xs" inputMode="decimal" placeholder="USDC amount" value={usdcAmount} onChange={(e) => setUsdcAmount(e.target.value)} />
+                <input className="input" inputMode="decimal" placeholder="PUSD amount" value={pusdAmount} onChange={(e) => setPusdAmount(e.target.value)} />
+                <input className="input" inputMode="decimal" placeholder="USDC amount" value={usdcAmount} onChange={(e) => setUsdcAmount(e.target.value)} />
               </div>
-              <textarea className="input min-h-[64px] font-mono text-[10px]" placeholder="Counterparty swap details (they copy them from this page)" value={counterparty} onChange={(e) => setCounterparty(e.target.value)} />
-              <button type="button" className="btn-primary w-full py-2" disabled={!contractAddr || Boolean(busy)} onClick={() => { void createOffer() }}>Create offer</button>
-              <p className="text-[10px] text-nomos-muted">Your lock lasts 24 hours and the counterparty's 12, so you claim first and reveal the secret while they still have time to claim.</p>
+              <textarea className="input min-h-[64px] font-mono text-sm" placeholder="Counterparty swap details (they copy them from this page)" value={counterparty} onChange={(e) => setCounterparty(e.target.value)} />
+              <button type="button" className="btn-primary w-full" disabled={!contractAddr || Boolean(busy)} onClick={() => { void createOffer() }}>Create offer</button>
+              <p className="text-sm text-nomos-muted">Your lock lasts 24 hours and theirs 12, so you always claim first.</p>
             </div>
           </Panel>
           <Panel title="Open an offer">
             <div className="flex gap-2">
-              <input className="input text-xs" placeholder="Paste an offer link" value={openText} onChange={(e) => setOpenText(e.target.value)} />
-              <button type="button" className="btn-ghost shrink-0 px-3 text-[10px]" onClick={openOffer} disabled={!openText.trim()}>Open</button>
+              <input className="input" placeholder="Paste an offer link" value={openText} onChange={(e) => setOpenText(e.target.value)} />
+              <button type="button" className="btn-ghost shrink-0 text-sm" onClick={openOffer} disabled={!openText.trim()}>Open</button>
             </div>
           </Panel>
         </>
       ) : (
         <>
-          <Panel title="Offer" right={<button type="button" className="text-[10px] text-nomos-accent hover:underline" onClick={() => { void copy(shareLink, 'Offer link') }}>Copy link</button>}>
+          <Panel title="Offer" right={<button type="button" className="text-sm font-medium text-nomos-text hover:underline" onClick={() => { void copy(shareLink, 'Offer link') }}>Copy link</button>}>
             <KV label="Trade">{offer.direction === 'pusd-to-usdc' ? `${pusdText(offer.pusdUnits)} for ${usdcText(offer.usdcUnits)}` : `${usdcText(offer.usdcUnits)} for ${pusdText(offer.pusdUnits)}`}</KV>
             <KV label="Secret hash">{offer.secretHash.slice(0, 16)}…</KV>
             <KV label="PUSD lock address">{shortAddr(bchLockAddress(offer), 10, 6)}</KV>
             <KV label="Your role">{role === 'initiator' ? 'Offer creator' : 'Counterparty'}</KV>
             {secret && (
-              <button type="button" className="mt-2 text-[10px] text-nomos-muted hover:text-nomos-text" onClick={() => setRole(role === 'initiator' ? 'responder' : 'initiator')}>
-                Show the {role === 'initiator' ? 'counterparty' : 'offer creator'} steps (when you are both sides)
+              <button type="button" className="mt-2 text-sm text-nomos-muted hover:text-nomos-text" onClick={() => setRole(role === 'initiator' ? 'responder' : 'initiator')}>
+                Show the {role === 'initiator' ? 'counterparty' : 'offer creator'} steps
               </button>
             )}
           </Panel>
 
-          <Panel title="Steps" right={<button type="button" className="text-[10px] text-nomos-accent hover:underline" onClick={() => { void refresh() }}>Refresh</button>}>
+          <Panel title="Steps" right={<button type="button" className="text-sm font-medium text-nomos-text hover:underline" onClick={() => { void refresh() }}>Refresh</button>}>
             <ol className="space-y-3">
               {steps.map((step, i) => (
-                <li key={step.label} className="border hairline p-3">
+                <li key={step.label} className="rounded-lg border hairline p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className={`font-mono text-[11px] font-semibold ${step.done ? 'text-nomos-accent' : 'text-nomos-text'}`}>{i + 1}. {step.label}</p>
-                      <p className="mt-1 text-[10px] leading-relaxed text-nomos-muted">{step.detail}</p>
+                      <p className={`text-[15px] font-medium ${step.done ? 'text-nomos-muted' : 'text-nomos-text'}`}>{i + 1}. {step.label}{step.done ? ' · done' : ''}</p>
+                      <p className="mt-1 text-sm leading-relaxed text-nomos-muted">{step.detail}</p>
                     </div>
                     {step.action && !step.done && (
-                      <button type="button" className="btn-ghost shrink-0 px-3 py-1.5 text-[10px]" disabled={step.action.disabled || Boolean(busy)} onClick={() => { void step.action!.run() }}>
+                      <button type="button" className="btn-ghost shrink-0 py-1.5 text-sm" disabled={step.action.disabled || Boolean(busy)} onClick={() => { void step.action!.run() }}>
                         {step.action.label}
                       </button>
                     )}
@@ -505,18 +502,18 @@ export default function Bridge() {
               ))}
             </ol>
             {offer.direction === 'usdc-to-pusd' && role === 'responder' && (
-              <input className="input mt-3 font-mono text-[10px]" placeholder="PUSD claim transaction ID from the other side" value={claimTxid} onChange={(e) => setClaimTxid(e.target.value)} />
+              <input className="input mt-3 font-mono text-sm" placeholder="PUSD claim transaction ID from the other side" value={claimTxid} onChange={(e) => setClaimTxid(e.target.value)} />
             )}
-            {busy && <p className="mt-3 text-xs text-nomos-accent"><span className="spinner mr-2" />{busy}…</p>}
+            {busy && <p className="mt-3 text-sm text-nomos-muted-bright"><span className="spinner mr-2" />{busy}…</p>}
             {error && <p className="mt-3 text-xs text-nomos-refuse">{error}</p>}
           </Panel>
 
           {refunds.length > 0 && (
-            <Panel title="Refunds" tone="pending">
+            <Panel title="Refunds">
               {refunds.map((r) => (
                 <div key={r.label} className="flex items-center justify-between gap-3 py-1">
-                  <span className="text-[11px] text-nomos-text">{r.label}</span>
-                  <button type="button" className="btn-ghost px-3 py-1.5 text-[10px]" disabled={Boolean(busy)} onClick={() => { void r.action!.run() }}>{r.action!.label}</button>
+                  <span className="text-sm text-nomos-text">{r.label}</span>
+                  <button type="button" className="btn-ghost py-1.5 text-sm" disabled={Boolean(busy)} onClick={() => { void r.action!.run() }}>{r.action!.label}</button>
                 </div>
               ))}
             </Panel>
@@ -530,7 +527,7 @@ export default function Bridge() {
             </Panel>
           )}
 
-          <button type="button" className="btn-ghost w-full py-2 text-[10px]" onClick={() => setParams({})}>New offer</button>
+          <button type="button" className="btn-ghost w-full text-sm" onClick={() => setParams({})}>New offer</button>
         </>
       )}
     </div>

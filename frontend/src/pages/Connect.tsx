@@ -97,13 +97,9 @@ export default function Connect() {
   return (
     <div className="page-enter flex min-h-[75vh] flex-col items-center justify-center text-center">
       <div className="mb-8">
-        <h1 className="font-mono text-5xl font-bold tracking-tighter text-nomos-text">
-          NOMOS
-        </h1>
-        <p className="mt-3 text-sm leading-relaxed text-nomos-muted">
-          On-chain spend rules for BCH.
-          <br />
-          Set a daily limit. The vault covenant checks each spend.
+        <h1 className="page-title">Connect your wallet</h1>
+        <p className="mx-auto mt-2 max-w-xs text-[15px] leading-relaxed text-nomos-muted">
+          Use Paytaca with WizardConnect, or any Bitcoin Cash wallet that supports WalletConnect.
         </p>
       </div>
 
@@ -137,7 +133,7 @@ export default function Connect() {
           </div>
           <button
             onClick={() => { void copyWc2Uri() }}
-            className="text-[10px] text-nomos-muted hover:text-nomos-accent transition-colors duration-200"
+            className="text-sm text-nomos-muted transition-colors hover:text-nomos-text"
           >
             Copy pairing URI
           </button>
@@ -145,13 +141,13 @@ export default function Connect() {
       )}
 
       {wcWalletName && wcState === 'connected' && (
-        <p className="mt-5 text-xs text-nomos-muted-bright">
+        <p className="mt-5 text-sm text-nomos-muted-bright">
           Connected to {wcWalletName}
         </p>
       )}
 
       {displayError && (
-        <p className="mt-5 text-xs text-nomos-refuse">{displayError}</p>
+        <p className="mt-5 text-sm text-nomos-refuse">{displayError}</p>
       )}
 
       {wcUri && wcQrUri && (
@@ -165,32 +161,9 @@ export default function Connect() {
         />
       )}
 
-      <section className="mt-10 w-full max-w-sm space-y-3 text-left" aria-labelledby="how-nomos-works">
-        <h2 id="how-nomos-works" className="label text-center">How it works</h2>
-        <ol className="space-y-2">
-          {[
-            { step: '1', title: 'Connect a BCH wallet' },
-            { step: '2', title: 'Create a vault with a daily limit' },
-            { step: '3', title: 'Fund the vault' },
-            { step: '4', title: 'Pay under the rules' },
-          ].map(({ step, title }) => (
-            <li key={step} className="flex items-center gap-3">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-nomos-accent/15 text-[10px] font-bold text-nomos-accent">
-                {step}
-              </span>
-              <p className="text-xs text-nomos-text">{title}</p>
-            </li>
-          ))}
-        </ol>
-        <div className="grid grid-cols-2 gap-2 pt-2">
-          <Link to="/simulate" className="btn-ghost py-2 text-center text-[10px]">
-            Simulator
-          </Link>
-          <Link to="/architecture" className="btn-ghost py-2 text-center text-[10px]">
-            Architecture
-          </Link>
-        </div>
-      </section>
+      <p className="mt-10 text-sm text-nomos-muted">
+        No wallet yet? <Link to="/simulate" className="text-nomos-text underline-offset-2 hover:underline">Try the simulator</Link>
+      </p>
     </div>
   )
 }

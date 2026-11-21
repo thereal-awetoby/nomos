@@ -2,19 +2,18 @@
 
 ## Scope
 
-Nomos is a browser application for interacting with Bitcoin Cash spend-mandate
-vaults. The repository also contains experimental SolidCash StableSwap and
-BCH-side HTLC prototypes. The Bridge route is a nonfunctional preview: no
-swap or bridge transaction can be initiated there; its action buttons are
-disabled.
+Nomos is a browser application for Bitcoin Cash spend-mandate vaults, with a
+landing page, a peer-to-peer PUSD and USDC swap with Base, and a BCH and Nostr
+identity link. The repository also contains SolidCash StableSwap and BCH-side
+HTLC prototypes, which the app does not use.
 
 ## System overview
 
 ```text
 ┌──────────────────────── Browser ───────────────────────────┐
 │ React Router pages                                         │
-│ Connect · Vault · Mandate · Pay · Activity · Proof · Rescue│
-│ Bridge · Identity · Simulate · Architecture                │
+│ Landing · Connect · Vault · Rules · Pay · Activity · Proof │
+│ Rescue · Swap · Identity · Simulate · Architecture         │
 │                           │                                │
 │                     WalletContext                          │
 │              wallet · vault config · receipts               │
@@ -48,15 +47,16 @@ address is used. The Simulator is local-only and does not execute a covenant.
 
 | Route | Page | Responsibility |
 |---|---|---|
-| `/` | `Connect` | Pair a wallet using WizardConnect or WalletConnect. |
+| `/` | `Landing` | What Nomos is, how it works, mainnet transactions, FAQ. |
+| `/connect` | `Connect` | Pair a wallet using WizardConnect or WalletConnect. |
 | `/vault` | `VaultHome` | Show balance, mandate, funding address, and vault actions. |
-| `/mandate` | `SetMandate` | Create a vault or update its owner-configured mandate. |
+| `/mandate` | `SetMandate` | Rules: create a vault or change its limit, allowlist, agent key and rescue key. |
 | `/pay` | `Pay` | Prepare a payment under the current vault rules. |
 | `/activity` | `Activity` | Show locally saved receipts, node script-failure counts, and a JSON export. |
 | `/proof` | `Proof` | Wallet-free signed-transaction checker, optional vault-assisted signing, and browser-local node-check records. |
 | `/rescue` | `Rescue` | Present the owner/co-signer emergency path. The current in-app signing flow has limitations for separate keys; see the root README. |
-| `/bridge` | `Bridge` | Disabled Swap / Bridge In / Bridge Out preview. |
-| `/identity` | `Identity` | Resolve a Nostr identity through external NIP-05/relay services and verify the signed BCH-address event. |
+| `/bridge` | `Bridge` | Swap PUSD on Bitcoin Cash and USDC on Base with another person (hash-time locks on both chains). |
+| `/identity` | `Identity` | Create and verify BCH and Nostr links, check signed login responses, and look up published addresses. |
 | `/simulate` | `Simulate` | Local illustration of daily-limit and exact-text allowlist rules; no wallet, contract execution, or transaction. |
 | `/architecture` | `Architecture` | In-app overview of the system stack, contract surfaces, security boundaries, repository coverage, and validation entry points. |
 
@@ -85,15 +85,15 @@ script failed or prove that the Nomos covenant rule caused it.
 
 | Contract | File | Purpose and current boundary |
 |---|---|---|
-| NomosVault (CashScript) | `contracts/NomosVault.cash` | BCH spend mandate; mutable spend state is carried by the CashTokens NFT commitment. Chipnet proofs are documented in the root README. |
-| NomosVault (SolidCash) | `contracts/solidcash/NomosVault.scash` | SolidCash edition with mock-network tests and a chipnet demo script for the vault. |
-| StableSwap | `contracts/solidcash/StableSwap.scash` | Experimental BCH / one configured CashToken-category pool. Admin-only liquidity management; no LP-share accounting. PUSD metadata and deployment are pending. |
+| NomosVault (CashScript) | `contracts/NomosVault.cash` | BCH spend mandate; spend state is carried by the CashTokens NFT commitment. Run on mainnet from the app; see `docs/MAINNET_PROOFS.md`. |
+| NomosVault (SolidCash) | `contracts/solidcash/NomosVault.scash` | SolidCash edition with mock-network tests; run on mainnet with `demo.mjs`. |
+| SwapLock | `contracts/SwapLock.cash`, `contracts/evm/SwapLock.sol` | Hash-time locks for the PUSD and USDC swap; tested in the BCH VM and on a local EVM node. |
+| StableSwap | `contracts/solidcash/StableSwap.scash` | Prototype BCH / one configured CashToken-category pool. Admin-only liquidity management; no LP-share accounting. PUSD metadata and deployment are pending. |
 | HashedTimeLock | `contracts/solidcash/HashedTimeLock.scash` | BCH-only native-satoshi lock, SHA-256 claim, and timestamp refund prototype. It does not hold PUSD or verify another chain. |
 
 The StableSwap and HTLC tests run compiled contracts on SolidCash's mock BCH
-VM. They are not evidence of an audit, a mainnet deployment, or a cross-chain
-integration. A real cross-chain flow would require a separate contract on the
-other chain and reviewed timeout/recovery behavior.
+VM; neither prototype is deployed. A real cross-chain flow would require a
+separate contract on the other chain and reviewed timeout/recovery behavior.
 
 ## Validation entry points
 
@@ -105,5 +105,5 @@ npm test
 
 The suite builds all three contracts, then runs the vault, StableSwap, and
 HashedTimeLock mock-network test scripts. [The XO guide](../xo/README.md)
-documents separate offline template checks. The [mainnet proof checklist](MAINNET_PROOFS.md)
-tracks evidence still required before deployment.
+documents separate offline template checks. [MAINNET_PROOFS.md](MAINNET_PROOFS.md)
+lists every mainnet transaction.

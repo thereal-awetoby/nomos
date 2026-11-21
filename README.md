@@ -1,9 +1,8 @@
 # Nomos
 
-Pay or withdraw BCH only under rules the chain itself enforces.
-Violate → refuse on-chain. Obey → pay + receipt.
+Spending rules for Bitcoin Cash that every node enforces.
 
-Built for BCH BLAZE 2026 · [Live demo](https://nomos.asgaya.org/) · EMBER2026 votes: `bitcoincash:zqz0cjlclvk6909mctktqsk77d7z6gev0cqejwlp4h`
+Built for BCH BLAZE 2026 · [nomos.asgaya.org](https://nomos.asgaya.org/) · EMBER2026 votes: `bitcoincash:zqz0cjlclvk6909mctktqsk77d7z6gev0cqejwlp4h`
 
 ## What it is
 
@@ -16,23 +15,37 @@ That makes it safe to hand spending power to someone else, including an AI
 agent: give it the agent key, and it can pay up to the limit, to the
 addresses you chose, and nothing more.
 
-## Proof on chipnet
+## Proof on mainnet
 
-Run with `contracts/test/vault.test.mjs` against a live chipnet vault
-(daily limit 10,000 sats):
+**CashScript vault, run from the Nomos app with Paytaca over WizardConnect.**
+A vault was created, paid 2,000 sats under its daily limit, and had its rules
+changed by the owner. A signed payment over the limit was sent to a mainnet
+node, which rejected it:
 
-| Case | Result |
+```
+mandatory-script-verify-flag-failed (Script failed an OP_VERIFY operation)
+```
+
+The rejected transaction was fully signed with its fee included. The only
+covenant rule it broke was the daily limit (`NomosVault.cash` line 45), so no
+node relays it and no miner can include it. Transaction links are in
+[`docs/MAINNET_PROOFS.md`](docs/MAINNET_PROOFS.md).
+
+**SolidCash vault, 20 Nov 2026** (daily limit 2,000 sats):
+
+| Step | Result |
 |------|--------|
-| Pay 3,000 sats (under limit) | **Paid** — [`2dac2f0f…`](https://chipnet.chaingraph.cash/tx/2dac2f0f7aa9020bc884bd6a1a871e135ef9ff2989729da233972971b3d77ed2) |
-| Pay 7,001 more the same day (10,001 total) | **Refused by the network** — `mandatory-script-verify-flag-failed (Script failed an OP_VERIFY operation)` |
+| Deploy, 5,000 sats deposited | [`bee48c5f…`](https://blockchair.com/bitcoin-cash/transaction/bee48c5f73f16a9ad83669b4a1350d01e07ebf104d155e2b557837e9fd04113d) |
+| Pay 1,000 sats | **Paid** [`93e9fdad…`](https://blockchair.com/bitcoin-cash/transaction/93e9fdadaf3ebc5b5182a5b3dcd527b8ab9c6d8480160276a573b9d7b616aae6) |
+| Pay 1,500 more the same day | **Refused** at `NomosVault.scash:43` |
+| Rescue the remaining 4,000 sats (owner + co-signer) | [`305c7a47…`](https://blockchair.com/bitcoin-cash/transaction/305c7a47a2721ba1b290782df991b5a99bc1da7553b734d764f53e5f81ff913f) |
 
-The refused transaction was fully signed with a 1,000-sat fee included and
-submitted to a chipnet node. The only covenant rule it broke was the daily
-limit (`NomosVault.cash` line 45). The node rejected it before inclusion in
-a block, so no fee was paid for that transaction.
+### Earlier chipnet test
 
-Vault genesis (state NFT minted into the covenant):
-[`5ce59ecf…`](https://chipnet.chaingraph.cash/tx/5ce59ecf85cc26a3ab3b6d3790d8247d53b5dd701fc6978cb462d3e0f7d2173b)
+`contracts/test/vault.test.mjs` against a chipnet vault (limit 10,000 sats):
+paid 3,000 sats ([`2dac2f0f…`](https://chipnet.chaingraph.cash/tx/2dac2f0f7aa9020bc884bd6a1a871e135ef9ff2989729da233972971b3d77ed2)),
+then a node refused 7,001 more with the same `OP_VERIFY` failure. Vault genesis:
+[`5ce59ecf…`](https://chipnet.chaingraph.cash/tx/5ce59ecf85cc26a3ab3b6d3790d8247d53b5dd701fc6978cb462d3e0f7d2173b).
 
 ## How it works
 
@@ -71,18 +84,18 @@ run on mainnet: deployed, paid under its limit, refused over it, then rescued
 
 ## StableSwap — BCH ↔ PUSD AMM
 
-`contracts/solidcash/StableSwap.scash` is an experimental BCH ↔ one configured
+`contracts/solidcash/StableSwap.scash` is a prototype BCH ↔ one configured
 CashToken-category pool using a constant-product quote and a proposed 0.3% fee.
 The implementation bounds arithmetic, checks the pool's token-container
 reserves and incoming token amounts, enforces caller-supplied minimum outputs,
 and restricts liquidity changes to its configured administrator. It has no LP
-shares, so it is not a permissionless or production-ready market. The intended
-PUSD category and its metadata have not been verified or configured here.
+shares. The intended PUSD category and its metadata have not been verified or
+configured here.
 
 The mock-network test uses seeded test tokens in the BCH VM to cover both swap
 directions, reserve and fee behavior, slippage rejection, and admin-only
-liquidity withdrawal. It does not use live BCH or PUSD. The pool has not been
-audited or deployed; the UI keeps all swap actions disabled. See
+liquidity withdrawal. It does not use live BCH or PUSD. The pool is not
+deployed, and the app does not use it. See
 [`docs/BRIDGE_DESIGN.md`](docs/BRIDGE_DESIGN.md) and
 [`docs/MAINNET_PROOFS.md`](docs/MAINNET_PROOFS.md).
 
@@ -118,7 +131,9 @@ USDC: lock, reuse of a hash, wrong secret, early and late claims, third-party
 claim, reading the secret back from the `Claimed` event, and refund.
 
 Each swap needs a counterparty; Nomos runs no pool or market maker. Offers can
-be found through Mercar or any chat and are completed on this page.
+be found through Mercar or any chat and are completed on this page. One person
+can also play both sides with two wallets. Mainnet swap transactions are listed
+in [`docs/MAINNET_PROOFS.md`](docs/MAINNET_PROOFS.md).
 
 ## BCH hash-time-lock prototype
 
@@ -140,15 +155,22 @@ which one wallet connection can't provide, and an XO invitation can. The
 template does the state math itself (new commitment, remaining today). 14
 offline checks with XO's own parser and compiler show every script matches
 CashScript byte for byte inside transactions the covenant accepts, and that
-an over-limit payment is refused. Details in [`xo/README.md`](xo/README.md).
+an over-limit payment is refused.
 
-## Mandate rules
+A live run through XO's engine on chipnet created the vault (the genesis
+transaction was accepted by the network). The pay and rescue steps could not
+finish because XO's Electrum library rejects valid chipnet block headers that
+use the test network's minimum-difficulty rule. Details in
+[`xo/README.md`](xo/README.md) and [`xo/REPRODUCE.md`](xo/REPRODUCE.md).
 
-- **Daily limit** — max sats per locktime-derived day (UTC seconds, with the
-  same three-hour backdate used for transactions), enforced on-chain
-- **Allowlist** — restrict destinations to up to 5 P2PKH addresses (or Nostr names)
-- **Agent key** — spend-only access under the same rules
-- **Rescue** — emergency sweep with owner + rescue co-signer
+## Rules
+
+- **Daily limit**: most sats per locktime-derived day (UTC seconds, with the
+  same three-hour backdate used for transactions), enforced on-chain.
+- **Allowlist**: optionally restrict payments to up to 5 P2PKH addresses
+  (entered as addresses or Nostr names).
+- **Agent key**: a second key that can pay under the same rules, nothing more.
+- **Rescue key**: with the owner, moves the whole vault in an emergency.
 
 ## Pay by Nostr name
 
@@ -158,7 +180,7 @@ No more pasting addresses. In **Pay**, type a Nostr identity (`npub…`,
 1. The name resolves to a Nostr key through NIP-05 (the person's own domain)
    or straight from the npub. No Nomos server is involved.
 2. If the key has a proven link (below), Nomos pays the linked address and
-   shows "Linked · both keys signed" with the anchor transaction. Otherwise
+   shows "Linked by both keys" with the anchor transaction. Otherwise
    it reads the address the key published, in the format Paytaca and OPTN
    wallets already write: kind `30078`, `d = paytaca:bch-address`, signed by
    the Nostr key only. A setting in Pay allows linked addresses only.
@@ -167,7 +189,7 @@ No more pasting addresses. In **Pay**, type a Nostr identity (`npub…`,
    wins and the payment is blocked.
 4. The payment still goes through the covenant, so the daily limit and the
    allowlist apply to Nostr payees too. Allowlist entries can also be Nostr
-   names; they're resolved once when you save the mandate.
+   names; they're resolved once when you save the rules.
 
 Receipts show who you paid by name as well as the address, and the anchor
 transaction and claim event when the address was linked.
@@ -227,34 +249,29 @@ code is `frontend/src/lib/identity.ts`, with the Nostr side in
 
 ## Try it
 
-1. Open the [live demo](https://nomos.asgaya.org/) and connect with WizardConnect or a
-   WalletConnect wallet (XO).
-2. Set a mandate with a low daily limit.
-3. Fund the vault and pay under the limit → the wallet/provider returns a
-   transaction ID; check the explorer for relay, mining, and confirmation.
-4. Try to pay over the limit → the app's live mandate preview blocks the
-   normal Pay action. The chipnet test above documents a signed transaction
-   rejected by a node.
+1. Open [nomos.asgaya.org](https://nomos.asgaya.org/) and choose **Open app**.
+   Connect Paytaca with WizardConnect, or a WalletConnect wallet.
+2. Create a vault with a small deposit and a low daily limit.
+3. Pay under the limit. The receipt links to the transaction.
+4. Try to pay more than the whole daily limit. The app refuses before your
+   wallet signs, and **Check with a node** opens the proof checker, which signs
+   that payment and sends it to a node so you can see the network reject it.
+
+No wallet? The [simulator](https://nomos.asgaya.org/simulate) shows the rules
+without one.
 
 ## Check a refusal (`/proof`)
 
-The proof checker can submit signed transaction hex to the configured public
-Electrum node without connecting a wallet. Its **Check** action calls the
-node's transaction-broadcast RPC; it is not a passive or offline validator.
-A valid transaction may be accepted, relayed, mined, and spend funds. Anyone
-who receives the signed hex can also rebroadcast it. Treat raw transaction hex
-as sensitive and submit only transactions you are willing to expose.
+The proof checker asks the connected wallet to sign a payment that breaks a
+rule that cannot change later (more than the whole daily limit, or an address
+outside the allowlist), then sends it to a BCH node and saves the node's
+answer in this browser. It can also send signed transaction hex without a
+wallet.
 
-The wallet-assisted flow first re-reads the deployed vault mandate, then asks
-the connected wallet to sign a spend that violates a durable rule (above the
-full daily cap or excluded by the immutable allowlist). Signing itself does not
-broadcast; the subsequent node check does. A node rejection is a point-in-time
-response, not proof of mined or confirmed chain state. The interface separates
-script-validation failures, missing or spent inputs, other node rejections,
-and transport failures. A script failure does not identify which input script
-failed or, by itself, prove the Nomos covenant rule caused it. Rejected node
-responses are saved in this browser only; Activity receipts and JSON exports
-may include rebroadcastable signed transaction hex.
+Sending is real: a node that accepts a transaction relays it, and anyone with
+the signed hex can rebroadcast it. A node's rejection is its answer at that
+moment, not a record of chain state, and a script failure does not say which
+input failed.
 
 ## Run locally
 
@@ -287,99 +304,69 @@ node test/vault.test.mjs
 
 | Layer | Choice |
 |-------|--------|
-| Contract | CashScript 0.11 covenant + CashTokens NFT state |
-| SolidCash | Vault, StableSwap, and BCH-side HTLC prototypes (mock tests) |
-| Frontend | Vite + React + TypeScript, Tailwind |
-| Wallets | WizardConnect, WalletConnect v2 (XO) |
+| Contract | CashScript 0.11 covenant with CashTokens NFT state |
+| SolidCash | Vault edition (run on mainnet); StableSwap and HTLC prototypes (mock tests) |
+| Swap | `SwapLock.cash` on Bitcoin Cash, `SwapLock.sol` on Base |
+| Frontend | Vite, React, TypeScript, Tailwind |
+| Wallets | Paytaca over WizardConnect, WalletConnect v2; any EVM wallet for Base |
 | Network | BCH mainnet (chipnet for tests) |
 
 ## Known limitations
 
+- **Real BCH on mainnet.** Start with a small amount.
 - **Rescue needs two signatures** (owner + co-signer). A wallet connection
   signs with one key, so in the app rescue only works when both are the same
   key; for separate keys, use the XO template's rescue action.
 - **Top-ups and agents.** BCH sent straight to the vault (outside the NFT
   coin) can only be merged by the owner. An agent pays from the main vault
-  coin; the owner merges top-ups by paying once or updating the mandate.
-- The in-app pay path hasn't yet been run end-to-end with a live wallet; the
-  covenant itself is verified by the chipnet tests above.
+  coin; the owner merges top-ups by paying once or updating the rules.
+- **Swaps need a counterparty.** Nomos runs no pool or market maker.
+- **Nostr lookups** depend on public relays, which can be slow or return
+  stale results.
 
 ## UX and features
 
-- The banner identifies the configured BCH network. The vault-creation form
-  shows the wallet balance and reports an estimated funding shortfall; vault
-  balances can also be refreshed manually and every 30 seconds while connected.
-- The vault screen provides copyable addresses and a token-aware top-up
-  address/QR code, plus a low-balance notice. Use the token-aware address when
-  funding the vault so the NFT is preserved.
-- A dark/light theme toggle is available. Vault and WalletConnect QR codes
-  adapt to the active theme.
-- Activity shows paid/refused counts and total BCH sent; receipts can be
-  downloaded as PNG images, copied as text, or shared with the native share
-  sheet where the browser supports it.
-- The vault mandate card visualizes today’s effective spend against its daily
-  limit. Pay records the wallet/provider-returned transaction ID as submitted;
-  check an explorer for relay, mining, and confirmation.
-- The **Proof Checker** (`/proof`) supports wallet-assisted signing for durable
-  mandate violations and wallet-free signed-hex checks. Wallet signing requests
-  use `broadcast:false`, but the app then submits the signed hex to the configured
-  Electrum broadcast RPC. A node may accept and relay a spend; a rejection is a
-  timestamped local response, not proof of which covenant rule failed or of
-  mined/confirmed state. The wallet flow only generates durable violations, but
-  the raw-hex checker accepts arbitrary transactions; heed its acknowledgement
-  and rebroadcast warning.
-- The **Mandate Simulator** (`/simulate`) is a local, wallet-free illustration
-  of daily-limit and allowlist checks. It does not execute the covenant,
-  validate BCH addresses, or create transactions.
-- The **Nostr Identity** page (`/identity`) looks up published addresses
-  without a wallet, verifies BCH and Nostr links, creates a link (BCH wallet
-  plus a NIP-07 Nostr signer) and answers login challenges with either key.
-  Relays may withhold or serve stale results.
-- The **Architecture** page (`/architecture`) summarizes the system stack,
-  contract surfaces, and repository/track coverage. It is not an audit or a
-  bounty-eligibility claim and distinguishes chipnet/mock evidence from
-  mainnet deployment claims.
-- Use the fixed help button or press `?` for keyboard shortcuts. Single-key
-  shortcuts can be disabled in the palette and are ignored in editable fields.
-- The root page includes link-preview/theme metadata and a web app manifest
-  with SVG icons; no offline service worker is included.
-- The Swap route (`/bridge`) runs PUSD and USDC atomic swaps between Bitcoin
-  Cash and Base. Mercar and Asgaya are external links; offers found there are
-  completed on the Swap page.
+- **Landing page** (`/`): what Nomos is, how it works, the mainnet
+  transactions and an FAQ. **Open app** starts at `/connect`.
+- **Vault**: balance, the vault and token-aware deposit addresses with QR codes,
+  today's spending against the limit, and a seven-day chart.
+- **Pay**: checks each payment against the rules as you type, pays addresses or
+  Nostr names, and saves a receipt.
+- **Rules**: create the vault or change its limit, allowlist, agent key and
+  rescue key.
+- **Activity**: every payment, refusal and vault change, each with a receipt
+  you can save as an image, copy or share.
+- **Proof checker**, **Simulator**, **Nostr identity** and **Swap** work as
+  described above; the simulator and identity checks need no wallet.
+- Light and dark themes, bottom tabs on phones, and keyboard shortcuts on
+  desktop (press `?`).
 
 ## Bounty and ecosystem coverage
 
-This table describes code in the repository, not bounty eligibility, judging,
-or awards:
-
-| Area | Repository coverage | Status boundary |
-|------|---------------------|-----------------|
-| BCH BLAZE 2026 | Nomos BCH spend-mandate project and linked chipnet proof | No prize or audit claim |
-| Build with XO / Migrate to XO | `xo/nomos.template.json` plus offline parser/compiler checks | Not yet run in XO's live engine |
-| SolidCash | Vault, StableSwap, and BCH HTLC contracts with mock-network tests | Prototypes only; no StableSwap/HTLC deployment |
-| Stablecoin Bridge ($750 PUSD) | PUSD (Bitcoin Cash) and USDC (Base) atomic swap in both directions: `SwapLock.cash`, `SwapLock.sol` and the Swap page | Peer-to-peer; each swap needs a counterparty |
-| Nostr identity | Pay by Nostr name, and a BCH and Nostr key link (NIP-39 claim plus on-chain anchor) with challenge-response login | No Nomos backend; relays may withhold results |
-| Community Choice | EMBER2026 vote address listed in the README and banner | No vote result claimed |
-| Mercar / Asgaya | External links in the interface | No transaction or bridge integration |
+| Area | What is in the repository | Limits |
+|------|---------------------------|--------|
+| BCH BLAZE 2026, Mainnet Track | The Nomos app; the CashScript vault created, paid and updated on mainnet from Paytaca, and a signed over-limit payment rejected by a mainnet node | Real BCH; start with a small amount |
+| Best SolidCash Application | Vault edition run on mainnet (deploy, pay, refusal, rescue); StableSwap and HTLC prototypes with mock tests | StableSwap and HTLC not deployed |
+| Decentralized Identity | BCH and Nostr link signed by both keys (on-chain anchor plus NIP-39 claim), shareable verify links, challenge-response login that other apps can check, pay and allowlist by linked identity; protocol in [`docs/IDENTITY_PROTOCOL.md`](docs/IDENTITY_PROTOCOL.md) | Relays may withhold results |
+| Stablecoin Bridge | PUSD (Bitcoin Cash) and USDC (Base) atomic swap in both directions: `SwapLock.cash`, `SwapLock.sol` and the Swap page | Peer-to-peer; each swap needs a counterparty |
+| Build with XO / Migrate to XO | `xo/nomos.template.json` with 14 offline checks against CashScript; chipnet genesis accepted through XO | Live pay and rescue blocked by XO's Electrum header check on chipnet ([`xo/REPRODUCE.md`](xo/REPRODUCE.md)) |
+| Community Choice | EMBER2026 vote address on the landing page, in the app banner and here | — |
 
 ## Documentation
 
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — setup, package commands, and
-  contribution guidelines.
-- [`docs/JUDGE_PATH.md`](docs/JUDGE_PATH.md) — local test and UI walkthrough.
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — application components,
-  routes, contract surfaces, and current scope.
-- [`docs/IDENTITY_PROTOCOL.md`](docs/IDENTITY_PROTOCOL.md) — the BCH and
-  Nostr identity link: formats, verification, challenge-response, removal.
-- [`docs/SECURITY.md`](docs/SECURITY.md) — trust boundaries, prototype risks,
-  and verification gaps; not an audit.
-- [`docs/BRIDGE_DESIGN.md`](docs/BRIDGE_DESIGN.md) — StableSwap and HTLC
-  scope, assumptions, and production gaps.
-- [`docs/MAINNET_PROOFS.md`](docs/MAINNET_PROOFS.md) — evidence still required
-  before any mainnet pool or bridge claim.
-- [`contracts/solidcash/README.md`](contracts/solidcash/README.md) — SolidCash
-  contracts, mock tests, and chipnet demo.
-- [`xo/README.md`](xo/README.md) — XO template structure and offline checks.
+- [`docs/JUDGE_PATH.md`](docs/JUDGE_PATH.md): the fastest way through the app and the tests.
+- [`docs/MAINNET_PROOFS.md`](docs/MAINNET_PROOFS.md): every mainnet transaction, by component.
+- [`docs/IDENTITY_PROTOCOL.md`](docs/IDENTITY_PROTOCOL.md): the BCH and Nostr
+  identity link: formats, verification, challenge-response, removal.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): routes, modules and contracts.
+- [`docs/SECURITY.md`](docs/SECURITY.md): trust boundaries and known risks.
+- [`docs/BRIDGE_DESIGN.md`](docs/BRIDGE_DESIGN.md): the PUSD and USDC swap, and
+  the earlier StableSwap and HTLC prototypes.
+- [`contracts/solidcash/README.md`](contracts/solidcash/README.md): SolidCash
+  contracts, mock tests and the mainnet run.
+- [`xo/README.md`](xo/README.md) and [`xo/REPRODUCE.md`](xo/REPRODUCE.md): the
+  XO template, offline checks and the live chipnet attempt.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md): setup and package commands.
 
 ## Project structure
 
@@ -389,26 +376,28 @@ nomos/
 │   ├── NomosVault.cash          # CashScript spend-mandate covenant
 │   ├── solidcash/
 │   │   ├── NomosVault.scash     # SolidCash vault edition
-│   │   ├── StableSwap.scash     # unaudited BCH/token pool prototype
+│   │   ├── StableSwap.scash     # BCH/token pool prototype
 │   │   ├── HashedTimeLock.scash # BCH-only HTLC prototype
 │   │   └── *.test.mjs           # mock-network contract tests
+│   ├── SwapLock.cash            # PUSD side of the swap
+│   ├── evm/SwapLock.sol         # USDC side of the swap (Base)
 │   └── test/                    # chipnet mint + paid/refused tests
 ├── frontend/src/
-│   ├── pages/                   # Connect, VaultHome, SetMandate, Pay, Activity, Proof,
-│   │                            # Rescue, Bridge, Identity, Simulate, Architecture
-│   ├── components/              # layout, banner, shortcuts, error boundary,
-│   │                            # theme, receipts, gauge, payment success
-│   └── lib/                     # wallet, covenant, Nostr, proofs, theme, and app types
-├── docs/                        # judge path, bridge design, proof checklist
+│   ├── pages/                   # Landing, Connect, VaultHome, SetMandate (Rules), Pay,
+│   │                            # Activity, Proof, Rescue, Bridge (Swap), Identity,
+│   │                            # Simulate, Architecture
+│   ├── components/              # layout, banner, tabs, receipts, identity link
+│   └── lib/                     # wallet, covenant, Nostr, identity, swap, Base, links
+├── docs/                        # judge path, mainnet proofs, identity protocol
 ├── xo/                          # XO template + offline checks
 └── README.md
 ```
 
 ## Links
 
-- Live demo: https://nomos.asgaya.org/
-- Widget Factory deck: TBD
-- External BCH ecosystem links: [Mercar](https://www.mercar.app/) · [Asgaya](https://asgaya.org/)
+- App: https://nomos.asgaya.org/
+- Source: https://github.com/thereal-awetoby/nomos
+- Get BCH peer to peer: [Mercar](https://mercar.asgaya.org/) · [Asgaya](https://asgaya.org/)
 - EMBER2026 votes (CashTokens address): `bitcoincash:zqz0cjlclvk6909mctktqsk77d7z6gev0cqejwlp4h`
 
 ## License

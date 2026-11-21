@@ -20,7 +20,9 @@ function BackBar() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { wallet } = useWallet()
-  if (pathname === '/') return null
+  if (pathname === '/' || pathname === '/connect') return null
+  // The bottom tabs already lead to these pages on a phone.
+  const isTab = ['/vault', '/pay', '/mandate', '/activity'].includes(pathname)
 
   // React Router keeps the history index in history.state.idx; 0 means this tab opened on this page.
   const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0
@@ -28,13 +30,13 @@ function BackBar() {
   if (idx === 0 && pathname === fallback) return null
 
   return (
-    <div className="mb-3">
+    <div className={`mb-3 ${isTab && wallet?.connected ? 'hidden md:block' : ''}`}>
       <button
         type="button"
         onClick={() => (idx > 0 ? navigate(-1) : navigate(fallback))}
-        className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-nomos-muted transition-colors hover:text-nomos-text"
+        className="text-sm text-nomos-muted transition-colors hover:text-nomos-text"
       >
-        [ Back ]
+        Back
       </button>
     </div>
   )
@@ -50,7 +52,7 @@ export default function Layout() {
     <div className="flex min-h-screen flex-col">
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:bg-nomos-accent focus:px-4 focus:py-2 focus:font-mono focus:text-xs focus:font-bold focus:uppercase"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-nomos-accent focus:px-4 focus:py-2 focus:text-sm focus:font-semibold"
         style={{ color: 'rgb(var(--nomos-on-accent))' }}
       >
         Skip to content
@@ -61,9 +63,9 @@ export default function Layout() {
         id="main-content"
         role="main"
         tabIndex={-1}
-        className={`relative mx-auto w-full max-w-6xl flex-1 px-4 py-5 focus:outline-none ${hasBottomNav ? 'pb-28 md:pb-10' : 'pb-10'}`}
+        className={`relative mx-auto w-full min-w-0 max-w-6xl flex-1 px-4 py-6 focus:outline-none ${hasBottomNav ? 'pb-28 md:pb-10' : 'pb-10'}`}
       >
-        <div className={`mx-auto w-full ${width}`}>
+        <div className={`mx-auto w-full min-w-0 ${width}`}>
           <BackBar />
           <Outlet />
         </div>
@@ -72,9 +74,9 @@ export default function Layout() {
         role="contentinfo"
         className={`border-t hairline ${hasBottomNav ? 'mb-16 md:mb-0' : ''}`}
       >
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-3 font-mono text-[9px] uppercase tracking-[0.14em] text-nomos-muted">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-nomos-muted">
           <span>Nomos · BCH BLAZE 2026</span>
-          <a href={SOURCE_URL} target="_blank" rel="noreferrer" className="hover:text-nomos-accent">Covenant source: NomosVault.cash</a>
+          <a href={SOURCE_URL} target="_blank" rel="noreferrer" className="hover:text-nomos-text">Contract source</a>
         </div>
       </footer>
       <BottomNav />

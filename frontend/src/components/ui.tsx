@@ -47,7 +47,7 @@ export function Panel({
   right,
   children,
   className = '',
-  bodyClassName = 'p-3',
+  bodyClassName = 'p-4',
   tone = 'neutral',
   as: Tag = 'section',
   id,
@@ -61,15 +61,10 @@ export function Panel({
   as?: 'section' | 'div' | 'article'
   id?: string
 }) {
-  const toneStyle = tone === 'paid'
-    ? { borderColor: 'rgb(var(--nomos-accent) / 0.55)' }
-    : tone === 'refused'
-      ? { borderColor: 'rgb(var(--nomos-refuse) / 0.6)' }
-      : tone === 'pending'
-        ? { borderColor: 'rgb(var(--nomos-pending) / 0.55)' }
-        : undefined
+  // Only a refusal gets a coloured edge; everything else stays neutral.
+  const toneStyle = tone === 'refused' ? { borderColor: 'rgb(var(--nomos-refuse) / 0.45)' } : undefined
   return (
-    <Tag id={id} className={`card overflow-hidden ${className}`} style={toneStyle}>
+    <Tag id={id} className={`card min-w-0 overflow-hidden ${className}`} style={toneStyle}>
       {(title || right) && (
         <div className="panel-head">
           <span className="min-w-0 truncate">{title}</span>
@@ -82,15 +77,11 @@ export function Panel({
 }
 
 export function KV({ label, children, tone }: { label: ReactNode; children: ReactNode; tone?: 'paid' | 'refused' | 'pending' | 'muted' }) {
-  const color = tone === 'paid'
-    ? 'text-nomos-accent'
-    : tone === 'refused'
-      ? 'text-nomos-refuse'
-      : tone === 'pending'
-        ? 'text-nomos-pending'
-        : tone === 'muted'
-          ? 'text-nomos-muted-bright'
-          : ''
+  const color = tone === 'refused'
+    ? 'text-nomos-refuse'
+    : tone === 'pending' || tone === 'muted'
+      ? 'text-nomos-muted'
+      : ''
   return (
     <div className="kv">
       <span>{label}</span>
@@ -110,10 +101,10 @@ const CHIP: Record<ChipKind, { cls: string; text: string }> = {
   payment: { cls: 'chip-neutral', text: 'Payment' },
   under: { cls: 'chip-paid', text: 'Under limit' },
   over: { cls: 'chip-refused', text: 'Would refuse' },
-  on: { cls: 'chip-paid', text: 'On' },
+  on: { cls: 'text-nomos-text', text: 'On' },
   off: { cls: 'chip-neutral', text: 'Off' },
   sample: { cls: 'chip-neutral', text: 'Sample data' },
-  rescue: { cls: 'chip-refused', text: 'Rescue' },
+  rescue: { cls: 'chip-neutral', text: 'Rescue' },
   mandate: { cls: 'chip-neutral', text: 'Mandate' },
 }
 

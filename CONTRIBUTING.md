@@ -2,8 +2,8 @@
 
 Nomos is a Bitcoin Cash spend-mandate covenant and browser application.
 Contributions are welcome. Please keep security and deployment claims aligned
-with the repository: StableSwap and the BCH-side HTLC are prototypes, and the
-Bridge page is a disabled preview.
+with the repository: StableSwap and the BCH-side HTLC are prototypes that the
+app does not use.
 
 ## Getting started
 
@@ -47,8 +47,9 @@ npm test
 ```
 
 The test command compiles the vault, StableSwap, and HTLC, then runs mock-network
-checks in the BCH VM. The optional `npm run demo:chipnet` deploys and exercises
-the SolidCash vault on chipnet; use only a disposable test wallet.
+checks in the BCH VM. The optional `npm run demo:chipnet` and
+`npm run demo:mainnet` deploy and exercise the SolidCash vault; use only a
+disposable wallet with a small balance.
 
 ### XO template checks
 
@@ -82,7 +83,7 @@ These checks are offline; they do not run the template in XO's live engine.
 - Use clear commit prefixes such as `feat:`, `fix:`, `docs:`, or `test:`.
 - Never commit private keys, mnemonics, recovery phrases, or API tokens.
 - Update documentation when behavior, security boundaries, or deployment
-  status changes. Passing mock tests is not an audit or deployment proof.
+  status changes.
 
 ## Testing
 
@@ -119,8 +120,7 @@ pull request, or chat, and never use a mainnet key for these tests.
 ## Project coverage
 
 The walkthrough in [`docs/JUDGE_PATH.md`](docs/JUDGE_PATH.md) describes the
-implemented project demonstrations. It is not a claim of bounty eligibility,
-award, audit, or production deployment.
+implemented project demonstrations.
 
 ## Code of conduct
 

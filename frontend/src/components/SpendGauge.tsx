@@ -14,11 +14,7 @@ export default function SpendGauge({ spentSats, limitSats, size = 140 }: SpendGa
     const spent = Number.isFinite(spentSats) ? Math.max(0, spentSats) : 0
     const ratio = limit > 0 ? spent / limit : (spent > 0 ? 1 : 0)
     const percentage = Math.max(0, Math.min(ratio, 1))
-    const stroke = percentage >= 0.95
-      ? 'rgb(var(--nomos-refuse))'
-      : percentage >= 0.8
-        ? '#f59e0b'
-        : 'rgb(var(--nomos-accent))'
+    const stroke = ratio >= 1 ? 'rgb(var(--nomos-refuse))' : 'rgb(var(--nomos-text))'
 
     return {
       pct: percentage,
@@ -68,10 +64,10 @@ export default function SpendGauge({ spentSats, limitSats, size = 140 }: SpendGa
         <span className="font-mono text-base font-bold tabular-nums text-nomos-text">
           {remainingBch}
         </span>
-        <span className="text-[9px] uppercase tracking-wider text-nomos-muted">
+        <span className="text-xs text-nomos-muted">
           BCH left
         </span>
-        <span className="mt-0.5 text-[10px] font-medium" style={{ color }}>
+        <span className="mt-0.5 text-xs font-medium" style={{ color }}>
           {percentUsed}% used
         </span>
       </div>

@@ -48,12 +48,12 @@ export default function SpendSparkline({
   const ariaDescription = days.map((day) => `${day.date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}: ${day.sats.toLocaleString()} sats`).join('; ')
 
   return (
-    <section className="mt-3 border-t hairline pt-3" aria-labelledby="seven-day-spend-title">
+    <section className="text-nomos-text" aria-labelledby="seven-day-spend-title">
       <div className="mb-1 flex items-baseline justify-between gap-3">
-        <h3 id="seven-day-spend-title" className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-nomos-muted">Seven-day spend</h3>
-        <span className="font-mono text-[9px] text-nomos-muted">sats · this device</span>
+        <h3 id="seven-day-spend-title" className="text-sm text-nomos-muted">Last 7 days</h3>
+        <span className="text-xs text-nomos-muted">sats</span>
       </div>
-      <svg viewBox="0 0 280 72" preserveAspectRatio="none" className="h-20 w-full overflow-visible" role="img" shapeRendering="crispEdges" aria-label={`Saved outgoing receipt totals for the last seven local days. ${ariaDescription}. Dashed line marks the current daily limit.`}>
+      <svg viewBox="0 0 280 72" preserveAspectRatio="none" className="h-20 w-full overflow-visible" role="img" shapeRendering="crispEdges" aria-label={`Payments saved on this device for the last seven days. ${ariaDescription}. Dashed line marks the current daily limit.`}>
         <line x1="12" y1="66" x2="268" y2="66" stroke="currentColor" strokeOpacity="0.25" strokeWidth="1" vectorEffect="non-scaling-stroke" />
         {days.map((day, index) => {
           const y = barY(day.sats)
@@ -62,24 +62,23 @@ export default function SpendSparkline({
             <g key={localDayKey(day.date)}>
               <rect x={barX(index)} y={14} width={barW} height={52} fill="currentColor" fillOpacity="0.04" />
               {day.sats > 0 && (
-                <rect x={barX(index)} y={y} width={barW} height={66 - y} fill={atCap ? 'rgb(var(--nomos-pending))' : 'rgb(var(--nomos-accent))'}>
+                <rect x={barX(index)} y={y} width={barW} height={66 - y} fill="currentColor" fillOpacity={atCap ? 0.9 : 0.55}>
                   <title>{`${day.sats.toLocaleString()} sats · ${day.date.toLocaleDateString()}`}</title>
                 </rect>
               )}
             </g>
           )
         })}
-        {dailyLimitSats > 0 && <line x1="12" y1={capY} x2="268" y2={capY} stroke="rgb(var(--nomos-refuse))" strokeOpacity="0.7" strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />}
+        {dailyLimitSats > 0 && <line x1="12" y1={capY} x2="268" y2={capY} stroke="currentColor" strokeOpacity="0.45" strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />}
       </svg>
       <div className="grid grid-cols-7" style={{ paddingLeft: `${(12 / 280) * 100}%`, paddingRight: `${(12 / 280) * 100}%` }}>
         {days.map((day) => (
           <div key={localDayKey(day.date)} className="min-w-0 text-center" title={`${day.sats.toLocaleString()} sats`}>
-            <p className="font-mono text-[8px] uppercase text-nomos-muted">{day.date.toLocaleDateString(undefined, { weekday: 'narrow' })}</p>
-            <p className="truncate font-mono text-[8px] text-nomos-muted-bright">{formatCompactSats(day.sats)}</p>
+            <p className="text-xs text-nomos-muted">{day.date.toLocaleDateString(undefined, { weekday: 'narrow' })}</p>
+            <p className="truncate text-[11px] tabular-nums text-nomos-muted-bright">{formatCompactSats(day.sats)}</p>
           </div>
         ))}
       </div>
-      <p className="mt-2 text-[9px] leading-relaxed text-nomos-muted">Grouped by local calendar date from receipts saved on this device. The covenant day comes from tx.locktime and may differ. A mandate update resets the on-chain counter, not this history. Red dashed line: daily limit.</p>
     </section>
   )
 }

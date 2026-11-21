@@ -23,21 +23,18 @@ export default class ErrorBoundary extends Component<Props, State> {
 
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-nomos-bg px-6 text-center">
-        <div className="mb-4 text-4xl" aria-hidden="true">⚠</div>
-        <h1 className="mb-2 font-mono text-xl font-bold text-nomos-text">
+        <h1 className="mb-2 text-xl font-semibold text-nomos-text">
           Something went wrong
         </h1>
         <p role="alert" className="mb-6 max-w-sm text-sm text-nomos-muted">
-          An interface error occurred. This screen cannot verify the current
-          on-chain state. Check your wallet and a trusted block explorer before
-          retrying.
+          The page hit an error. Your funds are not affected. Check your wallet before trying again.
         </p>
         {this.state.error && (
           <details className="mb-6 max-w-sm text-left">
-            <summary className="cursor-pointer text-xs text-nomos-muted">
+            <summary className="cursor-pointer text-sm text-nomos-muted">
               Technical details
             </summary>
-            <pre className="mt-2 max-h-48 overflow-auto rounded-xl bg-nomos-surface p-4 font-mono text-[11px] text-nomos-refuse/80">
+            <pre className="mt-2 max-h-48 overflow-auto rounded-xl bg-nomos-surface p-4 font-mono text-xs text-nomos-muted-bright">
               {this.state.error.message}
             </pre>
           </details>

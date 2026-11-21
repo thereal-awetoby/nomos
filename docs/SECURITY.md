@@ -2,11 +2,12 @@
 
 ## Status
 
-This document describes the intended boundaries of the current code; it is
-not an audit or a security certification. The CashScript vault has documented
-chipnet evidence. StableSwap and HashedTimeLock have mock-network tests only;
-neither is claimed as audited or deployed. The Bridge transaction actions are
-disabled. Do not send real funds to either prototype.
+This document describes the trust boundaries of the current code. The
+CashScript and SolidCash vaults have run on mainnet (see `MAINNET_PROOFS.md`);
+as with any new contract, start with small amounts. StableSwap and
+HashedTimeLock have mock-network tests only and are not deployed. The PUSD and
+USDC swap locks real funds on two chains; each lock refunds its sender after
+its timeout.
 
 ## Trust boundaries
 
@@ -44,14 +45,12 @@ Important limits:
 
 ## StableSwap prototype
 
-`contracts/solidcash/StableSwap.scash` is an experimental pool for BCH and one
+`contracts/solidcash/StableSwap.scash` is a prototype pool for BCH and one
 configured CashToken category. The implementation includes bounded arithmetic,
 token-container/reserve consistency checks, minimum-output checks, and
-admin-only liquidity operations. However, it has no LP-share accounting or
-oracle; the configured PUSD category and metadata are not verified; and it has
-no independent audit or deployment proof. Its tests use seeded mock tokens on
-the BCH VM. The UI does not submit swaps. These controls do not make the
-prototype suitable for production.
+admin-only liquidity operations. It has no LP-share accounting or oracle, the
+configured PUSD category and metadata are not verified, and it is not deployed.
+Its tests use seeded mock tokens on the BCH VM. The app does not use it.
 
 ## BCH-side HTLC prototype
 
@@ -67,18 +66,15 @@ procedures. None is integrated here.
 
 ## Verification and deployment checklist
 
-Before any real-fund use of a pool or bridge, the project still needs to:
+Before the StableSwap or HashedTimeLock prototypes hold real funds, the project
+needs to:
 
 - Verify the intended PUSD category, decimals, and supply metadata.
-- Obtain independent review of the contracts and transaction-building paths.
+- Review the contracts and transaction-building paths.
 - Define LP ownership/redemption and admin-key recovery for any pool launch.
 - Test deployments, claim/refund timing, fees, token-container behavior, and
   recovery on public test networks.
 - For cross-chain use, review and deploy the other-chain counterpart and prove
   end-to-end claim and refund paths with independently verifiable evidence.
 - Publish source/compiler versions, artifact hashes, constructor arguments,
-  transaction IDs, addresses, and audit findings in
-  [`MAINNET_PROOFS.md`](MAINNET_PROOFS.md).
-
-A passing mock test or frontend build is not an audit, deployment proof, or
-assurance that funds are safe.
+  transaction IDs and addresses in [`MAINNET_PROOFS.md`](MAINNET_PROOFS.md).

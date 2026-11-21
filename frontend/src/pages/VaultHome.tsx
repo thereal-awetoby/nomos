@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
-import { CONTRACT_SOURCE_URL, currentDayMarker, remainingToday } from '../lib/contract'
+import { remainingToday } from '../lib/contract'
 import { qrColors, THEME_CHANGE_EVENT } from '../lib/theme'
 import MandateCard from '../components/MandateCard'
 import SpendSparkline from '../components/SpendSparkline'
 import { useToast } from '../components/Toast'
+import { Panel, shortAddr } from '../components/ui'
 
 export default function VaultHome() {
   const { wallet, vault, vaultConfig, receipts, refreshVault, disconnect } = useWallet()
@@ -62,19 +63,15 @@ export default function VaultHome() {
     return () => { cancelled = true }
   }, [showDepositQr, vault?.tokenAddress, qrThemeVersion])
 
-  if (!wallet?.connected) return <Navigate to="/" replace />
+  if (!wallet?.connected) return <Navigate to="/connect" replace />
 
   if (!vaultConfig) {
     return (
       <div className="page-enter flex min-h-[50vh] flex-col items-center justify-center text-center">
-        <p className="mb-2 text-sm text-nomos-muted">
-          No vault yet. Connected wallet:
-        </p>
-        <p className="mb-5 max-w-xs truncate font-mono text-[10px] text-nomos-muted">
-          {wallet.address || 'unknown'}
-        </p>
-        <Link to="/mandate" className="btn-primary">
-          Create Vault
+        <h1 className="page-title">No vault yet</h1>
+        <p className="mt-2 max-w-xs truncate font-mono text-xs text-nomos-muted">{shortAddr(wallet.address || '', 10, 6)}</p>
+        <Link to="/mandate" className="btn-primary mt-6">
+          Create vault
         </Link>
       </div>
     )
@@ -90,7 +87,7 @@ export default function VaultHome() {
           <div className="skeleton h-44 w-full" />
           <div className="skeleton h-12 w-full" />
         </div>
-        <button onClick={refreshVault} className="btn-ghost mt-4 text-xs">
+        <button onClick={refreshVault} className="btn-ghost mt-4">
           Retry
         </button>
       </div>
@@ -100,17 +97,12 @@ export default function VaultHome() {
   if (!vault.deployed) {
     return (
       <div className="page-enter flex min-h-[50vh] flex-col items-center justify-center text-center">
-        <p className="mb-2 text-sm text-nomos-text">Your vault isn't on-chain yet.</p>
-        <p className="mb-2 max-w-xs truncate font-mono text-[10px] text-nomos-muted">
-          Wallet: {wallet.address || 'unknown'}
-        </p>
-        <p className="mb-5 max-w-xs text-xs text-nomos-muted">
-          Create it to start paying under your mandate. It takes one or two wallet confirmations.
-        </p>
-        <Link to="/mandate" className="btn-primary">
-          Create Vault
+        <h1 className="page-title">Vault not created yet</h1>
+        <p className="mt-2 max-w-xs text-sm text-nomos-muted">Create it on-chain to start paying under your rules.</p>
+        <Link to="/mandate" className="btn-primary mt-6">
+          Create vault
         </Link>
-        <button onClick={refreshVault} className="btn-ghost mt-3 text-xs">
+        <button onClick={refreshVault} className="btn-ghost mt-3">
           Refresh
         </button>
       </div>
@@ -120,106 +112,67 @@ export default function VaultHome() {
   const remaining = remainingToday(vault.mandate)
   const spentToday = Math.max(0, vault.mandate.dailyLimitSats - remaining)
   const isLowBalance = vault.balanceSats < 10_000
-  const covenantDay = currentDayMarker()
 
-  const copyAddress = async () => {
+  const copy = async (text: string, what: string, done: (v: boolean) => void) => {
     try {
-      await navigator.clipboard.writeText(vault.address)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-      toast('Vault address copied', 'success')
+      await navigator.clipboard.writeText(text)
+      done(true)
+      setTimeout(() => done(false), 1500)
+      toast(`${what} copied`, 'success')
     } catch {
-      toast('Could not copy vault address', 'error')
+      toast(`Could not copy the ${what.toLowerCase()}`, 'error')
     }
   }
 
+  const addressRow = (label: string, value: string, copied: boolean, onCopy: () => void, qrOpen: boolean, onQr: () => void) => (
+    <div className="flex items-center gap-3 py-3">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm text-nomos-muted">{label}</p>
+        <p className="truncate font-mono text-[13px] text-nomos-text" title={value}>{shortAddr(value, 8, 6)}</p>
+      </div>
+      <button type="button" onClick={onCopy} className="link-action shrink-0">{copied ? 'Copied' : 'Copy'}</button>
+      <button type="button" onClick={onQr} className="link-action shrink-0">{qrOpen ? 'Hide QR' : 'QR'}</button>
+    </div>
+  )
+
   return (
     <div className="page-enter space-y-4">
-      <header>
-        <p className="eyebrow">VAULT · ON-CHAIN MANDATE</p>
-        <h1 className="page-title">Treasury</h1>
-      </header>
+      <h1 className="page-title">Vault</h1>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start">
-        <div className="space-y-4 lg:col-start-1 lg:row-start-1">
-          {/* ── Balance hero ── */}
-          <div className="card px-5 py-6 text-center">
-            <p className="label">Vault Balance</p>
-            <p className="mt-2 mono-value text-4xl font-bold text-nomos-text">
-              {(vault.balanceSats / 1e8).toFixed(8)}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
+        <div className="min-w-0 space-y-4">
+          <section className="card p-5">
+            <p className="text-sm text-nomos-muted">Balance</p>
+            <p className="mt-1 text-4xl font-semibold tabular-nums tracking-tight text-nomos-text">
+              {(vault.balanceSats / 1e8).toFixed(8)} <span className="text-lg font-medium text-nomos-muted">BCH</span>
             </p>
-            <p className="mt-1 text-xs text-nomos-muted">BCH</p>
+            {isLowBalance && <p className="mt-1 text-sm text-nomos-muted">Under 10,000 sats. Top up with the deposit address.</p>}
 
-            {/* Address */}
-            <button
-              onClick={copyAddress}
-              className="mx-auto mt-4 block max-w-full truncate font-mono text-[10px] text-nomos-muted hover:text-nomos-accent transition-colors duration-200"
-              title="Copy contract address"
-            >
-              {copied ? '✓ Copied' : vault.address}
-            </button>
-
-            {/* QR toggle */}
-            <button
-              onClick={() => setShowQr(q => !q)}
-              className="mt-2 text-[10px] text-nomos-accent/60 hover:text-nomos-accent transition-colors duration-200"
-            >
-              {showQr ? 'Hide QR' : 'Show QR'}
-            </button>
-            {showQr && (
-              <div className="mt-3 flex justify-center">
-                <canvas ref={qrRef} className="rounded-2xl" />
-              </div>
-            )}
-          </div>
-
-          {/* ── Top Up ── */}
-          <div className="card p-5">
-            <p className="label mb-3">Top Up Vault</p>
-            <p className="text-xs text-nomos-muted mb-3">
-              Send BCH to this address to add funds. It is the token-aware form of the vault address above; both lock to the same contract.
-            </p>
-            <button
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(vault.tokenAddress)
-                  setDepositCopied(true)
-                  setTimeout(() => setDepositCopied(false), 1500)
-                  toast('Token-aware deposit address copied', 'success')
-                } catch {
-                  toast('Could not copy deposit address', 'error')
-                }
-              }}
-              className="w-full truncate rounded-2xl bg-nomos-surface-raised/60 px-4 py-3 font-mono text-[10px] text-nomos-muted-bright hover:text-nomos-accent transition-colors duration-200 text-left"
-              title="Copy deposit address"
-            >
-              {depositCopied ? '✓ Copied' : vault.tokenAddress}
-            </button>
-            <button
-              onClick={() => setShowDepositQr(q => !q)}
-              className="mt-2 text-[10px] text-nomos-accent/60 hover:text-nomos-accent transition-colors duration-200"
-            >
-              {showDepositQr ? 'Hide QR' : 'Show QR'}
-            </button>
-            {showDepositQr && (
-              <div className="mt-3 flex justify-center">
-                <canvas ref={depositQrRef} className="rounded-2xl" />
-              </div>
-            )}
-          </div>
-
-          {isLowBalance && (
-            <div className="card border-nomos-pending/25 p-4">
-              <p className="text-sm font-semibold text-nomos-pending">Low balance</p>
-              <p className="mt-1 text-xs leading-relaxed text-nomos-muted">
-                Your vault has less than 10,000 sats. Top it up from your wallet with the address above.
-              </p>
+            <div className="mt-4 divide-hairline border-t hairline">
+              {addressRow('Vault address', vault.address, copied, () => { void copy(vault.address, 'Vault address', setCopied) }, showQr, () => setShowQr((q) => !q))}
+              {showQr && <div className="flex justify-center pb-3"><canvas ref={qrRef} className="rounded-lg" /></div>}
+              {addressRow('Deposit address (token-aware)', vault.tokenAddress, depositCopied, () => { void copy(vault.tokenAddress, 'Deposit address', setDepositCopied) }, showDepositQr, () => setShowDepositQr((q) => !q))}
+              {showDepositQr && <div className="flex justify-center pb-3"><canvas ref={depositQrRef} className="rounded-lg" /></div>}
             </div>
-          )}
+          </section>
+
+          <Link to="/pay" className="btn-primary w-full">Pay</Link>
+
+          <nav aria-label="More" className="card divide-hairline px-4">
+            {[
+              { to: '/bridge', label: 'Swap PUSD and USDC' },
+              { to: '/identity', label: 'Nostr identity' },
+              { to: '/proof', label: 'Proof checker' },
+              ...(vaultConfig.rescuePk ? [{ to: '/rescue', label: 'Emergency rescue' }] : []),
+            ].map((item) => (
+              <Link key={item.to} to={item.to} className="block py-3 text-[15px] text-nomos-text hover:text-nomos-muted-bright">
+                {item.label}
+              </Link>
+            ))}
+          </nav>
         </div>
 
-        <div className="space-y-4 lg:col-start-2 lg:row-span-2 lg:row-start-1">
-          {/* ── Active mandate ── */}
+        <div className="min-w-0 space-y-4">
           <MandateCard
             mandate={{
               dailyLimitSats: vault.mandate.dailyLimitSats,
@@ -229,70 +182,30 @@ export default function VaultHome() {
               agentSet: Boolean(vault.mandate.agentPk),
               rescueSet: Boolean(vault.mandate.rescuePk),
             }}
-            title="Active mandate"
+            title="Rules"
+            right={<Link to="/mandate" className="link-action font-normal">Edit</Link>}
             footer={(
               <>
                 <SpendSparkline receipts={receipts} dailyLimitSats={vault.mandate.dailyLimitSats} />
-                <div className="mt-2 flex items-center justify-between gap-3 font-mono text-[9px]">
-                  <span className="text-nomos-muted" title="The covenant day is derived from tx.locktime / 86400.">Covenant day {covenantDay}</span>
-                  <a href={CONTRACT_SOURCE_URL} target="_blank" rel="noreferrer" className="link-action">Contract source</a>
-                </div>
               </>
             )}
           />
 
-          {/* ── Allowlist ── */}
           {vault.mandate.allowlistEnabled && vault.mandate.allowlist.length > 0 && (
-            <div className="card p-5">
-              <p className="label mb-3">Allowed Destinations</p>
+            <Panel title="Allowed addresses">
               <div className="space-y-1.5">
                 {vault.mandate.allowlist.map((addr, i) => (
-                  <p key={i} className="truncate font-mono text-[10px] text-nomos-muted-bright">
-                    {addr}
-                  </p>
+                  <p key={i} className="truncate font-mono text-[13px] text-nomos-muted-bright" title={addr}>{shortAddr(addr, 10, 8)}</p>
                 ))}
               </div>
-            </div>
+            </Panel>
           )}
         </div>
+      </div>
 
-        <div className="space-y-4 lg:col-start-1 lg:row-start-2">
-          {/* ── Action grid ── */}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-3 lg:grid-cols-3">
-            <Link to="/mandate" className="btn-ghost py-3 text-center text-xs">
-              Mandate
-            </Link>
-            <Link to="/pay" className="btn-primary py-3 text-center text-sm">
-              Pay
-            </Link>
-            <Link to="/activity" className="btn-ghost py-3 text-center text-xs">
-              Activity
-            </Link>
-            <Link to="/proof" className="btn-ghost py-3 text-center text-xs">
-              Proof checker
-            </Link>
-            <Link to="/bridge" className="btn-ghost py-3 text-center text-xs">
-              Swap PUSD / USDC
-            </Link>
-          </div>
-
-          {/* ── Rescue ── */}
-          {vaultConfig.rescuePk && (
-            <Link to="/rescue" className="btn-danger block w-full py-2.5 text-center text-xs">
-              Emergency Rescue
-            </Link>
-          )}
-
-          {/* ── Bottom controls ── */}
-          <div className="flex gap-3">
-            <button onClick={refreshVault} className="btn-ghost flex-1 py-2 text-xs">
-              Refresh
-            </button>
-            <button onClick={disconnect} className="btn-danger flex-1 py-2 text-xs">
-              Disconnect
-            </button>
-          </div>
-        </div>
+      <div className="flex justify-center gap-6 pt-2">
+        <button type="button" onClick={refreshVault} className="text-sm text-nomos-muted hover:text-nomos-text">Refresh</button>
+        <button type="button" onClick={disconnect} className="text-sm text-nomos-muted hover:text-nomos-text">Disconnect</button>
       </div>
     </div>
   )

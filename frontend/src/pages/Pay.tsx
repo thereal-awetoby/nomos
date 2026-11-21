@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
 import { useToast } from '../components/Toast'
-import { Panel } from '../components/ui'
+import { shortAddr } from '../components/ui'
 import SpentMeter from '../components/SpentMeter'
 import RefuseBanner, { refusalRule } from '../components/RefuseBanner'
 import { wouldRefuse, remainingToday, executeSpend, validateCashAddress, verifyAnchor, EXPLORER_TX_URL } from '../lib/contract'
@@ -66,7 +66,7 @@ export default function Pay() {
     return () => { cancelled = true; clearTimeout(timer) }
   }, [destination, isNostr])
 
-  if (!wallet?.connected) return <Navigate to="/" replace />
+  if (!wallet?.connected) return <Navigate to="/connect" replace />
   if (!vault) return <p className="py-20 text-center text-sm text-nomos-muted">Loading…</p>
 
   const mandate = vault.mandate
@@ -134,7 +134,7 @@ export default function Pay() {
         message: check.reason || 'Refused by the current mandate check',
         proofUrl: `/proof?receipt=${encodeURIComponent(receiptId)}&amount=${amountSats}&destination=${encodeURIComponent(payTo)}`,
       })
-      toast('Blocked by the current mandate check', 'error')
+      toast('Refused: it breaks your rules', 'error')
       return
     }
 
@@ -151,7 +151,7 @@ export default function Pay() {
         wallet.address, wallet.provider, label, wallet.wcIndex ?? 0,
       )
       addReceipt({ ...receipt, destinationLink })
-      setResult({ type: 'success', message: 'The wallet/provider returned a transaction ID. Check an explorer for network relay, mining, and confirmation.', txHash: receipt.txHash })
+      setResult({ type: 'success', message: 'Waiting for the network to confirm it.', txHash: receipt.txHash })
       toast('Transaction submitted; confirmation is pending', 'success')
     } catch (err: any) {
       const message = err.message || 'No transaction was accepted by the node.'
@@ -167,18 +167,11 @@ export default function Pay() {
 
   return (
     <div className="page-enter space-y-4">
-      <header>
-        <p className="eyebrow">PAYMENT · LOCAL PREVIEW</p>
-        <h1 className="page-title">Pay</h1>
-        <p className="mt-1 text-[10px] text-nomos-muted">Your wallet signs; the covenant enforces the active mandate on-chain.</p>
-      </header>
+      <h1 className="page-title">Pay</h1>
 
-      <Panel
-        title="Daily allowance"
-        right={<span className="font-mono text-[10px] tabular-nums text-nomos-text">{(remaining / 1e8).toFixed(8)} BCH left</span>}
-      >
+      <div className="card p-4">
         <SpentMeter spentSats={spentToday} limitSats={mandate.dailyLimitSats} pendingSats={amountSats > 0 ? amountSats : 0} />
-      </Panel>
+      </div>
 
       {/* Amount */}
       <div>
@@ -198,11 +191,11 @@ export default function Pay() {
               key={sats}
               type="button"
               onClick={() => { setAmount((sats / 1e8).toFixed(8)); setResult(null) }}
-              className="rounded-pill border border-nomos-border/10 px-3 py-1.5 text-[10px] text-nomos-muted-bright transition-colors hover:border-nomos-accent/30 hover:text-nomos-accent"
+              className="rounded-lg border hairline-strong bg-nomos-surface px-3 py-1.5 text-sm text-nomos-text transition-colors hover:bg-nomos-surface-raised"
             >
-              {sats === remaining ? `Remaining · ${sats.toLocaleString()} sats` : `${sats.toLocaleString()} sats`}
+              {sats === remaining ? `Max · ${sats.toLocaleString()} sats` : `${sats.toLocaleString()} sats`}
             </button>
-          )) : <span className="text-[10px] text-nomos-muted">No daily allowance remains today.</span>}
+          )) : <span className="text-sm text-nomos-muted">Nothing left to spend today.</span>}
         </div>
       </div>
 
@@ -213,13 +206,15 @@ export default function Pay() {
           type="text"
           value={destination}
           onChange={(e) => { setDestination(e.target.value); setResult(null) }}
-          placeholder="bitcoincash:qr…  or  npub… / name@domain"
-          className="input text-xs"
+          placeholder="Address, npub or name@domain"
+          className="input"
+          autoComplete="off"
+          spellCheck={false}
         />
 
         {/* Nostr resolution */}
         {isNostr && (
-          <div className="mt-2 border hairline bg-nomos-surface-raised/40 px-3 py-2.5 text-xs">
+          <div className="card mt-2 px-3 py-3 text-sm">
             {resolving && <p className="pulse-text text-nomos-muted">Looking up on Nostr…</p>}
             {resolveError && <p className="text-nomos-refuse">{resolveError}</p>}
             {payee && (
@@ -229,21 +224,19 @@ export default function Pay() {
                 )}
                 <div className="min-w-0">
                   <p className="truncate text-nomos-text">{payee.displayName || payeeLabel(payee)}</p>
-                  <p className="truncate font-mono text-[10px] text-nomos-muted">{payee.address}</p>
+                  <p className="truncate font-mono text-xs text-nomos-muted">{shortAddr(payee.address, 10, 6)}</p>
                   {payee.link ? (
-                    <p className="text-[10px] text-nomos-accent">
-                      Linked · both keys signed ·{' '}
+                    <p className="text-xs text-nomos-muted-bright">
+                      Linked by both keys ·{' '}
                       <a href={`${EXPLORER_TX_URL}${payee.link.anchorTxid}`} target="_blank" rel="noreferrer" className="underline">
-                        anchor {payee.link.anchorTxid.slice(0, 8)}
+                        anchor
                       </a>
                     </p>
                   ) : (
-                    <p className="text-[10px] text-nomos-muted">
-                      Published address, signed by this Nostr key only · not linked · {new Date(payee.publishedAt * 1000).toLocaleDateString()}
-                    </p>
+                    <p className="text-xs text-nomos-muted">Published address · not linked</p>
                   )}
                   {payee.publishedAddress && (
-                    <p className="text-[10px] text-nomos-muted">Its published address differs; paying the linked one.</p>
+                    <p className="text-xs text-nomos-muted">Paying the linked address, not the published one.</p>
                   )}
                 </div>
               </div>
@@ -251,46 +244,34 @@ export default function Pay() {
           </div>
         )}
         {isNostr && (
-          <label className="mt-2 flex items-center gap-2 text-[10px] text-nomos-muted-bright">
+          <label className="mt-2 flex items-center gap-2 text-sm text-nomos-muted-bright">
             <input type="checkbox" checked={requireLink} onChange={(e) => toggleRequireLink(e.target.checked)} />
-            Pay Nostr names only when the address is linked by both keys
+            Only pay linked identities
           </label>
         )}
       </div>
 
-      <section
-        className={`rounded-2xl border p-3 text-xs ${
-          liveVerdict?.refused
-            ? 'border-nomos-refuse/20 bg-nomos-refuse/5'
-            : liveVerdict
-              ? 'border-nomos-accent/20 bg-nomos-accent/5'
-              : 'border-nomos-border/10 bg-nomos-surface/40'
-        }`}
-        aria-live="polite"
-        aria-label="Live mandate verdict preview"
-      >
-        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-nomos-muted">Live mandate preview · local calculation</p>
+      <p className="min-h-[1.25rem] text-sm" aria-live="polite" aria-label="Rule check">
         {!amount || !destination ? (
-          <p className="text-nomos-muted">Enter an amount and destination to preview the current rules.</p>
+          <span className="text-nomos-muted">Enter an amount and a destination.</span>
         ) : !vault.deployed ? (
-          <p className="text-nomos-refuse">Vault not deployed: there is no state NFT for the covenant to spend yet.</p>
+          <span className="text-nomos-refuse">The vault is not created on-chain yet.</span>
         ) : amountSats <= 0 ? (
-          <p className="text-nomos-refuse">Enter a positive amount in satoshis (up to 8 decimal places in BCH).</p>
+          <span className="text-nomos-refuse">Enter an amount above zero.</span>
         ) : isNostr && resolving ? (
-          <p className="text-nomos-muted">Resolving the Nostr destination…</p>
+          <span className="text-nomos-muted">Looking up this name…</span>
         ) : isNostr && !payee ? (
-          <p className="text-nomos-refuse">{resolveError || 'The Nostr identity has not resolved to a verified BCH address yet.'}</p>
+          <span className="text-nomos-refuse">{resolveError || 'This name has no BCH address yet.'}</span>
         ) : unlinkedBlocked ? (
-          <p className="text-nomos-muted-bright">Not linked by both keys. Turn off "linked only" to pay the published address.</p>
+          <span className="text-nomos-muted-bright">Not linked by both keys. Turn off "Only pay linked identities" to pay the published address.</span>
         ) : liveVerdict?.refused ? (
-          <p className="font-medium text-nomos-refuse">Would be blocked by the current mandate: {liveVerdict.reason}</p>
+          <span className="text-nomos-refuse">Breaks your rules: {liveVerdict.reason}</span>
         ) : liveVerdict ? (
-          <p className="font-medium text-nomos-accent">Within the current mandate rules at this snapshot.</p>
+          <span className="text-nomos-muted-bright">Within your rules.</span>
         ) : (
-          <p className="text-nomos-muted">Enter a valid payment to see the current mandate preview.</p>
+          <span className="text-nomos-muted">Enter a valid payment.</span>
         )}
-        <p className="mt-1.5 text-[10px] leading-relaxed text-nomos-muted/70">Preview only: this browser check does not prove vault funds or chain state. The network still evaluates the signed transaction.</p>
-      </section>
+      </p>
 
       <button
         onClick={handlePay}
@@ -301,9 +282,6 @@ export default function Pay() {
           ? <><span className="spinner mr-2" /> Signing…</>
           : liveVerdict?.refused ? 'Submit anyway · see refusal' : 'Pay'}
       </button>
-      <p className="text-center text-[10px] text-nomos-muted">
-        Want an explicit node response for a durable mandate violation? <Link to="/proof" className="text-nomos-accent underline">Open the proof checker</Link>.
-      </p>
 
       {/* Result */}
       {result?.type === 'refused' ? (
@@ -323,14 +301,14 @@ export default function Pay() {
             : () => { setDestination(''); setPayee(null); setResult(null) }}
         />
       ) : result && (
-        <div className={`card p-4 ${result.type === 'success' ? 'border-nomos-pending/30 bg-nomos-pending/[0.04]' : 'border-nomos-muted/30 bg-nomos-surface'}`}>
-          <p className={`font-mono text-sm font-bold uppercase tracking-[0.08em] ${result.type === 'success' ? 'text-nomos-pending' : 'text-nomos-muted-bright'}`}>
-            {result.type === 'success' ? 'Submitted · awaiting confirmation' : 'No confirmed node verdict'}
+        <div className="card p-4">
+          <p className="text-[15px] font-medium text-nomos-text">
+            {result.type === 'success' ? 'Sent' : 'Not sent'}
           </p>
-          <p className="mt-1 text-xs text-nomos-muted-bright">{result.message}</p>
+          <p className="mt-1 text-sm text-nomos-muted">{result.message}</p>
           {result.txHash && (
-            <a href={`${EXPLORER_TX_URL}${result.txHash}`} target="_blank" rel="noreferrer" className="link-action mt-3 inline-block text-nomos-accent">
-              Check explorer · not confirmed
+            <a href={`${EXPLORER_TX_URL}${result.txHash}`} target="_blank" rel="noreferrer" className="link-action mt-3 inline-block">
+              View on explorer
             </a>
           )}
         </div>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { OPEN_SHORTCUTS_EVENT } from '../lib/theme'
 
 interface Shortcut {
@@ -9,16 +9,16 @@ interface Shortcut {
 }
 
 const SHORTCUTS: Shortcut[] = [
-  { key: 'h', label: 'Home / Connect', route: '/' },
+  { key: 'h', label: 'Home', route: '/' },
   { key: 'v', label: 'Vault', route: '/vault' },
   { key: 'p', label: 'Pay', route: '/pay' },
-  { key: 'm', label: 'Set mandate', route: '/mandate' },
+  { key: 'm', label: 'Rules', route: '/mandate' },
   { key: 'a', label: 'Activity', route: '/activity' },
-  { key: 'f', label: 'Refusal proof checker', route: '/proof' },
+  { key: 'f', label: 'Proof checker', route: '/proof' },
   { key: 'b', label: 'Swap PUSD and USDC', route: '/bridge' },
   { key: 'i', label: 'Nostr identity', route: '/identity' },
   { key: 's', label: 'Simulator', route: '/simulate' },
-  { key: 'd', label: 'Architecture', route: '/architecture' },
+  { key: 'd', label: "How it's built", route: '/architecture' },
   { key: 'r', label: 'Rescue', route: '/rescue' },
 ]
 
@@ -30,6 +30,7 @@ function isEditableTarget(target: EventTarget | null): boolean {
 
 /** Press ? for the help palette; Escape closes it. */
 export default function KeyboardShortcuts() {
+  const onLanding = useLocation().pathname === '/'
   const [open, setOpen] = useState(false)
   const [shortcutsEnabled, setShortcutsEnabled] = useState(() => {
     try { return localStorage.getItem('nomos-shortcuts') !== 'off' } catch { return true }
@@ -129,17 +130,17 @@ export default function KeyboardShortcuts() {
 
   return (
     <>
-      <button
+      {!onLanding && <button
         type="button"
         onClick={openPalette}
         aria-label="Open keyboard shortcuts"
         aria-haspopup="dialog"
         aria-expanded={open}
         title="Keyboard shortcuts"
-        className="fixed bottom-4 right-4 z-40 hidden h-9 w-9 items-center justify-center border hairline-strong bg-nomos-surface font-mono text-sm font-semibold text-nomos-muted-bright transition-colors hover:text-nomos-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomos-accent md:flex"
+        className="fixed bottom-4 right-4 z-40 hidden h-9 w-9 items-center justify-center rounded-full border hairline-strong bg-nomos-surface text-sm font-semibold text-nomos-muted-bright transition-colors hover:text-nomos-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomos-accent md:flex"
       >
         ?
-      </button>
+      </button>}
       {open && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6"
@@ -172,7 +173,7 @@ export default function KeyboardShortcuts() {
             <div className="mb-4 flex items-center justify-between gap-3 rounded-xl bg-nomos-surface-raised/60 px-3 py-2">
               <div>
                 <p className="text-xs font-medium text-nomos-text">Single-key shortcuts</p>
-                <p id="single-key-shortcuts-description" className="text-[10px] text-nomos-muted">Turn off page keys and the ? key if they interfere with typing. The help button remains available.</p>
+                <p id="single-key-shortcuts-description" className="text-xs text-nomos-muted">Turn off page keys and the ? key if they interfere with typing. The help button remains available.</p>
               </div>
               <button
                 type="button"
@@ -184,11 +185,11 @@ export default function KeyboardShortcuts() {
                   try { localStorage.setItem('nomos-shortcuts', next ? 'on' : 'off') } catch {}
                   return next
                 })}
-                className={`shrink-0 rounded-pill px-3 py-1 text-[10px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomos-accent ${
-                  shortcutsEnabled
-                    ? 'bg-nomos-accent/15 text-nomos-accent'
-                    : 'bg-nomos-surface text-nomos-muted'
-                }`}
+                className={`shrink-0 rounded-lg px-3 py-1 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomos-accent ${
+ shortcutsEnabled
+ ? 'bg-nomos-accent text-nomos-bg'
+ : 'bg-nomos-surface text-nomos-muted'
+ }`}
               >
                 {shortcutsEnabled ? 'On' : 'Off'}
               </button>
@@ -202,7 +203,7 @@ export default function KeyboardShortcuts() {
                     onClick={() => navigateTo(shortcut.route)}
                     className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-nomos-surface-raised/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomos-accent"
                   >
-                    <kbd className="flex h-7 w-7 items-center justify-center rounded-lg bg-nomos-surface-raised font-mono text-xs font-bold text-nomos-accent">
+                    <kbd className="flex h-7 w-7 items-center justify-center rounded-lg bg-nomos-surface-raised text-xs font-semibold text-nomos-text">
                       {shortcut.key.toUpperCase()}
                     </kbd>
                     <span className="text-xs text-nomos-muted-bright">{shortcut.label}</span>
@@ -211,7 +212,7 @@ export default function KeyboardShortcuts() {
               ))}
             </ul>
 
-            <p className="mt-4 text-center text-[10px] text-nomos-muted/60">
+            <p className="mt-4 text-center text-xs text-nomos-muted/60">
               Use the help button or press <kbd className="font-mono">?</kbd> to toggle this palette; <kbd className="font-mono">Esc</kbd> to close.
             </p>
           </div>
