@@ -1,0 +1,54 @@
+{
+  "network": "chipnet",
+  "startedAt": "2026-11-21T12:21:35.062Z",
+  "steps": [
+    {
+      "at": "2026-11-21T12:21:37.445Z",
+      "step": "existing-vault",
+      "outpoint": "ca1df8563f8ac631072d0d5f7c3944fd8d9aa0f0b74daaa851e046a95cdd0515:0",
+      "satoshis": "7000",
+      "commitment": "10270000000000002a51000000000000",
+      "status": "confirmed"
+    },
+    {
+      "at": "2026-11-21T12:21:37.518Z",
+      "step": "pay-skipped",
+      "satoshis": "3000",
+      "reason": "10000 of the 10000-sat limit already spent today"
+    },
+    {
+      "at": "2026-11-21T12:21:37.773Z",
+      "step": "pay-skipped",
+      "satoshis": "4000",
+      "reason": "10000 of the 10000-sat limit already spent today"
+    },
+    {
+      "at": "2026-11-21T12:21:38.142Z",
+      "step": "pay-over-limit",
+      "satoshis": "5000",
+      "spentTodayBefore": "10000",
+      "dailyLimit": "10000",
+      "refused": true,
+      "engineError": "Transaction broadcast failed for transaction hash \"7feeef9b27cc158d5d45b3cd54142e84bbf198cba501f8138ebf93f273d30b03\" of invitation \"3f74320a5b9563d80d8971231b3d13bd\": Error: Failed to broadcast transaction: Error: Failed to request 'blockchain.transaction.broadcast': the transaction was rejected by network rules. mandatory-script-verify-flag-failed (Script failed an OP_VERIFY operation) (code 16)",
+      "nodeResponse": "Failed to broadcast transaction: Error: Failed to request 'blockchain.transaction.broadcast': the transaction was rejected by network rules. mandatory-script-verify-flag-failed (Script failed an OP_VERIFY operation) (code 16)",
+      "unexpectedTxid": null,
+      "invitation": "4-pay-5000-overlimit.json"
+    },
+    {
+      "at": "2026-11-21T12:21:51.153Z",
+      "step": "rescue",
+      "satoshis": "6000",
+      "txid": "ac6fa39439fd4486b6dae6984e2e727a47e909f3ec4986819cbb7434adcbbfb1",
+      "invitations": [
+        "5-rescue-1-owner.json",
+        "5-rescue-2-rescuer.json",
+        "5-rescue.json"
+      ]
+    },
+    {
+      "at": "2026-11-21T12:21:51.428Z",
+      "step": "done",
+      "ok": true
+    }
+  ]
+}
