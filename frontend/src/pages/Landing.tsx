@@ -127,6 +127,8 @@ export default function Landing() {
   const { toast } = useToast()
   const appTo = wallet?.connected ? '/vault' : '/connect'
   const proofs = MAINNET_PROOFS.filter((p) => p.txid)
+  // Say only what the listed transactions show.
+  const cashScriptOnMainnet = proofs.some((p) => p.edition === 'CashScript vault')
 
   const copyEmber = async () => {
     try {
@@ -172,6 +174,9 @@ export default function Landing() {
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to={appTo} className="btn-primary px-6">Open the app</Link>
               <a href="#how" className="btn-ghost min-h-[44px] px-6">How it works</a>
+              {DEMO_VIDEO_URL && (
+                <a href={DEMO_VIDEO_URL} target="_blank" rel="noreferrer" className="btn-ghost min-h-[44px] px-6">Watch the demo</a>
+              )}
             </div>
             <p className="mt-6 text-sm text-nomos-muted">
               Works with Paytaca. No account, no sign-up, no Nomos fees.
@@ -203,7 +208,9 @@ export default function Landing() {
             <Eyebrow>On mainnet</Eyebrow>
             <h2 className="mt-2 max-w-2xl text-3xl font-semibold tracking-tight text-nomos-text">Check it on the chain.</h2>
             <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-nomos-muted">
-              Both editions of the vault have run on Bitcoin Cash mainnet: paid under the limit, refused over it, and rescued.
+              {cashScriptOnMainnet
+                ? 'Both editions of the vault have run on Bitcoin Cash mainnet: paid under the limit and refused over it. The SolidCash vault was also rescued with two keys.'
+                : 'The vault has run on Bitcoin Cash mainnet: paid under the limit, refused over it, and rescued with two keys.'}
             </p>
             <div className="mt-8 grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
               <div className="card divide-hairline overflow-hidden">

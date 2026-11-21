@@ -5,7 +5,7 @@ export const LIVE_URL = 'https://nomos.asgaya.org'
 export const GITHUB_URL = 'https://github.com/thereal-awetoby/nomos'
 export const CONTRACT_URL = 'https://github.com/thereal-awetoby/nomos/blob/main/contracts/NomosVault.cash'
 export const WIDGET_FACTORY_URL: string = ''
-export const DEMO_VIDEO_URL: string = ''
+export const DEMO_VIDEO_URL: string = 'https://youtu.be/eR8DS4LNMvA'
 export const MERCAR_URL = 'https://mercar.asgaya.org/'
 export const ASGAYA_URL = 'https://asgaya.org/'
 

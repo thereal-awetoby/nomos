@@ -62,6 +62,12 @@ export interface SwapOffer {
   /** Base block before the first lock, to search claims from. */
   baseFromBlock: number
   createdAt: number
+  /**
+   * The SwapLock contract on Base this offer uses. Optional for offers made
+   * before it was added. The counterparty's page checks its on-chain code
+   * against the audited bytecode before reading or approving anything.
+   */
+  baseContract?: string
 }
 
 export function encodeOffer(offer: SwapOffer): string {
@@ -72,6 +78,7 @@ export function decodeOffer(text: string): SwapOffer {
   const b64 = text.replace(/-/g, '+').replace(/_/g, '/')
   const offer = JSON.parse(atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4)))
   if (offer?.v !== 1 || !/^[0-9a-f]{64}$/.test(offer.secretHash)) throw new Error('Not a Nomos swap offer')
+  if (offer.baseContract !== undefined && !/^0x[0-9a-fA-F]{40}$/.test(offer.baseContract)) throw new Error('Not a Nomos swap offer')
   return offer as SwapOffer
 }
 

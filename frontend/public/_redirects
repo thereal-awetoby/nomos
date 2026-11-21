@@ -1,0 +1,3 @@
+# Single-page app: every route (/identity, /bridge?offer=…) serves index.html.
+# Read by Netlify and Cloudflare Pages; other hosts ignore this file.
+/*    /index.html   200

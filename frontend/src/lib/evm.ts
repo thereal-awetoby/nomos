@@ -6,6 +6,7 @@
 // `solc --hashes`.
 
 import artifact from './SwapLockEvm.json'
+import { WC_PROJECT_ID, appIconUrl } from './env'
 
 export const BASE_CHAIN_ID = 8453
 const BASE_CHAIN_HEX = '0x2105'
@@ -16,9 +17,15 @@ export const USDC_DECIMALS = 6
 export const BASE_EXPLORER_TX = 'https://basescan.org/tx/'
 export const BASE_EXPLORER_ADDRESS = 'https://basescan.org/address/'
 
-/** SwapLock on Base. Empty until deployed; a deployment from this page is remembered locally. */
+/**
+ * SwapLock on Base for this site. Empty until deployed; a deployment from the
+ * Swap page is remembered locally, and every offer names the contract it uses.
+ * Any address is checked against the audited bytecode before it is trusted.
+ */
 export const SWAPLOCK_BASE = ''
 const SWAPLOCK_KEY = 'nomos:baseSwapLock'
+/** Runtime code of contracts/evm/SwapLock.sol, from the same compile as `bytecode`. */
+const SWAPLOCK_RUNTIME = ((artifact as { deployedBytecode?: string }).deployedBytecode ?? '').toLowerCase()
 
 const RPCS = ['https://mainnet.base.org', 'https://base.llamarpc.com', 'https://base-rpc.publicnode.com']
 
@@ -119,6 +126,36 @@ async function ethCall(to: string, data: string): Promise<string> {
   return rpc<string>('eth_call', [{ to, data }, 'latest'])
 }
 
+const verifiedContracts = new Set<string>()
+
+/**
+ * True when `address` on Base runs exactly the audited SwapLock bytecode.
+ * An offer names its contract, so this check is what makes a counterparty's
+ * contract safe to read from and to approve USDC to. Only successes are
+ * cached: a fresh deployment can read as empty for a moment.
+ */
+export async function isSwapLock(address: string): Promise<boolean> {
+  if (!isEvmAddress(address) || SWAPLOCK_RUNTIME.length <= 2) return false
+  const key = address.trim().toLowerCase()
+  if (verifiedContracts.has(key)) return true
+  const code = String(await rpc<string>('eth_getCode', [key, 'latest'])).toLowerCase()
+  if (code !== SWAPLOCK_RUNTIME) return false
+  verifiedContracts.add(key)
+  return true
+}
+
+function contractFor(contract?: string): string {
+  const address = (contract || swapLockAddress()).trim()
+  if (!address) throw new Error('SwapLock is not deployed on Base yet')
+  return address
+}
+
+async function verifiedContract(contract?: string): Promise<string> {
+  const address = contractFor(contract)
+  if (!(await isSwapLock(address))) throw new Error('That Base contract is not the Nomos SwapLock; nothing was sent')
+  return address
+}
+
 export async function usdcBalance(owner: string): Promise<bigint> {
   return BigInt(await ethCall(USDC_BASE, call(SEL.balanceOf, addressWord(owner))))
 }
@@ -136,11 +173,9 @@ export interface BaseLock {
   done: boolean
 }
 
-/** Read a lock by its secret hash; null when none exists. */
-export async function readBaseLock(secretHash: string): Promise<BaseLock | null> {
-  const contract = swapLockAddress()
-  if (!contract) throw new Error('SwapLock is not deployed on Base yet')
-  const out = strip0x(await ethCall(contract, call(SEL.locks, word(secretHash))))
+/** Read a lock by its secret hash; null when none exists. Check the contract with isSwapLock before trusting this. */
+export async function readBaseLock(secretHash: string, contract?: string): Promise<BaseLock | null> {
+  const out = strip0x(await ethCall(contractFor(contract), call(SEL.locks, word(secretHash))))
   const w = (i: number) => out.slice(i * 64, (i + 1) * 64)
   const sender = `0x${w(1).slice(24)}`
   if (/^0x0{40}$/.test(sender)) return null
@@ -155,11 +190,11 @@ export async function readBaseLock(secretHash: string): Promise<BaseLock | null>
 }
 
 /** Find the secret published by a claim on Base, searching from `fromBlock`. */
-export async function findBaseSecret(secretHash: string, fromBlock: number): Promise<string | null> {
-  const contract = swapLockAddress()
-  if (!contract) return null
+export async function findBaseSecret(secretHash: string, fromBlock: number, contract?: string): Promise<string | null> {
+  const address = (contract || swapLockAddress()).trim()
+  if (!address) return null
   const logs = await rpc<any[]>('eth_getLogs', [{
-    address: contract,
+    address,
     topics: [TOPIC_CLAIMED, `0x${word(secretHash)}`],
     fromBlock: `0x${Math.max(0, fromBlock).toString(16)}`,
     toBlock: 'latest',
@@ -231,15 +266,16 @@ export async function connectInjected(): Promise<string> {
 
 /** Pair a mobile or desktop wallet over WalletConnect; `onUri` receives the pairing link. */
 export async function connectWalletConnect(onUri: (uri: string) => void): Promise<string> {
+  if (!WC_PROJECT_ID) throw new Error('WalletConnect is not set up on this site; use a browser wallet')
   const { SignClient } = await import('@walletconnect/sign-client')
   wcClient ??= await SignClient.init({
-    projectId: import.meta.env.VITE_WC_PROJECT_ID || '',
+    projectId: WC_PROJECT_ID,
     customStoragePrefix: 'nomos-base',
     metadata: {
       name: 'Nomos',
       description: 'PUSD and USDC atomic swap',
       url: window.location.origin,
-      icons: [],
+      icons: [appIconUrl()],
     },
   })
   const { uri, approval } = await wcClient.connect({
@@ -284,10 +320,10 @@ export async function deploySwapLock(): Promise<{ address: string; hash: string 
 }
 
 /** Approve (if needed) and lock USDC for `recipient`. Returns the lock tx hash and its block. */
-export async function lockUsdc(secretHash: string, recipient: string, amount: bigint, refundAfter: number): Promise<{ hash: string; block: number }> {
-  const contract = swapLockAddress()
-  if (!contract) throw new Error('SwapLock is not deployed on Base yet')
+export async function lockUsdc(secretHash: string, recipient: string, amount: bigint, refundAfter: number, swapLock?: string): Promise<{ hash: string; block: number }> {
   if (!account) throw new Error('Connect a Base wallet first')
+  // Never approve USDC to a contract that is not the audited SwapLock.
+  const contract = await verifiedContract(swapLock)
   if (await usdcAllowance(account, contract) < amount) {
     await send(USDC_BASE, call(SEL.approve, addressWord(contract), uintWord(amount)))
   }
@@ -298,14 +334,13 @@ export async function lockUsdc(secretHash: string, recipient: string, amount: bi
 }
 
 /** Claim a Base lock with the secret; the USDC always goes to the lock's recipient. */
-export async function claimUsdc(secret: string): Promise<string> {
-  const contract = swapLockAddress()
-  if (!contract) throw new Error('SwapLock is not deployed on Base yet')
+export async function claimUsdc(secret: string, swapLock?: string): Promise<string> {
+  // Claiming publishes the secret, so only ever do it on the audited contract.
+  const contract = await verifiedContract(swapLock)
   return (await send(contract, call(SEL.claim, word(secret)))).hash
 }
 
-export async function refundUsdc(secretHash: string): Promise<string> {
-  const contract = swapLockAddress()
-  if (!contract) throw new Error('SwapLock is not deployed on Base yet')
+export async function refundUsdc(secretHash: string, swapLock?: string): Promise<string> {
+  const contract = await verifiedContract(swapLock)
   return (await send(contract, call(SEL.refund, word(secretHash)))).hash
 }

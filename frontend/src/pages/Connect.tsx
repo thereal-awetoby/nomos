@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useWallet } from '../context/WalletContext'
 import { WizardConnectQRDialog } from '@wizardconnect/react'
 import { qrColors, THEME_CHANGE_EVENT } from '../lib/theme'
+import { WALLETCONNECT_ENABLED } from '../lib/env'
 import { useToast } from '../components/Toast'
 
 export default function Connect() {
@@ -99,7 +100,9 @@ export default function Connect() {
       <div className="mb-8">
         <h1 className="page-title">Connect your wallet</h1>
         <p className="mx-auto mt-2 max-w-xs text-[15px] leading-relaxed text-nomos-muted">
-          Use Paytaca with WizardConnect, or any Bitcoin Cash wallet that supports WalletConnect.
+          {WALLETCONNECT_ENABLED
+            ? 'Use Paytaca with WizardConnect, or any Bitcoin Cash wallet that supports WalletConnect.'
+            : 'Use Paytaca with WizardConnect: scan the QR code from the Paytaca app.'}
         </p>
       </div>
 
@@ -115,13 +118,15 @@ export default function Connect() {
               ? <><span className="spinner mr-2" /> Reconnecting…</>
               : 'Connect with WizardConnect'}
         </button>
-        <button
-          onClick={handleWc2}
-          disabled={connecting || wcState === 'connecting'}
-          className="btn-ghost"
-        >
-          {connecting ? <><span className="spinner mr-2" /> Connecting…</> : 'Connect with WalletConnect v2'}
-        </button>
+        {WALLETCONNECT_ENABLED && (
+          <button
+            onClick={handleWc2}
+            disabled={connecting || wcState === 'connecting'}
+            className="btn-ghost"
+          >
+            {connecting ? <><span className="spinner mr-2" /> Connecting…</> : 'Connect with WalletConnect v2'}
+          </button>
+        )}
       </div>
 
       {/* WC2 QR code */}
