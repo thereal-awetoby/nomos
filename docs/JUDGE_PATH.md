@@ -39,7 +39,8 @@ the identity link.
 cd contracts/solidcash && npm ci && npm test   # vault, StableSwap and HTLC in the BCH VM (mock network)
 cd contracts && npm ci && npm run test:swap    # SwapLock.cash, the PUSD side of the swap, in the BCH VM
 cd contracts/evm && npm ci && npm test         # SwapLock.sol, the USDC side, in a local EVM
-cd xo && npm ci && npm test                    # 14 offline checks of the XO template against CashScript
+cd xo && npm ci && npm test                    # 14 checks of the XO template against CashScript, 4 through XO's engine
+cd xo && npm run replay                        # the chipnet runs, rebuilt from their invitations and checked in the BCH VM
 cd frontend && npm ci && npm run build         # type check and production build
 ```
 
@@ -52,5 +53,5 @@ cd frontend && npm ci && npm run build         # type check and production build
   the PUSD and USDC swap.
 - `frontend/src/lib/identity.ts` and `docs/IDENTITY_PROTOCOL.md`: the identity
   link and how anyone can verify it.
-- `xo/nomos.template.json` and `xo/REPRODUCE.md`: the XO template and the live
-  chipnet attempt.
+- `xo/nomos.template.json` and `xo/REPRODUCE.md`: the XO template and its
+  chipnet runs (payments, a refused over-limit payment, a two-engine rescue).

@@ -6,7 +6,7 @@ import { useToast } from './Toast'
 import { useWallet } from '../context/WalletContext'
 import { shortAddr } from './ui'
 import { OPEN_SHORTCUTS_EVENT } from '../lib/theme'
-import { ASGAYA_URL, DEMO_VIDEO_URL, EMBER_ADDRESS, GITHUB_URL, MERCAR_URL, WIDGET_FACTORY_URL } from '../lib/links'
+import { ASGAYA_URL, DECK_URL, DEMO_VIDEO_URL, EMBER_ADDRESS, GITHUB_URL, MERCAR_URL } from '../lib/links'
 
 // ── Site-wide top banner ────────────────────────────────────
 
@@ -33,7 +33,7 @@ const MENU = [
 
 const EXTERNAL = [
   { href: GITHUB_URL, label: 'GitHub' },
-  ...(WIDGET_FACTORY_URL ? [{ href: WIDGET_FACTORY_URL, label: 'Presentation (Widget Factory)' }] : []),
+  ...(DECK_URL ? [{ href: DECK_URL, label: 'Presentation' }] : []),
   ...(DEMO_VIDEO_URL ? [{ href: DEMO_VIDEO_URL, label: 'Demo video' }] : []),
   { href: MERCAR_URL, label: 'Mercar P2P' },
   { href: ASGAYA_URL, label: 'Asgaya' },
@@ -120,8 +120,8 @@ export default function Banner() {
       {/* Thin strip: EMBER2026 vote address */}
       <div className="border-t hairline">
         <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-1.5 text-xs text-nomos-muted">
-          {WIDGET_FACTORY_URL && (
-            <a href={WIDGET_FACTORY_URL} target="_blank" rel="noreferrer" className="shrink-0 font-medium text-nomos-text hover:underline">Deck</a>
+          {DECK_URL && (
+            <a href={DECK_URL} target="_blank" rel="noreferrer" className="shrink-0 font-medium text-nomos-text hover:underline">Deck</a>
           )}
           {DEMO_VIDEO_URL && (
             <a href={DEMO_VIDEO_URL} target="_blank" rel="noreferrer" className="shrink-0 font-medium text-nomos-text hover:underline">Demo</a>

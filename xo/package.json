@@ -5,6 +5,7 @@
   "description": "Nomos as an XO template (BCH BLAZE Build with XO bounty)",
   "scripts": {
     "export": "node scripts/export.mjs",
+    "replay": "node scripts/replay.mjs runs/run-26 runs/run-27",
     "test": "node test/xo.test.mjs && node test/engine.test.mjs"
   },
   "dependencies": {

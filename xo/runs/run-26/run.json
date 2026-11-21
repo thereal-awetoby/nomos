@@ -1,0 +1,46 @@
+{
+  "network": "chipnet",
+  "startedAt": "2026-11-21T11:41:47.288Z",
+  "steps": [
+    {
+      "at": "2026-11-21T11:41:50.740Z",
+      "step": "existing-vault",
+      "outpoint": "130d19ad7b009126f56d1f4c969d5960bed47c4184b0aeb00f4fc5a315be5695:0",
+      "satoshis": "16000",
+      "commitment": "b80b0000000000002a51000000000000",
+      "status": "confirmed"
+    },
+    {
+      "at": "2026-11-21T11:41:51.572Z",
+      "step": "pay",
+      "satoshis": "3000",
+      "txid": "4236d8ac82930401c33e4eb639603580e6c8234e680dd9c0ad24307290a915d3",
+      "invitation": "2-pay-3000.json"
+    },
+    {
+      "at": "2026-11-21T11:42:07.666Z",
+      "step": "pay",
+      "satoshis": "4000",
+      "txid": "ca1df8563f8ac631072d0d5f7c3944fd8d9aa0f0b74daaa851e046a95cdd0515",
+      "invitation": "3-pay-4000.json"
+    },
+    {
+      "at": "2026-11-21T11:44:09.347Z",
+      "step": "pay-over-limit",
+      "satoshis": "5000",
+      "refusedBeforeBroadcast": "Transaction broadcast failed for transaction hash \"175db2117071773e8074b42e46bb881df2a0d7f6741878ed74851be81f73fd71\" of invitation \"275386e7b37099df46f062899c5acf4d\": Error: Failed to broadcast transaction: Error: Failed to request 'blockchain.transaction.broadcast': the transaction was rejected by network rules.",
+      "nodeResponse": "Failed to broadcast transaction: Error: Failed to request 'blockchain.transaction.broadcast': the transaction was rejected by network rules.",
+      "unexpectedTxid": null,
+      "invitation": "4-pay-5000-overlimit.json"
+    },
+    {
+      "at": "2026-11-21T11:44:11.949Z",
+      "step": "rescue",
+      "error": "Command failed: /opt/hostedtoolcache/node/22.23.5/x64/bin/node /home/runner/work/nomos/nomos/xo/scripts/chipnet.mjs rescuer-sign /home/runner/work/nomos/nomos/xo/invitations/5-rescue-1-owner.json /home/runner/work/nomos/nomos/xo/invitations/5-rescue-2-rescuer.json"
+    },
+    {
+      "at": "2026-11-21T11:44:11.949Z",
+      "step": "done"
+    }
+  ]
+}

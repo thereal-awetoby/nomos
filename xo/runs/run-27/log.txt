@@ -1,0 +1,47 @@
+Nomos XO chipnet demo — engine-derived keys verified for both accounts.
+  owner address (fund this): bchtest:qq5lwjtaafy8qve58mxtkv308tsnvn7tju23rpztw6
+  rescuer address:           bchtest:qzz8dzfddv3l64pr4952x7v2zm6jedy8gs3dlwraxz
+
+Compiling NomosVault.cash…
+  contract address: bchtest:pwxmnnnj6jcemm59q5wkclr7e4m5zcsh6gl36thqpjp6h9860f6lchj2vfev8
+  contract token address: bchtest:rwxmnnnj6jcemm59q5wkclr7e4m5zcsh6gl36thqpjp6h9860f6lc9pkdsc4v
+  vault script hash: f67695c5310db92cddbd251f66002c03e7da11b73a4fe132da08a418a3e8770b
+  owner script hash: 0a2973b06468373deee3c469cb499358cb8b47b5f4a178d5e8d7d44f55ab850f
+  engine up, template imported
+  Electrum reports 5 unspent output(s) for owner script hash
+    7307f6979c30aca3afd57806611bb04959c4f0712a2ba1833d574a1a44c70785:1 — 27000 sats
+    cf211e3bbe6e4ca7d10dc2900d3aad95b3114f2bcdfd5c467fefbe7cfe680f5f:1 — 1000 sats (holds a token)
+    130d19ad7b009126f56d1f4c969d5960bed47c4184b0aeb00f4fc5a315be5695:1 — 3000 sats
+    4236d8ac82930401c33e4eb639603580e6c8234e680dd9c0ad24307290a915d3:1 — 3000 sats
+    ca1df8563f8ac631072d0d5f7c3944fd8d9aa0f0b74daaa851e046a95cdd0515:1 — 4000 sats
+  engine vault script hash: f67695c5310db92cddbd251f66002c03e7da11b73a4fe132da08a418a3e8770b
+
+[0] Checking for an existing vault…
+  vault found: ca1df8563f8ac631072d0d5f7c3944fd8d9aa0f0b74daaa851e046a95cdd0515:0 (7000 sats, confirmed); skipping funding and genesis
+
+[2] Pay 3000 sats: skipped (10000 of the 10000-sat limit already spent today)
+
+[3] Pay 4000 sats: skipped (10000 of the 10000-sat limit already spent today)
+
+[4] Pay 5000 sats: 10000 already spent today + 5000 = 15000 > 10000; expect the node to refuse it…
+
+[4] Pay 5000 sats (owner)…
+  REFUSED: the engine's broadcast failed: Transaction broadcast failed for transaction hash "7feeef9b27cc158d5d45b3cd54142e84bbf198cba501f8138ebf93f273d30b03" of invitation "3f74320a5b9563d80d8971231b3d13bd": Error: Failed to broadcast transaction: Error: Failed to request 'blockchain.transaction.broadcast': the transaction was rejected by network rules. mandatory-script-verify-flag-failed (Script failed an OP_VERIFY operation) (code 16)
+  the node refused it: Failed to broadcast transaction: Error: Failed to request 'blockchain.transaction.broadcast': the transaction was rejected by network rules. mandatory-script-verify-flag-failed (Script failed an OP_VERIFY operation) (code 16)
+  invitation saved: /home/runner/work/nomos/nomos/xo/invitations/4-pay-5000-overlimit.json
+
+[5] Rescue — owner and rescuer sign one invitation in two engines…
+  owner signed; invitation for the rescuer: /home/runner/work/nomos/nomos/xo/invitations/5-rescue-1-owner.json
+Failed to process transaction update: Error: Could not validate a block header on height 341078: The requested header is ahead of the current checkpoint at height 307184
+Failed to process transaction update: Error: Could not validate a block header on height 341079: The requested header is ahead of the current checkpoint at height 307184
+Failed to process transaction update: Error: Could not validate a block header on height 341083: The requested header is ahead of the current checkpoint at height 307184
+Failed to process transaction update: Error: Could not validate a block header on height 341084: The requested header is ahead of the current checkpoint at height 307184
+Failed to process transaction update: Error: Could not validate a block header on height 341078: The requested header is ahead of the current checkpoint at height 308192
+Failed to process transaction update: Error: Could not validate a block header on height 341079: The requested header is ahead of the current checkpoint at height 308192
+Failed to process transaction update: Error: Could not validate a block header on height 341083: The requested header is ahead of the current checkpoint at height 308192
+Failed to process transaction update: Error: Could not validate a block header on height 341084: The requested header is ahead of the current checkpoint at height 308192
+  rescuer signed: /home/runner/work/nomos/nomos/xo/invitations/5-rescue-2-rescuer.json
+  invitation saved: /home/runner/work/nomos/nomos/xo/invitations/5-rescue.json
+  rescue txid: ac6fa39439fd4486b6dae6984e2e727a47e909f3ec4986819cbb7434adcbbfb1
+
+Done. Invitations saved to /home/runner/work/nomos/nomos/xo/invitations

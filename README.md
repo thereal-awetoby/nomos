@@ -12,6 +12,7 @@ Nomos keeps your BCH in a CashScript vault, and your rules (a daily limit, an al
 
 - **Use it:** [nomos.asgaya.org](https://nomos.asgaya.org), with Paytaca over WizardConnect. No account, no Nomos fee.
 - **Watch it:** [the demo video](https://youtu.be/eR8DS4LNMvA).
+- **See the slides:** [the presentation](https://docs.google.com/presentation/d/1ruPJk74ME0xVz1BZ3AAijFfSmS5pkSdsXZm5N2HRkRI/edit?usp=sharing).
 - **Read the rule:** [`contracts/NomosVault.cash` line 45](contracts/NomosVault.cash#L45), `require(effectiveSpent + amount <= dailyLimitSats);`
 - **Check the chain:** [every mainnet transaction](docs/MAINNET_PROOFS.md), by component.
 - **Built for BCH BLAZE 2026:** Mainnet Track, SolidCash, Decentralized Identity, Stablecoin Bridge and XO ([map](#bch-blaze-2026)).
@@ -63,7 +64,7 @@ The same payment in the app, from setting the rules to a refusal:
 | --- | --- | --- | --- |
 | **The app's vault** | CashScript 0.11 | Live on mainnet in the app | [`contracts/NomosVault.cash`](contracts/NomosVault.cash) |
 | **SolidCash edition** | SolidCash 0.51 | Deployed, paid, refused and rescued on mainnet; 14 checks in the BCH VM | [`contracts/solidcash/`](contracts/solidcash) |
-| **XO template** | XO | Pay, top up, withdraw and a two-party rescue; 14 checks show every script matches CashScript byte for byte; the vault was created on chipnet through XO's engine | [`xo/`](xo) |
+| **XO template** | XO | Pay, top up, withdraw and a two-party rescue; 14 checks show every script matches CashScript byte for byte; on chipnet, XO's engine paid up to the daily limit, the node refused the next payment, and the owner and the rescuer signed the rescue in two engines ([transactions](xo/REPRODUCE.md#results)) | [`xo/`](xo) |
 
 ## Also in the app
 
@@ -105,7 +106,8 @@ npm run build                                     # type check and production bu
 cd ../contracts/solidcash && npm ci && npm test   # SolidCash vault, StableSwap and HTLC in the BCH VM
 cd .. && npm ci && npm run test:swap              # SwapLock.cash, the PUSD side of the swap, in the BCH VM
 cd evm && npm ci && npm test                      # SwapLock.sol, the USDC side, in a local EVM
-cd ../../xo && npm ci && npm test                 # XO template against CashScript
+cd ../../xo && npm ci && npm test                 # XO template against CashScript, then through XO's engine
+npm run replay                                    # the chipnet runs' transactions, rebuilt and checked in the BCH VM
 ```
 
 Publishing the site: [`docs/DEPLOY.md`](docs/DEPLOY.md).

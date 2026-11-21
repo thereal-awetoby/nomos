@@ -1,0 +1,72 @@
+Nomos XO chipnet demo — engine-derived keys verified for both accounts.
+  owner address (fund this): bchtest:qq5lwjtaafy8qve58mxtkv308tsnvn7tju23rpztw6
+  rescuer address:           bchtest:qzz8dzfddv3l64pr4952x7v2zm6jedy8gs3dlwraxz
+
+Compiling NomosVault.cash…
+  contract address: bchtest:pwxmnnnj6jcemm59q5wkclr7e4m5zcsh6gl36thqpjp6h9860f6lchj2vfev8
+  contract token address: bchtest:rwxmnnnj6jcemm59q5wkclr7e4m5zcsh6gl36thqpjp6h9860f6lc9pkdsc4v
+  vault script hash: f67695c5310db92cddbd251f66002c03e7da11b73a4fe132da08a418a3e8770b
+  owner script hash: 0a2973b06468373deee3c469cb499358cb8b47b5f4a178d5e8d7d44f55ab850f
+Skipping host: Error: Failed to establish connection: WebSocket: 1006: .
+  engine up, template imported
+  Electrum reports 3 unspent output(s) for owner script hash
+    undefined:undefined — undefined sats
+    undefined:undefined — undefined sats
+    undefined:undefined — undefined sats
+  engine vault script hash: f67695c5310db92cddbd251f66002c03e7da11b73a4fe132da08a418a3e8770b
+
+[0] Checking for an existing vault…
+  vault found: 130d19ad7b009126f56d1f4c969d5960bed47c4184b0aeb00f4fc5a315be5695:0 (16000 sats, confirmed); skipping funding and genesis
+
+[2] Pay 3000 sats (owner)…
+  invitation saved: /home/runner/work/nomos/nomos/xo/invitations/2-pay-3000.json
+  pay #1 txid: 4236d8ac82930401c33e4eb639603580e6c8234e680dd9c0ad24307290a915d3
+Failed to process transaction update: Error: Could not validate a block header on height 341078: The requested header is ahead of the current checkpoint at height 307184
+Failed to process transaction update: Error: Could not validate a block header on height 341078: The requested header is ahead of the current checkpoint at height 307184
+Failed to process transaction update: Error: Could not validate a block header on height 341079: The requested header is ahead of the current checkpoint at height 307184
+Failed to process transaction update: Error: Could not validate a block header on height 341078: The requested header is ahead of the current checkpoint at height 308192
+Failed to process transaction update: Error: Could not validate a block header on height 341079: The requested header is ahead of the current checkpoint at height 308192
+Failed to process transaction update: Error: Could not validate a block header on height 341078: The requested header is ahead of the current checkpoint at height 309200
+Failed to process transaction update: Error: Could not validate a block header on height 341079: The requested header is ahead of the current checkpoint at height 309200
+Failed to process transaction update: Error: Could not validate a block header on height 341078: The requested header is ahead of the current checkpoint at height 309200
+Failed to process transaction update: Error: Could not validate a block header on height 341078: The requested header is ahead of the current checkpoint at height 310208
+Failed to process transaction update: Error: Could not validate a block header on height 341079: The requested header is ahead of the current checkpoint at height 310208
+Failed to process transaction update: Error: Could not validate a block header on height 341083: The requested header is ahead of the current checkpoint at height 320288
+Failed to process transaction update: Error: Could not validate a block header on height 341078: The requested header is ahead of the current checkpoint at height 320288
+Failed to process transaction update: Error: Could not validate a block header on height 341078: The requested header is ahead of the current checkpoint at height 320288
+Failed to process transaction update: Error: Could not validate a block header on height 341079: The requested header is ahead of the current checkpoint at height 320288
+Failed to process transaction update: Error: Could not validate a block header on height 341083: The requested header is ahead of the current checkpoint at height 321296
+Failed to process transaction update: Error: Could not validate a block header on height 341078: The requested header is ahead of the current checkpoint at height 321296
+Failed to process transaction update: Error: Could not validate a block header on height 341079: The requested header is ahead of the current checkpoint at height 321296
+Failed to process transaction update: Error: Could not validate a block header on height 341083: The requested header is ahead of the current checkpoint at height 322304
+
+[3] Pay 4000 sats (owner)…
+  invitation saved: /home/runner/work/nomos/nomos/xo/invitations/3-pay-4000.json
+  pay #2 txid: ca1df8563f8ac631072d0d5f7c3944fd8d9aa0f0b74daaa851e046a95cdd0515
+Failed to process transaction update: Error: Could not validate a block header on height 341078: The requested header is ahead of the current checkpoint at height 340448
+Failed to process transaction update: Error: Could not validate a block header on height 341079: The requested header is ahead of the current checkpoint at height 340448
+Failed to process transaction update: Error: Could not validate a block header on height 341083: The requested header is ahead of the current checkpoint at height 340448
+Failed to process transaction update: Error: Could not validate a block header on height 341078: The requested header is ahead of the current checkpoint at height 340448
+Failed to process transaction update: Error: Could not validate a block header on height 341083: The requested header is ahead of the current checkpoint at height 341081
+
+[4] Pay 5000 sats more (12,000 > 10,000) — expect rejection…
+
+[4] Pay 5000 sats (owner)…
+  REFUSED by the contract before broadcast: Transaction broadcast failed for transaction hash "175db2117071773e8074b42e46bb881df2a0d7f6741878ed74851be81f73fd71" of invitation "275386e7b37099df46f062899c5acf4d": Error: Failed to broadcast transaction: Error: Failed to request 'blockchain.transaction.broadcast': the transaction was rejected by network rules.
+  node rejected the broadcast: Failed to broadcast transaction: Error: Failed to request 'blockchain.transaction.broadcast': the transaction was rejected by network rules.
+  invitation saved: /home/runner/work/nomos/nomos/xo/invitations/4-pay-5000-overlimit.json
+  rejection recorded: Transaction broadcast failed for transaction hash "175db2117071773e8074b42e46bb881df2a0d7f6741878ed74851be81f73fd71" of invitation "275386e7b37099df46f062899c5acf4d": Error: Failed to broadcast transaction: Error: Failed to request 'blockchain.transaction.broadcast': the transaction was rejected by network rules.
+
+[5] Rescue — owner and rescuer sign one invitation in two engines…
+  owner signed; invitation for the rescuer: /home/runner/work/nomos/nomos/xo/invitations/5-rescue-1-owner.json
+  rescuer signed: /home/runner/work/nomos/nomos/xo/invitations/5-rescue-2-rescuer.json
+node:internal/process/promises:394
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+
+[AggregateError: All promises were rejected] { [errors]: [] }
+
+Node.js v22.23.5
+  rescue did not complete: Command failed: /opt/hostedtoolcache/node/22.23.5/x64/bin/node /home/runner/work/nomos/nomos/xo/scripts/chipnet.mjs rescuer-sign /home/runner/work/nomos/nomos/xo/invitations/5-rescue-1-owner.json /home/runner/work/nomos/nomos/xo/invitations/5-rescue-2-rescuer.json
+
+Done. Invitations saved to
