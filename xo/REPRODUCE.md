@@ -1,7 +1,8 @@
 # Reproducing the XO chipnet bounty run
 
 This document records how to reproduce the offline checks for the Nomos XO
-template and what the live chipnet (BCH testnet) demo attempt reached.
+template, what the first live chipnet (BCH testnet) attempt reached, and the
+[results](#results) of the runs that completed the lifecycle.
 
 ## Offline checks
 
@@ -30,7 +31,9 @@ npm test
   a rescue with the wrong co-signer at line 93.
 - Changing one vault parameter changes the address, so the checks have teeth.
 
-Expected result: `14/14 passed`.
+Expected result: `14/14 passed`, then `4/4 passed` from `test/engine.test.mjs`,
+which runs the template through XO's own engine
+([below](#the-template-bug-the-engine-test-found)).
 
 The chipnet demo script itself can be syntax-checked offline:
 
@@ -74,9 +77,10 @@ address, funded it, and ran the demo.
    on a chipnet explorer at
    `bchtest:rdmvyxulcv487tkfdwa664vdchs7wtdlx78pthfq9w0enyz8quvssd99rcz9j`.
 
-### What was not completed
+### What the first attempt did not complete
 
-The pay and rescue steps were **not** completed. After the genesis
+The first attempt did **not** complete the pay and rescue steps; the later
+runs did (see [Results](#results)). After the genesis
 transaction was broadcast, the engine could not track the vault on chipnet
 (blocker 3), so the run never reached the pay invitations. The workarounds
 tried in `chipnet.mjs` did not get past this.
@@ -221,7 +225,8 @@ On GitHub Actions (`.github/workflows/xo-chipnet.yml`):
 2. Actions → **XO chipnet run** → Run workflow (or push to the `xo-chipnet`
    branch).
 3. Results go to the `xo-chipnet-results` artifact and the
-   `xo-chipnet-output` branch: `invitations/2-pay-3000.json`,
+   `xo-chipnet-output` branch (which keeps only the latest run):
+   `invitations/2-pay-3000.json`,
    `3-pay-4000.json`, `4-pay-5000-overlimit.json`, `5-rescue-1-owner.json`,
    `5-rescue-2-rescuer.json`, `5-rescue.json`, `run.json` (every transaction
    ID and the node's answer to the over-limit payment) and
@@ -240,4 +245,67 @@ The invitation files are XO's own serialized format (`serializeInvitation`
 from `@xo-cash/utils`); `deserializeInvitation` reads them back. They carry
 public keys and signatures, never private keys.
 
-Results of the second run are added here once it has run.
+## Results
+
+The fixed template ran on chipnet on 21 November 2026 in GitHub Actions runs
+#25, #26 and #27 of `.github/workflows/xo-chipnet.yml`, with the same two
+mnemonics. Each run continued from the vault the previous one left.
+
+| Run | Step | Chipnet transaction |
+|-----|------|---------------------|
+| #25 | Moved the first run's vault to the new owner, created the new vault, paid 3,000 sats (3,000 spent today) | pay: `130d19ad7b009126f56d1f4c969d5960bed47c4184b0aeb00f4fc5a315be5695` |
+| #26 | Paid 3,000 sats through an XO invitation (6,000 spent today) | `4236d8ac82930401c33e4eb639603580e6c8234e680dd9c0ad24307290a915d3` |
+| #26 | Paid 4,000 sats (10,000 spent today, the daily limit) | `ca1df8563f8ac631072d0d5f7c3944fd8d9aa0f0b74daaa851e046a95cdd0515` |
+| #26 | Tried to pay 5,000 more (15,000 > 10,000) | refused by the node; would have been `175db211…` |
+| #27 | Tried the same over-limit payment again | refused by the node: `mandatory-script-verify-flag-failed (Script failed an OP_VERIFY operation) (code 16)`; would have been `7feeef9b…` |
+| #27 | Rescue: the owner and the rescuer signed one invitation in two engines; 6,000 sats and the vault NFT went back to the owner | `ac6fa39439fd4486b6dae6984e2e727a47e909f3ec4986819cbb7434adcbbfb1` |
+
+New vault: `bchtest:pwxmnnnj6jcemm59q5wkclr7e4m5zcsh6gl36thqpjp6h9860f6lchj2vfev8`,
+token category `cf211e3bbe6e4ca7d10dc2900d3aad95b3114f2bcdfd5c467fefbe7cfe680f5f`;
+owner `bchtest:qq5lwjtaafy8qve58mxtkv308tsnvn7tju23rpztw6`, rescuer
+`bchtest:qzz8dzfddv3l64pr4952x7v2zm6jedy8gs3dlwraxz`.
+
+Run #25's saved files were replaced on the results branch by the next run, so
+its other transaction IDs are not listed here; run #26 started from the vault
+coin it left, `130d19ad…:0`, holding 16,000 sats with 3,000 spent that day.
+
+In run #26 the owner and the rescuer both signed the rescue, but the
+rescuer's process crashed while closing its Electrum connections, after it
+had written its signature (`AggregateError: All promises were rejected`), and
+the run did not broadcast the rescue. `scripts/chipnet.mjs` now ends the
+rescuer's process as soon as its signature is written, uses a written
+signature even if that process fails, keeps the node's whole answer (run #26
+kept only its first line), and exits non-zero when a step fails. Run #27 read
+from the vault's NFT that the day's 10,000 sats were used, skipped the two
+payments, tried the over-limit payment again and finished the rescue.
+
+The saved files are in [`runs/`](runs): each run's `run.json`, log and
+invitations.
+
+### Check it yourself, offline
+
+```bash
+cd xo
+npm ci
+npm run replay
+```
+
+`scripts/replay.mjs` rebuilds every transaction the engine built from the
+saved invitations, checks that it hashes to the transaction ID the run
+reported, and evaluates it in libauth's BCH VM with the vault coin it spends.
+It also checks that the vault's redeem script is `contracts/NomosVault.cash`
+as compiled by cashc 0.11.5, and maps a failure to its `require` line through
+the compiler's debug information:
+
+```
+runs/run-26
+  2-pay-3000.json: pay 4236d8ac… rebuilt with the same ID; VM: valid (3000 spent today + 3000 against a 10000 limit); …
+  3-pay-4000.json: pay ca1df856… rebuilt with the same ID; VM: valid (6000 spent today + 4000 against a 10000 limit); …
+  4-pay-5000-overlimit.json: pay 175db211… rebuilt with the same ID; VM: fails at NomosVault.cash:45  require(effectiveSpent + amount <= dailyLimitSats); …
+runs/run-27
+  4-pay-5000-overlimit.json: pay 7feeef9b… rebuilt with the same ID; VM: fails at NomosVault.cash:45  require(effectiveSpent + amount <= dailyLimitSats); …
+  5-rescue.json: rescue ac6fa394… rebuilt with the same ID; VM: valid; the run broadcast it with this ID: ok
+```
+
+Both refused payments fail at the daily limit, the rule the node's
+`Script failed an OP_VERIFY operation` refers to.

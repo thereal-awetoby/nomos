@@ -5,12 +5,12 @@ import ThemeToggle from '../components/ThemeToggle'
 import { shortAddr } from '../components/ui'
 import {
   CONTRACT_URL,
+  DECK_URL,
   DEMO_VIDEO_URL,
   EMBER_ADDRESS,
   GITHUB_URL,
   MAINNET_EXPLORER_TX,
   MAINNET_PROOFS,
-  WIDGET_FACTORY_URL,
 } from '../lib/links'
 
 const STEPS = [
@@ -348,7 +348,7 @@ export default function Landing() {
               <li><a href={GITHUB_URL} target="_blank" rel="noreferrer" className="hover:text-nomos-text">Source code</a></li>
               <li><a href={CONTRACT_URL} target="_blank" rel="noreferrer" className="hover:text-nomos-text">The contract</a></li>
               <li><Link to="/architecture" className="hover:text-nomos-text">How it's built</Link></li>
-              {WIDGET_FACTORY_URL && <li><a href={WIDGET_FACTORY_URL} target="_blank" rel="noreferrer" className="hover:text-nomos-text">Presentation</a></li>}
+              {DECK_URL && <li><a href={DECK_URL} target="_blank" rel="noreferrer" className="hover:text-nomos-text">Presentation</a></li>}
               {DEMO_VIDEO_URL && <li><a href={DEMO_VIDEO_URL} target="_blank" rel="noreferrer" className="hover:text-nomos-text">Demo video</a></li>}
             </ul>
           </div>

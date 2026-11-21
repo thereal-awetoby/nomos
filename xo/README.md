@@ -59,10 +59,29 @@ redeem script twice (see [REPRODUCE.md](REPRODUCE.md#the-template-bug-the-engine
 4/4 passed
 ```
 
+## On chipnet
+
+The template ran the vault's lifecycle on chipnet through XO's engine on
+21 November 2026: three payments the same day (3,000, 3,000 and 4,000 sats,
+reaching the 10,000-sat daily limit), an over-limit payment the node refused with
+`Script failed an OP_VERIFY operation`, and a rescue signed by the owner and
+the rescuer in two separate engines
+(`ac6fa39439fd4486b6dae6984e2e727a47e909f3ec4986819cbb7434adcbbfb1`). The
+transaction IDs, the saved invitations and what each run did are in
+[REPRODUCE.md](REPRODUCE.md#results) and [`runs/`](runs). Check them offline:
+
+```bash
+npm run replay
+```
+
+It rebuilds each transaction from its saved invitation, checks the
+transaction ID and evaluates it in the BCH VM: the saved payments and the
+rescue are valid, and both refused payments fail at `NomosVault.cash:45`.
+
 ## Chipnet demo script
 
-See [REPRODUCE.md](REPRODUCE.md) for the offline checks and a record of what
-the live chipnet attempt reached, including the blockers encountered.
+See [REPRODUCE.md](REPRODUCE.md) for the offline checks, the blockers the
+first attempt hit and how they were fixed.
 
 `scripts/chipnet.mjs` runs the full vault lifecycle on chipnet:
 
@@ -78,7 +97,8 @@ action can't do genesis because the NFT category must be the txid of the
 funding coin. After genesis, every step is an XO invitation: pay 3,000, pay
 4,000, an over-limit pay 5,000 (signed and sent to the node, rejection
 recorded), and a rescue co-signed by owner + rescuer. Invitations are saved to
-`invitations/<n>-<action>.json` (no keys).
+`invitations/<n>-<action>.json` (no keys). Run again the same day, it skips the
+payments the vault's state says are over today's limit.
 
 **`topUp` is not exercised by the script.** The engine's `signInvitation`
 couldn't unlock the funding input for a plain top-up (the composable funding
@@ -88,9 +108,6 @@ engine build doesn't expose cleanly). The required pay/rescue flow is unaffected
 
 ## Not checked yet
 
-- **Not run in the XO engine against a live chipnet node.** The development
-  sandbox has no chipnet Electrum connection; the chipnet script above is the
-  next step (fund the printed address, then `run`).
 - **Signatures** (`…schnorr_signature.all_outputs`) can't be compiled offline;
   the tests swap in the exact signature CashScript produced and compare the rest.
 - **Creating a vault** stays in the Nomos app: the state NFT's category must be
