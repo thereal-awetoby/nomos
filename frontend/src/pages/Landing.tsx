@@ -85,10 +85,6 @@ const FAQ = [
     q: 'What does it cost?',
     a: 'Only Bitcoin Cash network fees. Nomos charges nothing.',
   },
-  {
-    q: 'How much should I put in?',
-    a: 'Start with a small amount. Nomos runs on Bitcoin Cash mainnet with real BCH, so try a small vault first and add more when you are ready.',
-  },
 ]
 
 function Eyebrow({ children }: { children: string }) {
@@ -313,8 +309,8 @@ export default function Landing() {
         {/* Closing */}
         <section className="border-t hairline">
           <div className="mx-auto max-w-6xl px-4 py-16 text-center md:py-24">
-            <h2 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight text-nomos-text sm:text-4xl">Try it with a small amount.</h2>
-            <p className="mx-auto mt-3 max-w-xl text-[15px] leading-relaxed text-nomos-muted">Connect Paytaca, set a daily limit and make a payment. It takes a few minutes.</p>
+            <h2 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight text-nomos-text sm:text-4xl">Set up a vault in a few minutes.</h2>
+            <p className="mx-auto mt-3 max-w-xl text-[15px] leading-relaxed text-nomos-muted">Connect Paytaca, choose a daily limit and make a payment.</p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Link to={appTo} className="btn-primary px-6">Open the app</Link>
               <Link to="/simulate" className="btn-ghost min-h-[44px] px-6">Try without a wallet</Link>
