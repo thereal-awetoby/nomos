@@ -18,9 +18,9 @@ const TOAST_MS = 2800
 const MAX_TOASTS = 3
 
 const variantStyles: Record<ToastVariant, string> = {
-  success: 'border-nomos-accent/60 text-nomos-accent',
-  error: 'border-nomos-refuse/60 text-nomos-refuse',
-  info: 'border-nomos-border/35 text-nomos-text',
+  success: 'text-nomos-text',
+  error: 'text-nomos-refuse',
+  info: 'text-nomos-text',
 }
 
 const variantIcon: Record<ToastVariant, string> = {
@@ -71,9 +71,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             type="button"
             onClick={() => dismiss(item.id)}
             aria-label={`Dismiss notification: ${item.message}`}
-            className={`toast-enter pointer-events-auto flex max-w-sm items-center gap-2.5 border bg-nomos-surface px-3 py-2 font-mono text-[11px] font-medium shadow-[0_8px_24px_rgba(0,0,0,0.3)] ${variantStyles[item.variant]}`}
+            className={`toast-enter pointer-events-auto flex max-w-sm items-center gap-2.5 rounded-lg border hairline-strong bg-nomos-surface px-3.5 py-2.5 text-sm font-medium shadow-lg ${variantStyles[item.variant]}`}
           >
-            <span aria-hidden="true" className="font-mono">{variantIcon[item.variant]}</span>
+            <span aria-hidden="true" className="text-nomos-muted">{variantIcon[item.variant]}</span>
             <span className="text-left">{item.message}</span>
           </button>
         ))}

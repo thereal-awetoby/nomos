@@ -3,58 +3,56 @@
 @tailwind utilities;
 
 /* ── Tokens ───────────────────────────────────────────────────
-   Dark: ops console. Light: paper and ink. Emerald marks the
-   success path only, red marks refusal only, amber marks pending. */
+   Neutral greys plus two signal colours: green for a payment that
+   went through, red for a refusal or an error. "accent" is the ink
+   colour used for primary buttons and links, not a hue. */
 :root {
   color-scheme: dark;
-  --nomos-bg: 11 13 16;
-  --nomos-bg-deep: 7 8 10;
-  --nomos-surface: 17 20 24;
-  --nomos-surface-raised: 25 29 34;
-  --nomos-border: 150 160 174;
-  --nomos-border-bright: 196 204 214;
-  --nomos-accent: 18 199 136;
-  --nomos-refuse: 255 76 76;
-  --nomos-pending: 236 170 60;
-  --nomos-text: 231 234 238;
-  --nomos-muted: 116 125 138;
-  --nomos-muted-bright: 162 170 182;
-  --nomos-on-accent: 6 20 14;
-  --line: rgb(150 160 174 / 0.16);
-  --line-strong: rgb(150 160 174 / 0.30);
-  --grid: rgb(150 160 174 / 0.045);
+  --nomos-bg: 15 14 14;
+  --nomos-bg-deep: 21 20 20;
+  --nomos-surface: 24 23 23;
+  --nomos-surface-raised: 34 33 33;
+  --nomos-border: 255 255 255;
+  --nomos-border-bright: 255 255 255;
+  --nomos-accent: 240 240 238;
+  --nomos-ok: 74 196 128;
+  --nomos-refuse: 244 112 103;
+  --nomos-pending: 150 150 146;
+  --nomos-text: 240 240 238;
+  --nomos-muted: 150 150 146;
+  --nomos-muted-bright: 190 190 186;
+  --nomos-on-accent: 15 14 14;
+  --line: rgb(255 255 255 / 0.08);
+  --line-strong: rgb(255 255 255 / 0.14);
 }
 
 :root[data-theme='light'] {
   color-scheme: light;
-  --nomos-bg: 237 235 230;
-  --nomos-bg-deep: 228 226 220;
-  --nomos-surface: 247 246 242;
-  --nomos-surface-raised: 234 232 226;
-  --nomos-border: 38 42 50;
-  --nomos-border-bright: 17 19 23;
-  --nomos-accent: 0 120 78;
-  --nomos-refuse: 198 30 30;
-  --nomos-pending: 160 100 0;
-  --nomos-text: 17 19 23;
-  --nomos-muted: 96 102 112;
-  --nomos-muted-bright: 58 63 72;
+  --nomos-bg: 248 248 246;
+  --nomos-bg-deep: 242 242 240;
+  --nomos-surface: 255 255 255;
+  --nomos-surface-raised: 243 243 241;
+  --nomos-border: 17 17 17;
+  --nomos-border-bright: 17 17 17;
+  --nomos-accent: 17 17 17;
+  --nomos-ok: 21 128 61;
+  --nomos-refuse: 196 43 28;
+  --nomos-pending: 110 110 106;
+  --nomos-text: 17 17 17;
+  --nomos-muted: 110 110 106;
+  --nomos-muted-bright: 64 64 62;
   --nomos-on-accent: 255 255 255;
-  --line: rgb(38 42 50 / 0.16);
-  --line-strong: rgb(38 42 50 / 0.34);
-  --grid: rgb(38 42 50 / 0.06);
+  --line: rgb(17 17 17 / 0.08);
+  --line-strong: rgb(17 17 17 / 0.14);
 }
 
 @layer base {
   body {
-    @apply min-h-screen text-nomos-text;
+    @apply min-h-screen font-sans text-[15px] leading-normal text-nomos-text;
     background-color: rgb(var(--nomos-bg));
-    background-image:
-      linear-gradient(to right, var(--grid) 1px, transparent 1px),
-      linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
-    background-size: 24px 24px;
-    background-attachment: fixed;
   }
+
+  html, body { overflow-x: hidden; }
 
   * {
     -webkit-font-smoothing: antialiased;
@@ -62,7 +60,7 @@
   }
 
   ::selection {
-    background: rgb(var(--nomos-accent) / 0.25);
+    background: rgb(var(--nomos-text) / 0.15);
   }
 
   @keyframes fadeUp {
@@ -81,7 +79,7 @@
 
   /* Refusal: one short, sharp hit. */
   @keyframes refuseHit {
-    0%   { transform: translateX(0); border-color: rgb(var(--nomos-refuse)); }
+    0%   { transform: translateX(0); }
     20%  { transform: translateX(-4px); }
     40%  { transform: translateX(4px); }
     60%  { transform: translateX(-2px); }
@@ -104,26 +102,25 @@
 @layer components {
   /* ── Panels ──────────────────────────────────────────────── */
   .card {
-    @apply rounded-sm bg-nomos-surface;
-    border: 1px solid var(--line-strong);
+    @apply rounded-xl bg-nomos-surface;
+    border: 1px solid var(--line);
   }
 
   .panel-head {
-    @apply flex items-center justify-between gap-3 px-3 py-2 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-nomos-muted;
-    border-bottom: 1px solid var(--line);
-    background: rgb(var(--nomos-surface-raised) / 0.55);
+    @apply flex items-center justify-between gap-3 px-4 pt-4 text-sm font-semibold text-nomos-text;
   }
 
   .hairline { border-color: var(--line); }
   .hairline-strong { border-color: var(--line-strong); }
   .divide-hairline > * + * { border-top: 1px solid var(--line); }
+  .divide-hairline-x > * + * { border-left: 1px solid var(--line); }
 
   /* Key/value row used in mandate, receipt and balance panels. */
   .kv {
-    @apply flex items-baseline justify-between gap-3 py-1.5 font-mono text-xs tabular-nums;
+    @apply flex items-baseline justify-between gap-3 py-2 text-sm tabular-nums;
   }
   .kv > :first-child {
-    @apply shrink-0 text-[10px] uppercase tracking-[0.12em] text-nomos-muted;
+    @apply shrink-0 text-nomos-muted;
   }
   .kv > :last-child {
     @apply min-w-0 truncate text-right text-nomos-text;
@@ -131,93 +128,64 @@
 
   /* ── Buttons ─────────────────────────────────────────────── */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-sm px-5 py-3 font-mono text-xs font-bold uppercase tracking-[0.14em] transition-[filter,opacity] duration-150;
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-[15px] font-semibold transition-opacity duration-150;
     background: rgb(var(--nomos-accent));
-    border: 1px solid rgb(var(--nomos-accent));
     color: rgb(var(--nomos-on-accent));
   }
-  .btn-primary:hover { filter: brightness(1.08); }
-  .btn-primary:disabled { @apply cursor-not-allowed opacity-35; filter: none; }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-primary:disabled { @apply cursor-not-allowed opacity-30; }
 
   .btn-ghost,
   .btn-secondary,
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-sm px-4 py-2.5 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors duration-150;
+    @apply inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg bg-nomos-surface px-4 py-2 text-sm font-medium text-nomos-text transition-colors duration-150;
     border: 1px solid var(--line-strong);
   }
-  .btn-ghost::before,
-  .btn-secondary::before,
-  .btn-danger::before { content: '['; opacity: 0.45; margin-right: 0.35em; }
-  .btn-ghost::after,
-  .btn-secondary::after,
-  .btn-danger::after { content: ']'; opacity: 0.45; margin-left: 0.35em; }
-
-  .btn-ghost {
-    @apply bg-nomos-surface text-nomos-text;
-  }
-  .btn-ghost:hover { border-color: rgb(var(--nomos-border-bright) / 0.6); background: rgb(var(--nomos-surface-raised)); }
-
-  .btn-secondary {
-    @apply bg-nomos-surface text-nomos-accent;
-    border-color: rgb(var(--nomos-accent) / 0.4);
-  }
-  .btn-secondary:hover { background: rgb(var(--nomos-accent) / 0.08); border-color: rgb(var(--nomos-accent) / 0.7); }
-
-  .btn-danger {
-    @apply text-nomos-refuse;
-    background: rgb(var(--nomos-refuse) / 0.06);
-    border-color: rgb(var(--nomos-refuse) / 0.45);
-  }
-  .btn-danger:hover { background: rgb(var(--nomos-refuse) / 0.12); border-color: rgb(var(--nomos-refuse) / 0.8); }
+  .btn-ghost:hover,
+  .btn-secondary:hover,
+  .btn-danger:hover { background: rgb(var(--nomos-surface-raised)); }
+  .btn-danger { @apply text-nomos-refuse; }
 
   .btn-ghost:disabled,
   .btn-secondary:disabled,
-  .btn-danger:disabled { @apply cursor-not-allowed opacity-35; }
+  .btn-danger:disabled { @apply cursor-not-allowed opacity-40; }
 
-  /* Plain text action in mono caps, for dense rows. */
+  /* Plain text action for dense rows. */
   .link-action {
-    @apply font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-nomos-muted-bright transition-colors hover:text-nomos-accent;
+    @apply text-sm font-medium text-nomos-text underline-offset-2 transition-colors hover:underline;
   }
 
-  /* ── Status chips ────────────────────────────────────────── */
+  /* ── Status labels ───────────────────────────────────────── */
   .chip {
-    @apply inline-flex shrink-0 items-center gap-1.5 rounded-sm px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase leading-none tracking-[0.14em];
-    border: 1px solid currentColor;
+    @apply inline-flex shrink-0 items-center text-xs font-medium leading-none;
   }
-  .chip::before {
-    content: '';
-    width: 5px;
-    height: 5px;
-    background: currentColor;
-  }
-  .chip-paid { @apply text-nomos-accent; background: rgb(var(--nomos-accent) / 0.08); }
-  .chip-refused { @apply text-nomos-refuse; background: rgb(var(--nomos-refuse) / 0.08); }
-  .chip-pending { @apply text-nomos-pending; background: rgb(var(--nomos-pending) / 0.08); }
-  .chip-neutral { @apply text-nomos-muted-bright; background: rgb(var(--nomos-surface-raised)); border-color: var(--line-strong); }
+  .chip-paid { color: rgb(var(--nomos-ok)); }
+  .chip-refused { @apply text-nomos-refuse; }
+  .chip-pending,
+  .chip-neutral { @apply text-nomos-muted; }
 
   /* ── Type ────────────────────────────────────────────────── */
   .label {
-    @apply font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-nomos-muted;
+    @apply text-sm font-medium text-nomos-muted;
   }
   .eyebrow {
-    @apply font-mono text-[9px] font-semibold uppercase tracking-[0.2em] text-nomos-muted;
+    @apply text-xs font-medium text-nomos-muted;
   }
   .mono-value {
-    @apply font-mono tabular-nums;
+    @apply tabular-nums;
   }
   .page-title {
-    @apply font-mono text-xl font-bold uppercase tracking-[0.06em] text-nomos-text;
+    @apply text-2xl font-semibold tracking-tight text-nomos-text;
   }
 
   /* ── Inputs ──────────────────────────────────────────────── */
+  /* 16px text keeps iOS Safari from zooming in when a field is focused. */
   .input {
-    @apply w-full rounded-sm px-3 py-2.5 font-mono text-sm text-nomos-text transition-colors duration-150 placeholder:text-nomos-muted/50 focus:outline-none;
-    background: rgb(var(--nomos-bg-deep) / 0.6);
+    @apply w-full rounded-lg bg-nomos-surface px-3 py-2.5 text-base text-nomos-text transition-colors duration-150 placeholder:text-nomos-muted focus:outline-none;
     border: 1px solid var(--line-strong);
   }
   .input:focus {
-    border-color: rgb(var(--nomos-accent) / 0.8);
-    box-shadow: 0 0 0 1px rgb(var(--nomos-accent) / 0.35);
+    border-color: rgb(var(--nomos-text) / 0.5);
   }
 
   /* ── Motion ──────────────────────────────────────────────── */
@@ -246,7 +214,7 @@
   }
 
   .skeleton {
-    @apply rounded-sm;
+    @apply rounded-xl;
     background: rgb(var(--nomos-surface-raised) / 0.7);
     animation: pulseGlow 1.4s ease-in-out infinite;
   }

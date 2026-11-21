@@ -96,7 +96,7 @@ export default function PaySuccess({ onDone }: { onDone?: () => void }) {
         </div>
 
         <p
-          className="mt-4 text-center font-mono text-sm font-semibold tracking-wide text-nomos-accent"
+          className="mt-4 text-center font-mono text-sm font-semibold text-nomos-accent"
           style={{
             opacity: phase === 'ring' ? 0 : 1,
             transition: 'opacity 0.3s ease 0.25s',

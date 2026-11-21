@@ -1,102 +1,53 @@
 # Judge path
 
-This guide is a fast, reproducible route through the Nomos demo. It separates
-what can be verified locally from what would require a live-network proof.
+The fastest way through Nomos: the live app first, then the tests.
 
-## 1. Run the contract tests
+## 1. The live app (about 5 minutes, needs a BCH wallet)
 
-Requirements: Node.js 22 or newer.
+1. Open [nomos.asgaya.org](https://nomos.asgaya.org/) and choose **Open app**.
+2. Connect Paytaca with WizardConnect (or a WalletConnect wallet).
+3. On **Rules**, create a vault with a small deposit and a low daily limit,
+   for example 5,000 sats.
+4. On **Pay**, pay 1,000 sats to any address. The receipt links to the
+   transaction.
+5. Try to pay more than the whole daily limit, for example 6,000 sats with a
+   5,000-sat limit. The app shows **Refused** before your wallet signs.
+6. Choose **Check with a node**. The proof checker has your wallet sign that
+   payment and sends it to a node; the node's rejection
+   (`Script failed an OP_VERIFY operation`) is saved with the receipt.
+7. **Activity** lists every payment and refusal with its receipt.
 
-```bash
-cd contracts/solidcash
-npm ci
-npm test
-```
+## 2. Without a wallet
 
-The SolidCash suite compiles `NomosVault`, `StableSwap`, and
-`HashedTimeLock`, then runs 14 vault checks plus one StableSwap and one HTLC
-mock-network test. The pool test seeds a synthetic CashToken category,
-initializes reserves, swaps in both directions, checks reserve/fee behavior,
-rejects slippage, and exercises admin-only withdrawal. The HTLC test checks
-claim and refund with wrong preimage/signer and deadline cases. These run in
-the BCH VM through a mock provider; they do not use live BCH or PUSD.
+- **`/simulate`**: try the daily limit and allowlist with example numbers.
+- **`/identity?verify=<npub or BCH address>`**: checks a BCH and Nostr link
+  against relays and a BCH node in your browser. The page also creates links
+  and checks signed login responses.
+- **`/proof`**: send signed transaction hex to a node and see its answer.
+- **`/architecture`**: the parts of the system and the contracts.
 
-## 2. Run the wallet UI
+## 3. The proof on mainnet
 
-```bash
-cd frontend
-npm ci
-npm run dev
-```
+[`docs/MAINNET_PROOFS.md`](MAINNET_PROOFS.md) lists every mainnet transaction:
+the CashScript vault run from the app, the SolidCash vault run, the swap and
+the identity link.
 
-Connect a BCH wallet to explore the vault screens. The banner shows the
-configured BCH network. Vault balances can be refreshed manually and are
-refreshed periodically while connected; the top-up section includes the
-token-aware deposit address and QR. The theme control switches between dark
-and light modes; vault and WalletConnect QR codes adapt to the active theme.
-Activity shows paid/refused counts and total sent. Receipts can be downloaded
-as PNGs, copied as text, or shared with the native share sheet where the
-browser supports it. The Bridge route has Swap, Bridge In, and Bridge Out
-preview tabs, but all transaction actions are disabled. Mercar and Asgaya are
-external links only; no pool or cross-chain transaction can be submitted from
-the app.
-
-### No-wallet tools
-
-These pages work without connecting a wallet:
-
-- **`/simulate`** — Adjust a local daily limit, try illustrative payments, and
-  see accept/refuse results. It does not execute the covenant, validate BCH
-  addresses, or create transactions.
-- **`/identity`** — Look up a Nostr identity and its published BCH address.
-  The browser contacts the entered NIP-05 domain when applicable and public
-  relays; signatures are checked locally, but relays may withhold or serve
-  stale events.
-- **`/proof`** — Inspect browser-local node replies or submit signed transaction
-  hex without connecting a wallet. The check sends hex to the configured
-  Electrum broadcast RPC; it is not passive validation, and a node may accept
-  and relay a spend. Anyone with the hex can rebroadcast it. Wallet-assisted
-  signing is separate, requires an authorized wallet, and is limited to durable
-  mandate violations. Node replies are point-in-time observations, not
-  confirmation or proof of which covenant rule failed.
-- **`/architecture`** — In-app overview of the application stack, contract
-  surfaces, security boundaries, repository coverage, and validation commands.
-  It distinguishes chipnet/mock evidence from mainnet deployment claims.
-
-Use the fixed help button or press `?` for keyboard shortcuts. Single-key
-shortcuts can be disabled in the palette.
-
-For static validation:
+## 4. The tests (Node.js 22 or newer)
 
 ```bash
-npm run build
+cd contracts/solidcash && npm ci && npm test   # vault, StableSwap and HTLC in the BCH VM (mock network)
+cd xo && npm ci && npm test                    # 14 offline checks of the XO template against CashScript
+cd frontend && npm ci && npm run build         # type check and production build
 ```
 
-## 2b. Run the XO offline checks
+## 5. What to read
 
-```bash
-cd xo
-npm ci
-npm test
-```
-
-The suite runs 14 offline checks against `nomos.template.json`: template
-parsing and references, CashScript bytecode/address equivalence, representative
-payment/withdraw/rescue transactions, and covenant rejection cases. These
-checks do not connect to XO's live engine.
-
-## 3. What to inspect
-
-- `contracts/NomosVault.cash` and `contracts/solidcash/NomosVault.scash`:
-  spend-mandate rules and covenant tests.
-- `contracts/solidcash/StableSwap.scash` and
-  `contracts/solidcash/swap.test.mjs`: experimental BCH/token pool and
-  mock-network coverage.
-- `contracts/solidcash/HashedTimeLock.scash` and
-  `contracts/solidcash/htlc.test.mjs`: BCH-only HTLC prototype; not a bridge.
-- `docs/BRIDGE_DESIGN.md`: bridge/swap scope, assumptions, and safety gaps.
-- `docs/MAINNET_PROOFS.md`: mainnet evidence checklist. Empty proof fields mean
-  deployment has not been demonstrated here.
-
-A green local build or mock test does not establish that a contract is audited,
-deployed, funded, or safe to use with real BCH or PUSD.
+- `contracts/NomosVault.cash`: the vault covenant. The daily-limit check is
+  `require(effectiveSpent + amount <= dailyLimitSats)`.
+- `contracts/solidcash/NomosVault.scash`: the same vault in SolidCash.
+- `contracts/SwapLock.cash` and `contracts/evm/SwapLock.sol`: the two sides of
+  the PUSD and USDC swap.
+- `frontend/src/lib/identity.ts` and `docs/IDENTITY_PROTOCOL.md`: the identity
+  link and how anyone can verify it.
+- `xo/nomos.template.json` and `xo/REPRODUCE.md`: the XO template and the live
+  chipnet attempt.

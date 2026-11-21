@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import SpentMeter from './SpentMeter'
-import { Chip, KV, Panel, fmtBch } from './ui'
+import { KV, Panel, fmtBch } from './ui'
 
 export interface MandateView {
   dailyLimitSats: number
@@ -30,30 +30,15 @@ export default function MandateCard({
   const remaining = Math.max(0, mandate.dailyLimitSats - mandate.spentSats)
   return (
     <Panel title={title} right={right} className={className}>
-      <div className="divide-hairline">
+      <SpentMeter spentSats={mandate.spentSats} limitSats={mandate.dailyLimitSats} pendingSats={pendingSats} />
+      <div className="mt-3 divide-hairline border-t hairline">
         <KV label="Daily limit">{fmtBch(mandate.dailyLimitSats)} BCH</KV>
-        <KV label="Spent today">{fmtBch(mandate.spentSats)} BCH</KV>
-        <KV label="Remaining" tone={remaining > 0 ? 'paid' : 'refused'}>{fmtBch(remaining)} BCH</KV>
-        <div className="kv">
-          <span>Allowlist</span>
-          <span className="flex items-center gap-2">
-            {mandate.allowlistEnabled && <span className="text-nomos-muted-bright">{mandate.allowlistCount}/5</span>}
-            <Chip kind={mandate.allowlistEnabled ? 'on' : 'off'} />
-          </span>
-        </div>
-        <div className="kv">
-          <span>Agent key</span>
-          <span><Chip kind={mandate.agentSet ? 'on' : 'off'}>{mandate.agentSet ? 'Set' : 'None'}</Chip></span>
-        </div>
-        <div className="kv">
-          <span>Rescue co-signer</span>
-          <span><Chip kind={mandate.rescueSet ? 'on' : 'off'}>{mandate.rescueSet ? 'Set' : 'None'}</Chip></span>
-        </div>
+        <KV label="Left today" tone={remaining > 0 ? undefined : 'refused'}>{fmtBch(remaining)} BCH</KV>
+        <KV label="Allowlist">{mandate.allowlistEnabled ? `On · ${mandate.allowlistCount} of 5` : 'Off'}</KV>
+        <KV label="Agent key">{mandate.agentSet ? 'Set' : 'None'}</KV>
+        <KV label="Rescue key">{mandate.rescueSet ? 'Set' : 'None'}</KV>
       </div>
-      <div className="mt-3">
-        <SpentMeter spentSats={mandate.spentSats} limitSats={mandate.dailyLimitSats} pendingSats={pendingSats} />
-      </div>
-      {footer && <div className="mt-3 border-t hairline pt-2">{footer}</div>}
+      {footer && <div className="mt-3 border-t hairline pt-3">{footer}</div>}
     </Panel>
   )
 }

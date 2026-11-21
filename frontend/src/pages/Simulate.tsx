@@ -73,31 +73,19 @@ export default function Simulate() {
   }
 
   return (
-    <div className="page-enter space-y-6">
-      <header>
-        <h1 className="page-title">Mandate Simulator</h1>
-        <p className="mt-2 text-sm leading-relaxed text-nomos-muted">
-          Explore the daily-limit and allowlist rules without connecting a
-          wallet. This is a local illustration only: it does not run the
-          covenant, validate BCH addresses, create transactions, or spend BCH.
-        </p>
-      </header>
-
-      <div className="card border-nomos-pending/20 bg-nomos-pending/[0.04] p-4" role="note">
-        <p className="text-xs leading-relaxed text-nomos-muted-bright">
-          The deployed covenant also checks signatures, transaction locktime,
-          and NFT continuation. This simulator does not model those checks and
-          is not proof of on-chain behavior.
-        </p>
-      </div>
+    <div className="page-enter space-y-4">
+      <h1 className="page-title">Simulator</h1>
+      <p className="text-sm text-nomos-muted">
+        Try the daily limit and allowlist without a wallet. Nothing is sent; this runs only in your browser.
+      </p>
 
       <section className="card p-5" aria-labelledby="simulation-budget-title">
-        <h2 id="simulation-budget-title" className="label mb-4">Simulated budget</h2>
+        <h2 id="simulation-budget-title" className="mb-4 text-[15px] font-semibold text-nomos-text">Budget</h2>
         <div className="flex flex-col items-center gap-5 sm:flex-row">
           <SpendGauge spentSats={spentToday} limitSats={dailyLimit} />
           <div className="w-full flex-1 space-y-3">
             <div>
-              <label htmlFor="sim-daily-limit" className="label mb-1 block">Daily limit (sats)</label>
+              <label htmlFor="sim-daily-limit" className="label mb-1.5 block">Daily limit (sats)</label>
               <input
                 id="sim-daily-limit"
                 type="number"
@@ -105,11 +93,11 @@ export default function Simulate() {
                 step="1"
                 value={dailyLimit}
                 onChange={(event) => setDailyLimit(parseSats(event.target.value))}
-                className="input text-sm"
+                className="input"
               />
             </div>
             <div>
-              <label htmlFor="sim-spent-today" className="label mb-1 block">Spent today (sats)</label>
+              <label htmlFor="sim-spent-today" className="label mb-1.5 block">Spent today (sats)</label>
               <input
                 id="sim-spent-today"
                 type="number"
@@ -117,7 +105,7 @@ export default function Simulate() {
                 step="1"
                 value={spentToday}
                 onChange={(event) => setSpentToday(parseSats(event.target.value))}
-                className="input text-sm"
+                className="input"
               />
             </div>
           </div>
@@ -126,15 +114,13 @@ export default function Simulate() {
 
       <section className="card p-5" aria-labelledby="simulation-allowlist-title">
         <div className="flex items-center justify-between gap-4">
-          <h2 id="simulation-allowlist-title" className="label">Optional allowlist</h2>
+          <h2 id="simulation-allowlist-title" className="text-[15px] font-semibold text-nomos-text">Allowlist</h2>
           <button
             type="button"
             aria-pressed={allowlistOn}
             onClick={() => setAllowlistOn((enabled) => !enabled)}
-            className={`rounded-pill px-3 py-1 text-[10px] font-semibold transition-colors ${
-              allowlistOn
-                ? 'bg-nomos-accent/15 text-nomos-accent'
-                : 'bg-nomos-surface-raised text-nomos-muted'
+            className={`rounded-lg border hairline-strong px-3 py-1 text-sm font-medium transition-colors ${
+              allowlistOn ? 'bg-nomos-accent text-nomos-bg' : 'bg-nomos-surface text-nomos-muted'
             }`}
           >
             {allowlistOn ? 'On' : 'Off'}
@@ -142,20 +128,18 @@ export default function Simulate() {
         </div>
         {allowlistOn && (
           <div className="mt-3">
-            <label htmlFor="sim-allowed-destination" className="label mb-1 block">
-              Allowed destination text
+            <label htmlFor="sim-allowed-destination" className="label mb-1.5 block">
+              Allowed destination
             </label>
             <input
               id="sim-allowed-destination"
               type="text"
               value={allowedDestination}
               onChange={(event) => setAllowedDestination(event.target.value)}
-              className="input text-xs"
+              className="input"
               autoComplete="off"
             />
-            <p className="mt-1 text-[10px] text-nomos-muted">
-              For this demo, destinations are compared as exact text; they are not checked as BCH addresses.
-            </p>
+            <p className="mt-1 text-sm text-nomos-muted">Compared as plain text here.</p>
           </div>
         )}
       </section>
@@ -167,9 +151,9 @@ export default function Simulate() {
           simulatePay()
         }}
       >
-        <h2 className="label">Simulate a payment</h2>
+        <h2 className="text-[15px] font-semibold text-nomos-text">Try a payment</h2>
         <div>
-          <label htmlFor="sim-amount" className="label mb-1 block">Amount (BCH)</label>
+          <label htmlFor="sim-amount" className="label mb-1.5 block">Amount (BCH)</label>
           <input
             id="sim-amount"
             type="number"
@@ -183,14 +167,14 @@ export default function Simulate() {
         </div>
         {allowlistOn && (
           <div>
-            <label htmlFor="sim-pay-to" className="label mb-1 block">Destination text</label>
+            <label htmlFor="sim-pay-to" className="label mb-1.5 block">Destination text</label>
             <input
               id="sim-pay-to"
               type="text"
               value={payTo}
               onChange={(event) => setPayTo(event.target.value)}
               placeholder="Enter the same text as the allowlisted destination"
-              className="input text-xs"
+              className="input"
               autoComplete="off"
             />
           </div>
@@ -200,13 +184,9 @@ export default function Simulate() {
           <div
             role="status"
             aria-live="polite"
-            className={`rounded-xl px-4 py-2.5 text-xs font-medium ${
-              verdict.ok
-                ? 'bg-nomos-accent/10 text-nomos-accent'
-                : 'bg-nomos-refuse/10 text-nomos-refuse'
-            }`}
+            className={`text-sm ${verdict.ok ? 'text-nomos-muted-bright' : 'text-nomos-refuse'}`}
           >
-            {verdict.ok ? '✓' : '✗'} {verdict.reason}
+            {verdict.reason}
           </div>
         )}
 
@@ -215,30 +195,23 @@ export default function Simulate() {
           disabled={!validAmount}
           className="btn-primary w-full"
         >
-          Simulate
+          Try it
         </button>
       </form>
 
       {results.length > 0 && (
         <section className="card p-5" aria-labelledby="simulation-log-title">
-          <h2 id="simulation-log-title" className="label mb-3">Simulation log</h2>
-          <ul className="space-y-2">
+          <h2 id="simulation-log-title" className="mb-1 text-[15px] font-semibold text-nomos-text">Results</h2>
+          <ul className="divide-hairline">
             {results.map((result) => (
-              <li
-                key={result.id}
-                className={`rounded-xl border px-3 py-2 text-xs ${
-                  result.accepted
-                    ? 'border-nomos-accent/10 bg-nomos-accent/5'
-                    : 'border-nomos-refuse/10 bg-nomos-refuse/5'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-mono">{(result.amountSats / 1e8).toFixed(8)} BCH</span>
-                  <span className={result.accepted ? 'text-nomos-accent' : 'text-nomos-refuse'}>
-                    {result.accepted ? 'WOULD PASS' : 'WOULD REFUSE'}
+              <li key={result.id} className="py-2.5">
+                <div className="flex items-center justify-between gap-3 text-[15px]">
+                  <span className="tabular-nums text-nomos-text">{(result.amountSats / 1e8).toFixed(8)} BCH</span>
+                  <span className={result.accepted ? 'text-nomos-ok' : 'text-nomos-refuse'}>
+                    {result.accepted ? 'Would pay' : 'Would refuse'}
                   </span>
                 </div>
-                <p className="mt-1 text-[10px] text-nomos-muted">{result.reason}</p>
+                <p className="mt-0.5 text-sm text-nomos-muted">{result.reason}</p>
               </li>
             ))}
           </ul>
@@ -248,34 +221,21 @@ export default function Simulate() {
               setResults([])
               setSpentToday(0)
             }}
-            className="btn-ghost mt-3 w-full text-xs"
+            className="btn-ghost mt-3 w-full"
           >
-            Reset simulated day
+            Start a new day
           </button>
         </section>
       )}
 
       <section className="card space-y-3 p-5" aria-labelledby="simulation-rules-title">
-        <h2 id="simulation-rules-title" className="label">What the covenant checks</h2>
-        <div className="space-y-2 text-xs leading-relaxed text-nomos-muted-bright">
-          <p>
-            <strong className="text-nomos-text">1. Authorization:</strong>{' '}
-            the owner or configured agent must sign the payment.
-          </p>
-          <p>
-            <strong className="text-nomos-text">2. Daily limit:</strong>{' '}
-            the covenant derives the day bucket from timestamp locktime divided
-            by 86,400. This simulator uses a manual spend value and reset button.
-          </p>
-          <p>
-            <strong className="text-nomos-text">3. Optional allowlist:</strong>{' '}
-            when enabled, the destination hash must match an allowed address.
-          </p>
-          <p>
-            <strong className="text-nomos-text">4. State continuation:</strong>{' '}
-            the vault output must preserve the covenant and update the NFT commitment.
-          </p>
-        </div>
+        <h2 id="simulation-rules-title" className="text-[15px] font-semibold text-nomos-text">What the real contract checks</h2>
+        <ol className="space-y-1.5 text-sm text-nomos-muted-bright">
+          <li>1. The owner or agent key signed it.</li>
+          <li>2. Spent today plus this payment stays within the daily limit.</li>
+          <li>3. If the allowlist is on, the address is on it.</li>
+          <li>4. The vault continues with its spending total updated.</li>
+        </ol>
       </section>
     </div>
   )

@@ -7,14 +7,13 @@ swap: `contracts/SwapLock.cash`, `contracts/evm/SwapLock.sol` and the Swap page.
 See the "Swap PUSD and USDC" section of the README. The rest of this document
 covers the earlier same-chain StableSwap and BCH-only HTLC prototypes.
 
-## Scope
+## StableSwap prototype
 
-The planned bridge surface is for converting BCH and PUSD (ParyonUSD) on
-Bitcoin Cash. The first contract prototype is
+An earlier idea was converting BCH and PUSD (ParyonUSD) on Bitcoin Cash. The
+contract prototype is
 [`contracts/solidcash/StableSwap.scash`](../contracts/solidcash/StableSwap.scash).
-Despite the UI route's “Bridge” label, the contract is a same-chain CashTokens
-AMM; it is not a cross-chain bridge and does not mint, burn, or custody a
-wrapped asset on another chain.
+It is a same-chain CashTokens AMM, not a cross-chain bridge: it does not mint,
+burn or custody a wrapped asset on another chain, and the app does not use it.
 
 ## Prototype behavior
 
@@ -47,12 +46,11 @@ counterpart on the other chain, matching hash semantics, safely ordered
 refund deadlines, monitoring, and a recovery procedure. No counterpart,
 deployment, or end-to-end integration is configured in this repository.
 
-## Not production-ready
+## Before deploying the prototypes
 
-`StableSwap.scash` and `HashedTimeLock.scash` are experimental
-mock-network implementations. Neither has been independently audited or
-claimed as deployed. Before any pool deployment, the project must identify and
-verify the intended PUSD category, review decimal and supply metadata, audit
+`StableSwap.scash` and `HashedTimeLock.scash` are prototypes tested on a mock
+network; neither is deployed. Before any pool deployment, the project must identify and
+verify the intended PUSD category, review decimal and supply metadata, review
 the covenant and transaction-building path, add LP ownership/redemption
 accounting (or clearly limit a custodial pilot), test adversarial token
 and fee/dust behavior, and publish a deployment manifest. Before a bridge,
@@ -74,5 +72,4 @@ initializes reserves, exercises both swap directions, verifies reserve
 transitions and slippage rejection, checks fee/invariant math, and tests
 admin-only liquidity withdrawal. `htlc.test.mjs` runs claim/refund cases and
 checks signer, preimage, and deadline refusals. Both execute compiled covenants
-in the BCH VM without live network access or funds. Passing mock tests are not
-a security audit, mainnet deployment proof, or cross-chain integration proof.
+in the BCH VM without live network access or funds.

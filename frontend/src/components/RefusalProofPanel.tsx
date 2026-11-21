@@ -203,77 +203,64 @@ export default function RefusalProofPanel({
   }
 
   return (
-    <section className="card p-5 sm:p-6">
-      <div className="mb-5 flex items-start justify-between gap-4">
-        <div>
-          <p className="eyebrow mb-1">NODE CHECK</p>
-          <h2 className="text-lg font-semibold text-nomos-text">Check a signed spend</h2>
-        </div>
-        <span className="rounded-full border border-nomos-accent/20 bg-nomos-accent/5 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-nomos-accent">WALLET-FREE CHECK</span>
-      </div>
+    <section className="card p-4 sm:p-5">
+      <h2 className="text-[15px] font-semibold text-nomos-text">Check a spend with a node</h2>
 
-      <div className="mb-5 rounded-xl border border-nomos-refuse/20 bg-nomos-refuse/5 p-3 text-[11px] leading-relaxed text-nomos-muted">
-        <strong className="text-nomos-refuse">Important:</strong> the checker sends arbitrary signed transaction hex to the configured public Electrum node. A transaction the node accepts may be relayed, mined, and spend funds. Anyone holding the hex can rebroadcast it. A node rejection is only a point-in-time response, not mined or confirmed chain state.
-      </div>
-      <label className="mb-5 flex cursor-pointer items-start gap-2.5 rounded-xl border border-nomos-border/10 p-3 text-[11px] leading-relaxed text-nomos-muted">
-        <input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} className="mt-0.5 accent-nomos-accent" />
-        <span>I understand that sending signed transaction hex to a public node can expose a valid transaction for relay or rebroadcast and may spend funds.</span>
-      </label>
+      {receiptId && <p className="mt-1 text-sm text-nomos-muted">Linked to a refused payment. The node's answer is added to its receipt.</p>}
 
-      {receiptId && <p className="mb-4 rounded-xl bg-nomos-surface-raised/40 p-3 text-[10px] leading-relaxed text-nomos-muted">This check is linked to a locally refused receipt. If the node rejects the signed transaction, its response will be attached to that receipt; node acceptance is not a refusal proof.</p>}
-
-      <form onSubmit={onSign} className="space-y-3">
-        <p className="label">Create a check from this vault</p>
+      <form onSubmit={onSign} className="mt-4 space-y-3">
         <label className="block">
-          <span className="mb-1.5 block text-[11px] font-semibold text-nomos-muted">Amount in satoshis</span>
-          <input value={amount} onChange={(event) => setAmount(event.target.value)} readOnly={Boolean(receiptId)} inputMode="numeric" pattern="[0-9]*" placeholder="e.g. 50000" className={`input ${receiptId ? 'opacity-70' : ''}`} />
+          <span className="label mb-1.5 block">Amount (sats)</span>
+          <input value={amount} onChange={(event) => setAmount(event.target.value)} readOnly={Boolean(receiptId)} inputMode="numeric" pattern="[0-9]*" placeholder="50000" className={`input ${receiptId ? 'opacity-70' : ''}`} />
         </label>
         <label className="block">
-          <span className="mb-1.5 block text-[11px] font-semibold text-nomos-muted">CashAddress destination</span>
-          <input value={destination} onChange={(event) => setDestination(event.target.value)} readOnly={Boolean(receiptId)} autoCapitalize="off" autoCorrect="off" spellCheck={false} placeholder="bitcoincash:q…" className={`input font-mono text-xs ${receiptId ? 'opacity-70' : ''}`} />
+          <span className="label mb-1.5 block">Destination</span>
+          <input value={destination} onChange={(event) => setDestination(event.target.value)} readOnly={Boolean(receiptId)} autoCapitalize="off" autoCorrect="off" spellCheck={false} placeholder="bitcoincash:q…" className={`input ${receiptId ? 'opacity-70' : ''}`} />
         </label>
-        <button type="submit" disabled={busy || !canSign || !acknowledged} className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-40">
-          {busy && busyMessage.includes('signature') ? 'Waiting for wallet…' : 'Sign violating spend & check'}
+        {!durable && amount && destination && <p className="text-sm text-nomos-muted">Use an amount above the whole daily limit, or an address outside the allowlist, so the refusal stays valid later.</p>}
+
+        <label className="flex cursor-pointer items-start gap-2.5 text-sm text-nomos-muted-bright">
+          <input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-nomos-accent" />
+          <span>I understand the signed transaction goes to a public node, and if the node accepts it, it can spend funds.</span>
+        </label>
+
+        <button type="submit" disabled={busy || !canSign || !acknowledged} className="btn-primary w-full">
+          {busy && busyMessage.includes('signature') ? 'Waiting for wallet…' : 'Sign and check'}
         </button>
-        {!vaultConfig && <p className="text-[11px] leading-relaxed text-nomos-muted">No saved vault configuration on this device. You can still use the wallet-free raw-hex checker below.</p>}
-        {vaultConfig && !vault?.deployed && <p className="text-[11px] leading-relaxed text-nomos-muted">The saved vault is not currently loaded as deployed. Refresh or connect its wallet before signing.</p>}
-        {!durable && amount && destination && <p className="text-[11px] leading-relaxed text-nomos-muted">To avoid a stale daily-budget refusal becoming valid later, only an amount above the full daily cap or a destination excluded by the immutable allowlist can be used here.</p>}
+        {!vaultConfig && <p className="text-sm text-nomos-muted">No vault on this device. You can still check signed hex below.</p>}
+        {vaultConfig && !vault?.deployed && <p className="text-sm text-nomos-muted">The vault is not loaded. Refresh or reconnect its wallet first.</p>}
       </form>
 
-      <div className="my-5 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-widest text-nomos-muted/60"><span className="h-px flex-1 bg-nomos-border/10" />OR CHECK SIGNED HEX<span className="h-px flex-1 bg-nomos-border/10" /></div>
-      <form onSubmit={onCheckHex} className="space-y-3">
-        <label className="block">
-          <span className="mb-1.5 block text-[11px] font-semibold text-nomos-muted">Signed transaction hex (no wallet needed)</span>
-          <textarea value={rawTx} onChange={(event) => { setRawTx(event.target.value); setAttempt(null) }} rows={3} maxLength={200000} autoCapitalize="off" autoCorrect="off" spellCheck={false} placeholder="02000000…" className="input min-h-20 resize-y font-mono text-[10px]" />
-        </label>
-        <button type="submit" disabled={busy || !rawTx.trim() || !acknowledged} className="btn-secondary w-full disabled:opacity-40">Send hex to node</button>
-      </form>
+      <details className="mt-4 border-t hairline pt-3">
+        <summary className="cursor-pointer text-sm text-nomos-muted">Check signed hex instead</summary>
+        <form onSubmit={onCheckHex} className="mt-3 space-y-3">
+          <textarea value={rawTx} onChange={(event) => { setRawTx(event.target.value); setAttempt(null) }} rows={3} maxLength={200000} autoCapitalize="off" autoCorrect="off" spellCheck={false} placeholder="02000000…" aria-label="Signed transaction hex" className="input min-h-20 resize-y font-mono text-sm" />
+          <button type="submit" disabled={busy || !rawTx.trim() || !acknowledged} className="btn-ghost w-full">Send to node</button>
+        </form>
+      </details>
 
-      {busy && <p className="mt-4 text-center text-xs text-nomos-muted" role="status">{busyMessage}</p>}
-      {error && <p className="mt-4 rounded-xl border border-nomos-refuse/20 bg-nomos-refuse/5 p-3 text-xs leading-relaxed text-nomos-refuse" role="alert">{error}</p>}
+      {busy && <p className="mt-4 text-center text-sm text-nomos-muted" role="status">{busyMessage}</p>}
+      {error && <p className="mt-4 text-sm text-nomos-refuse" role="alert">{error}</p>}
       {proof && (
-        <div className="mt-4 space-y-2 rounded-xl border border-nomos-accent/20 bg-nomos-accent/5 p-4">
+        <div className="mt-4 space-y-1.5 rounded-lg border hairline-strong p-3">
           <div className="flex items-center justify-between gap-3">
-            <span className={`text-xs font-semibold ${proof.scriptFailure ? 'text-nomos-accent' : 'text-nomos-muted-bright'}`}>
+            <span className={`text-[15px] font-medium ${proof.scriptFailure ? 'text-nomos-refuse' : 'text-nomos-text'}`}>
               {rejectionLabel(proof.rejectionKind)}
             </span>
-            <button type="button" onClick={() => { void copyProofJson() }} className="text-[10px] font-semibold text-nomos-accent">Copy JSON</button>
+            <button type="button" onClick={() => { void copyProofJson() }} className="link-action">Copy JSON</button>
           </div>
-          <p className="break-all font-mono text-[10px] text-nomos-text">TXID {proof.txid}</p>
-          <p className="text-[10px] leading-relaxed text-nomos-muted">{proof.nodeError}</p>
-          <p className="text-[10px] text-nomos-muted">{proof.network} · node response at {new Date(proof.checkedAt).toLocaleString()}</p>
-          <details className="pt-1">
-            <summary className="cursor-pointer text-[10px] font-semibold text-nomos-accent">Show rebroadcastable raw transaction</summary>
-            <p className="mt-2 break-all font-mono text-[9px] leading-relaxed text-nomos-muted">{proof.rawTx}</p>
+          <p className="break-words font-mono text-xs text-nomos-muted-bright">{proof.nodeError}</p>
+          <p className="truncate font-mono text-xs text-nomos-muted" title={proof.txid}>txid {proof.txid}</p>
+          <p className="text-xs text-nomos-muted">{proof.network} · {new Date(proof.checkedAt).toLocaleString()} · saved on this device</p>
+          <details>
+            <summary className="cursor-pointer text-sm text-nomos-muted">Signed transaction</summary>
+            <p className="mt-2 break-all font-mono text-[11px] leading-relaxed text-nomos-muted">{proof.rawTx}</p>
           </details>
-          <p className="text-[10px] leading-relaxed text-nomos-muted">A script failure means the node reported a script-validation error; this checker does not identify which input script failed or prove the covenant rule was the cause. Missing inputs and other node rejections are classified separately.</p>
         </div>
       )}
       {attempt?.outcome === 'accepted' && (
-        <div className="mt-4 rounded-xl border border-nomos-refuse/30 bg-nomos-refuse/5 p-3 text-xs text-nomos-refuse">Node accepted · txid {shorten(attempt.txid)} · not yet mined or confirmed, and may spend funds.</div>
+        <p className="mt-4 text-sm text-nomos-refuse">The node accepted it (txid {shorten(attempt.txid)}). It may be mined and spend funds.</p>
       )}
-      <p className="mt-4 text-[10px] leading-relaxed text-nomos-muted/75">Transport failures, timeouts, or connection errors produce no verdict and are not saved as proofs. Rejected results are saved only in this browser’s local storage; they are not uploaded.</p>
-      <p className="mt-3 text-[10px] text-nomos-muted">Current mandate daily cap: {vault?.mandate ? `${(vault.mandate.dailyLimitSats / 1e8).toFixed(8)} BCH` : '—'}</p>
     </section>
   )
 }

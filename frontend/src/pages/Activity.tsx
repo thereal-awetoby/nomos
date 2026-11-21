@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import ActivityRow from '../components/ActivityRow'
-import { Panel, fmtBch } from '../components/ui'
+
 import { useWallet } from '../context/WalletContext'
 import { useToast } from '../components/Toast'
 import type { Receipt } from '../lib/types'
@@ -58,7 +58,7 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: 'paid', label: 'Paid' },
   { key: 'refused', label: 'Refused' },
   { key: 'submitted', label: 'Pending' },
-  { key: 'admin', label: 'Vault ops' },
+  { key: 'admin', label: 'Vault' },
 ]
 
 function isPayment(receipt: Receipt): boolean {
@@ -96,7 +96,7 @@ export default function Activity() {
   )
   const dateGroups = useMemo(() => groupByDate(filtered), [filtered])
 
-  if (!wallet?.connected) return <Navigate to="/" replace />
+  if (!wallet?.connected) return <Navigate to="/connect" replace />
 
   const handleExport = () => {
     try {
@@ -113,92 +113,76 @@ export default function Activity() {
 
   return (
     <div className="page-enter space-y-4">
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="page-title">Activity</h1>
-          <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-nomos-muted">Receipts saved on this device</p>
-        </div>
+      <header className="flex items-center justify-between gap-3">
+        <h1 className="page-title">Activity</h1>
         {receipts.length > 0 && (
-          <div className="flex shrink-0 gap-2">
-            <button type="button" onClick={handleExport} className="btn-ghost px-3 py-2 text-[10px]">Export JSON</button>
+          <div className="flex shrink-0 gap-4">
+            <button type="button" onClick={handleExport} className="link-action" title="Saves your receipts as a JSON file, including any signed transactions">Export</button>
             {confirmClear
-              ? <button type="button" onClick={() => { clearReceipts(); setConfirmClear(false); toast('Receipts cleared', 'info') }} className="btn-danger px-3 py-2 text-[10px]">Confirm clear</button>
-              : <button type="button" onClick={() => setConfirmClear(true)} className="btn-ghost px-3 py-2 text-[10px]">Clear</button>
+              ? <button type="button" onClick={() => { clearReceipts(); setConfirmClear(false); toast('Receipts cleared', 'info') }} className="text-sm font-medium text-nomos-refuse hover:underline">Confirm clear</button>
+              : <button type="button" onClick={() => setConfirmClear(true)} className="link-action">Clear</button>
             }
           </div>
         )}
       </header>
 
-      {/* Stats strip */}
-      <div className="card grid grid-cols-2 gap-px overflow-hidden sm:grid-cols-5" style={{ background: 'var(--line)' }} role="group" aria-label="Activity summary">
-        {[
-          { label: 'Paid', value: String(stats.paidCount), cls: 'text-nomos-accent' },
-          { label: 'Refused', value: String(stats.refusedCount), cls: 'text-nomos-refuse' },
-          { label: 'Unconfirmed', value: String(stats.submittedCount), cls: 'text-nomos-pending' },
-          { label: 'Sent · BCH', value: fmtBch(stats.totalSats), cls: 'text-nomos-text' },
-          { label: 'Blocked · BCH', value: fmtBch(stats.blockedSats), cls: 'text-nomos-refuse' },
-        ].map((cell) => (
-          <div key={cell.label} className="bg-nomos-surface px-3 py-2.5">
-            <p className="label">{cell.label}</p>
-            <p className={`mt-1 font-mono text-base font-bold tabular-nums ${cell.cls}`}>{cell.value}</p>
-          </div>
-        ))}
-      </div>
-
-      {stats.nodeScriptFailures > 0 && (
-        <p className="border hairline-strong bg-nomos-surface px-3 py-2 font-mono text-[10px] leading-relaxed text-nomos-muted-bright">
-          {stats.nodeScriptFailures} saved receipt{stats.nodeScriptFailures === 1 ? '' : 's'} carry a node script-failure response. A script failure does not by itself identify which input failed or mean anything was mined. <Link to="/proof" className="text-nomos-accent underline">Proof checker</Link>
-        </p>
-      )}
-
       {receipts.length === 0 ? (
-        <Panel title="Ledger" bodyClassName="p-4">
-          <p className="font-mono text-sm text-nomos-text">No movements under this mandate yet.</p>
-          <p className="mt-1 text-xs text-nomos-muted">Payments and refusals appear here with a receipt you can save as an image, copy or share.</p>
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:max-w-sm">
-            <Link to="/pay" className="btn-primary">Pay</Link>
-            <Link to="/proof" className="btn-ghost">Proof checker</Link>
-          </div>
-        </Panel>
+        <div className="card p-6 text-center">
+          <p className="text-[15px] text-nomos-text">No activity yet</p>
+          <p className="mt-1 text-sm text-nomos-muted">Payments and refusals show up here.</p>
+          <Link to="/pay" className="btn-primary mt-4">Pay</Link>
+        </div>
       ) : (
-        <Panel
-          title={
-            <span className="flex max-w-full gap-1 overflow-x-auto [scrollbar-width:none]" role="tablist" aria-label="Filter receipts">
-              {FILTERS.map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={filter === item.key}
-                  onClick={() => setFilter(item.key)}
-                  className={`px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] transition-colors ${
-                    filter === item.key ? 'bg-nomos-text text-nomos-bg' : 'text-nomos-muted hover:text-nomos-text'
-                  }`}
-                >
-                  {item.label} {countFor(item.key)}
-                </button>
-              ))}
-            </span>
-          }
-          bodyClassName=""
-        >
+        <>
+          <div className="card divide-hairline-x grid grid-cols-3 text-center" role="group" aria-label="Activity summary">
+            {[
+              { label: 'Paid', value: String(stats.paidCount) },
+              { label: 'Refused', value: String(stats.refusedCount) },
+              { label: 'Sats sent', value: stats.totalSats.toLocaleString('en-US') },
+            ].map((cell) => (
+              <div key={cell.label} className="min-w-0 px-2 py-3">
+                <p className="truncate text-lg font-semibold tabular-nums text-nomos-text">{cell.value}</p>
+                <p className="text-xs text-nomos-muted">{cell.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-4 overflow-x-auto border-b hairline [scrollbar-width:none]" role="tablist" aria-label="Filter receipts">
+            {FILTERS.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                role="tab"
+                aria-selected={filter === item.key}
+                onClick={() => setFilter(item.key)}
+                className={`-mb-px shrink-0 border-b-2 pb-2 text-sm transition-colors ${
+                  filter === item.key ? 'border-nomos-text font-medium text-nomos-text' : 'border-transparent text-nomos-muted hover:text-nomos-text'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
           {filtered.length === 0 ? (
-            <p className="p-3 font-mono text-xs text-nomos-muted">No {filter === 'submitted' ? 'unconfirmed' : filter === 'admin' ? 'rescue or mandate' : filter} records.</p>
+            <p className="py-6 text-center text-sm text-nomos-muted">Nothing here.</p>
           ) : (
             dateGroups.map((group) => (
               <section key={group.label} aria-label={`${group.label} receipts`}>
-                <h2 className="border-y hairline bg-nomos-bg-deep/40 px-3 py-1 font-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-nomos-muted">{group.label}</h2>
-                <div className="divide-hairline">
+                <h2 className="mb-2 text-sm font-medium text-nomos-muted">{group.label}</h2>
+                <div className="card divide-hairline overflow-hidden">
                   {group.items.map((receipt) => <ActivityRow key={receipt.id} receipt={receipt} />)}
                 </div>
               </section>
             ))
           )}
-        </Panel>
-      )}
 
-      {receipts.length > 0 && (
-        <p className="font-mono text-[10px] leading-relaxed text-nomos-muted">JSON export includes any attached signed raw transaction. Anyone with that hex can attempt to rebroadcast it.</p>
+          {stats.nodeScriptFailures > 0 && (
+            <p className="text-sm text-nomos-muted">
+              {stats.nodeScriptFailures} receipt{stats.nodeScriptFailures === 1 ? ' has' : 's have'} a node refusal attached. <Link to="/proof" className="underline">Proof checker</Link>
+            </p>
+          )}
+        </>
       )}
     </div>
   )

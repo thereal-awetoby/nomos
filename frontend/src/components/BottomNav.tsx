@@ -3,17 +3,16 @@ import { useWallet } from '../context/WalletContext'
 
 type Glyph = 'home' | 'pay' | 'mandate' | 'activity'
 
-function NavGlyph({ name }: { name: Glyph }) {
-  // 7×7 pixel glyphs, drawn as rects.
-  const shapes: Record<Glyph, [number, number, number, number][]> = {
-    home: [[0, 0, 7, 1], [0, 6, 7, 1], [0, 0, 1, 7], [6, 0, 1, 7], [2, 2, 3, 3]],
-    pay: [[0, 1, 7, 1], [0, 5, 7, 1], [3, 0, 1, 7]],
-    mandate: [[0, 0, 7, 1], [0, 3, 5, 1], [0, 6, 7, 1], [6, 2, 1, 3]],
-    activity: [[0, 0, 2, 1], [3, 0, 4, 1], [0, 3, 2, 1], [3, 3, 4, 1], [0, 6, 2, 1], [3, 6, 4, 1]],
+function NavIcon({ name }: { name: Glyph }) {
+  const paths: Record<Glyph, string> = {
+    home: 'M4 10.5 12 4l8 6.5V20H4z M10 20v-5h4v5',
+    pay: 'M3 7h18v10H3z M3 11h18',
+    mandate: 'M4 7h10 M18 7h2 M4 17h4 M12 17h8 M16 5v4 M10 15v4',
+    activity: 'M8 7h12 M8 12h12 M8 17h12 M4 7h.01 M4 12h.01 M4 17h.01',
   }
   return (
-    <svg width="14" height="14" viewBox="0 0 7 7" aria-hidden="true" shapeRendering="crispEdges">
-      {shapes[name].map(([x, y, w, h], i) => <rect key={i} x={x} y={y} width={w} height={h} fill="currentColor" />)}
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={paths[name]} />
     </svg>
   )
 }
@@ -21,7 +20,7 @@ function NavGlyph({ name }: { name: Glyph }) {
 const ITEMS: { to: string; label: string; glyph: Glyph }[] = [
   { to: '/vault', label: 'Home', glyph: 'home' },
   { to: '/pay', label: 'Pay', glyph: 'pay' },
-  { to: '/mandate', label: 'Mandate', glyph: 'mandate' },
+  { to: '/mandate', label: 'Rules', glyph: 'mandate' },
   { to: '/activity', label: 'Activity', glyph: 'activity' },
 ]
 
@@ -33,21 +32,19 @@ export default function BottomNav() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-40 border-t hairline-strong bg-nomos-bg/95 backdrop-blur-sm md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t hairline bg-nomos-bg/95 backdrop-blur md:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <ul className="grid grid-cols-4">
         {ITEMS.map((item) => (
-          <li key={item.to} className="border-r hairline last:border-r-0">
+          <li key={item.to}>
             <NavLink
               to={item.to}
-              className={({ isActive }) => `flex flex-col items-center gap-1 py-2.5 font-mono text-[9px] font-semibold uppercase tracking-[0.14em] transition-colors ${
-                isActive
-                  ? 'text-nomos-text shadow-[inset_0_2px_0_rgb(var(--nomos-accent))]'
-                  : 'text-nomos-muted hover:text-nomos-text'
+              className={({ isActive }) => `flex flex-col items-center gap-1 py-2 text-[11px] font-medium transition-colors ${
+                isActive ? 'text-nomos-text' : 'text-nomos-muted hover:text-nomos-text'
               }`}
             >
-              <NavGlyph name={item.glyph} />
+              <NavIcon name={item.glyph} />
               {item.label}
             </NavLink>
           </li>

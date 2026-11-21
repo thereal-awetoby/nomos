@@ -22,16 +22,15 @@ export default function ThemeToggle() {
     <button
       type="button"
       onClick={() => setTheme(nextTheme)}
-      className="flex h-7 w-7 items-center justify-center border hairline-strong bg-nomos-surface text-nomos-muted-bright transition-colors hover:text-nomos-text"
+      className="flex h-9 w-9 items-center justify-center rounded-lg text-nomos-muted-bright transition-colors hover:bg-nomos-surface-raised hover:text-nomos-text"
       aria-label={`Switch to ${nextTheme} theme`}
       title={`Switch to ${nextTheme} theme`}
       aria-pressed={theme === 'light'}
     >
-      <span
-        aria-hidden="true"
-        className="inline-block h-2.5 w-2.5 border border-current"
-        style={{ background: theme === 'dark' ? 'transparent' : 'currentColor' }}
-      />
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+        <circle cx="12" cy="12" r="8" />
+        <path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none" />
+      </svg>
     </button>
   )
 }

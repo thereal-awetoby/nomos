@@ -172,21 +172,21 @@ export default function IdentityLink() {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="npub… / name@domain / bitcoincash:q…"
-            className="input text-xs"
+            placeholder="npub, name@domain or BCH address"
+            className="input"
             autoComplete="off"
             spellCheck={false}
           />
-          <button type="submit" disabled={!query.trim() || checking} className="btn-primary w-full py-2">
-            {checking ? <><span className="spinner mr-2" /> Checking relays and chain…</> : 'Verify link'}
+          <button type="submit" disabled={!query.trim() || checking} className="btn-primary w-full">
+            {checking ? <><span className="spinner mr-2" /> Checking…</> : 'Verify link'}
           </button>
         </form>
-        {verifyError && <p className="mt-2 text-xs text-nomos-refuse">{verifyError}</p>}
-        {claims && claims.length === 0 && <p className="mt-2 text-xs text-nomos-muted">No signed BCH identity claim found on the queried relays.</p>}
+        {verifyError && <p className="mt-2 text-sm text-nomos-refuse">{verifyError}</p>}
+        {claims && claims.length === 0 && <p className="mt-2 text-sm text-nomos-muted">No link found.</p>}
         {claims && claims.map((claim) => (
-          <div key={`${claim.eventId}-${claim.address}`} className="mt-3 border hairline p-3">
-            <p className={`font-mono text-[10px] font-bold uppercase tracking-[0.14em] ${claim.anchorOk ? 'text-nomos-accent' : 'text-nomos-refuse'}`}>
-              {claim.anchorOk ? 'Linked · both keys signed' : 'Not proven'}
+          <div key={`${claim.eventId}-${claim.address}`} className="mt-3 rounded-lg border hairline p-3">
+            <p className={`text-xs font-medium ${claim.anchorOk ? 'text-nomos-ok' : 'text-nomos-refuse'}`}>
+              {claim.anchorOk ? 'Linked by both keys' : 'Not proven'}
             </p>
             <KV label="Nostr key">{shortAddr(claim.npub, 10, 6)}</KV>
             <KV label="BCH address">{shortAddr(claim.address, 10, 6)}</KV>
@@ -194,83 +194,79 @@ export default function IdentityLink() {
             <KV label="BCH anchor" tone={claim.anchorOk ? 'paid' : 'refused'}>
               <a href={`${EXPLORER_TX_URL}${claim.anchorTxid}`} target="_blank" rel="noreferrer" className="underline">{claim.anchorTxid.slice(0, 10)}…</a>
             </KV>
-            <p className="mt-1 text-[10px] text-nomos-muted">{claim.anchorReason}</p>
+            <p className="mt-1 text-sm text-nomos-muted">{claim.anchorReason}</p>
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-              <button type="button" onClick={() => copy(`v-${claim.eventId}`, verifyUrl(claim.npub))} className="text-[10px] text-nomos-muted-bright hover:text-nomos-text">
+              <button type="button" onClick={() => copy(`v-${claim.eventId}`, verifyUrl(claim.npub))} className="text-sm text-nomos-muted-bright hover:text-nomos-text">
                 {copied === `v-${claim.eventId}` ? 'Copied' : 'Copy verify link'}
               </button>
-              <button type="button" onClick={() => copy(`e-${claim.eventId}`, claim.eventId)} className="text-[10px] text-nomos-muted-bright hover:text-nomos-text">
+              <button type="button" onClick={() => copy(`e-${claim.eventId}`, claim.eventId)} className="text-sm text-nomos-muted-bright hover:text-nomos-text">
                 {copied === `e-${claim.eventId}` ? 'Copied' : 'Copy event id'}
               </button>
               {nostrSigner() && (
-                <button type="button" onClick={() => { void removeLink(claim) }} disabled={Boolean(busy)} className="text-[10px] text-nomos-muted-bright hover:text-nomos-text">
+                <button type="button" onClick={() => { void removeLink(claim) }} disabled={Boolean(busy)} className="text-sm text-nomos-muted-bright hover:text-nomos-text">
                   Remove link
                 </button>
               )}
             </div>
           </div>
         ))}
-        {claims && claims.length > 0 && (
-          <p className="mt-2 text-[10px] text-nomos-muted">A verify link opens this page and runs the same checks in the visitor's browser, against relays and a BCH node.</p>
-        )}
       </Panel>
 
       <Panel title="Link your BCH address to your Nostr key">
-        <p className="text-[11px] leading-relaxed text-nomos-muted">
-          Each key signs on its own network. Your wallet sends a transaction to itself that names your Nostr key; your Nostr key publishes a NIP-39 claim naming your address, with that transaction as proof. The wallet pays the network fee.
+        <p className="text-sm text-nomos-muted">
+          Your wallet signs a small transaction that names your Nostr key, then your Nostr key publishes a claim that points to it.
         </p>
-        {!canCreate && <p className="mt-2 text-xs text-nomos-pending">Connect a BCH wallet first.</p>}
+        {!canCreate && <p className="mt-2 text-sm text-nomos-muted-bright">Connect a BCH wallet first.</p>}
         <ol className="mt-3 space-y-2">
           <li className="flex items-center justify-between gap-3">
-            <span className="min-w-0 truncate font-mono text-[11px] text-nomos-text">1. Nostr key {nostrPk ? shortAddr(nip19.npubEncode(nostrPk), 10, 6) : ''}</span>
-            <button type="button" onClick={() => { void readNostrKey() }} disabled={!canCreate || Boolean(busy) || Boolean(nostrPk)} className="btn-ghost shrink-0 px-3 py-1.5 text-[10px]">
+            <span className="min-w-0 truncate text-[15px] text-nomos-text">1. Nostr key {nostrPk ? shortAddr(nip19.npubEncode(nostrPk), 10, 6) : ''}</span>
+            <button type="button" onClick={() => { void readNostrKey() }} disabled={!canCreate || Boolean(busy) || Boolean(nostrPk)} className="btn-ghost shrink-0">
               {nostrPk ? 'Done' : 'Read from extension'}
             </button>
           </li>
           <li className="flex items-center justify-between gap-3">
-            <span className="min-w-0 truncate font-mono text-[11px] text-nomos-text">2. BCH anchor {anchorTxid ? `${anchorTxid.slice(0, 10)}…` : ''}</span>
-            <button type="button" onClick={() => { void anchor() }} disabled={!nostrPk || Boolean(busy) || Boolean(anchorTxid)} className="btn-ghost shrink-0 px-3 py-1.5 text-[10px]">
+            <span className="min-w-0 truncate text-[15px] text-nomos-text">2. BCH anchor {anchorTxid ? `${anchorTxid.slice(0, 10)}…` : ''}</span>
+            <button type="button" onClick={() => { void anchor() }} disabled={!nostrPk || Boolean(busy) || Boolean(anchorTxid)} className="btn-ghost shrink-0">
               {anchorTxid ? 'Done' : 'Sign in wallet'}
             </button>
           </li>
           <li className="flex items-center justify-between gap-3">
-            <span className="font-mono text-[11px] text-nomos-text">3. Nostr claim</span>
-            <button type="button" onClick={() => { void publish() }} disabled={!anchorTxid || Boolean(busy) || published} className="btn-ghost shrink-0 px-3 py-1.5 text-[10px]">
+            <span className="text-[15px] text-nomos-text">3. Nostr claim</span>
+            <button type="button" onClick={() => { void publish() }} disabled={!anchorTxid || Boolean(busy) || published} className="btn-ghost shrink-0">
               {published ? 'Published' : 'Sign in extension'}
             </button>
           </li>
         </ol>
-        {busy && <p className="mt-2 text-xs text-nomos-accent"><span className="spinner mr-2" />{busy}…</p>}
-        {createError && <p className="mt-2 text-xs text-nomos-refuse">{createError}</p>}
+        {busy && <p className="mt-2 text-sm text-nomos-muted-bright"><span className="spinner mr-2" />{busy}…</p>}
+        {createError && <p className="mt-2 text-sm text-nomos-refuse">{createError}</p>}
       </Panel>
 
       <Panel title="Prove control of a linked identity">
         {!linked ? (
-          <p className="text-[11px] text-nomos-muted">Verify or create a link first. The challenge is answered with either key and checked against that link.</p>
+          <p className="text-sm text-nomos-muted">Verify or create a link first.</p>
         ) : (
           <>
             <KV label="Linked address">{shortAddr(linked.address, 10, 6)}</KV>
             <KV label="Linked key">{shortAddr(nip19.npubEncode(linked.pubkeyHex), 10, 6)}</KV>
             <KV label="Challenge">{nonce}</KV>
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <button type="button" onClick={() => { void proveNostr() }} disabled={Boolean(busy)} className="btn-ghost py-2 text-[10px]">Answer with Nostr key</button>
-              <button type="button" onClick={() => { void proveBch() }} disabled={Boolean(busy) || !wallet?.connected} className="btn-ghost py-2 text-[10px]">Answer with BCH wallet</button>
+              <button type="button" onClick={() => { void proveNostr() }} disabled={Boolean(busy)} className="btn-ghost">Answer with Nostr key</button>
+              <button type="button" onClick={() => { void proveBch() }} disabled={Boolean(busy) || !wallet?.connected} className="btn-ghost">Answer with BCH wallet</button>
             </div>
-            <button type="button" onClick={() => { setNonce(newChallenge()); setProofResult(null) }} className="mt-2 text-[10px] text-nomos-muted hover:text-nomos-text">New challenge</button>
+            <button type="button" onClick={() => { setNonce(newChallenge()); setProofResult(null) }} className="mt-2 text-sm text-nomos-muted hover:text-nomos-text">New challenge</button>
             {proofResult && (
-              <div className="mt-3 border hairline p-3">
-                <p className={`font-mono text-[10px] font-bold uppercase tracking-[0.14em] ${proofResult.ok ? 'text-nomos-accent' : 'text-nomos-refuse'}`}>
+              <div className="mt-3 rounded-lg border hairline p-3">
+                <p className={`text-xs font-medium ${proofResult.ok ? 'text-nomos-ok' : 'text-nomos-refuse'}`}>
                   {proofResult.ok ? 'Authenticated' : 'Rejected'}
                 </p>
-                <p className="mt-1 text-[11px] text-nomos-muted-bright">{proofResult.reason}</p>
+                <p className="mt-1 text-sm text-nomos-muted-bright">{proofResult.reason}</p>
                 <button
                   type="button"
                   onClick={() => { void navigator.clipboard.writeText(proofResult.proof) }}
-                  className="mt-2 text-[10px] text-nomos-accent hover:underline"
+                  className="link-action mt-2"
                 >
                   Copy signed response
                 </button>
-                <p className="mt-1 text-[10px] text-nomos-muted">The response carries the link it claims. Another app checks it against its own challenge, then fetches the link again from relays and the chain.</p>
               </div>
             )}
           </>
@@ -278,28 +274,26 @@ export default function IdentityLink() {
       </Panel>
 
       <Panel title="Check someone's signed response">
-        <p className="text-[11px] leading-relaxed text-nomos-muted">
-          Give this challenge to the person, ask for their signed response, and paste it here. The signature, the Nostr claim and the BCH anchor are all checked in this browser.
-        </p>
+        <p className="text-sm text-nomos-muted">Send this challenge to the person, then paste their signed response.</p>
         <KV label="Your challenge">{issued}</KV>
         <div className="mt-1 flex gap-4">
-          <button type="button" onClick={() => copy('issued', issued)} className="text-[10px] text-nomos-muted-bright hover:text-nomos-text">{copied === 'issued' ? 'Copied' : 'Copy challenge'}</button>
-          <button type="button" onClick={() => { setIssued(newChallenge()); setResponseResult(null) }} className="text-[10px] text-nomos-muted-bright hover:text-nomos-text">New challenge</button>
+          <button type="button" onClick={() => copy('issued', issued)} className="text-sm text-nomos-muted-bright hover:text-nomos-text">{copied === 'issued' ? 'Copied' : 'Copy challenge'}</button>
+          <button type="button" onClick={() => { setIssued(newChallenge()); setResponseResult(null) }} className="text-sm text-nomos-muted-bright hover:text-nomos-text">New challenge</button>
         </div>
         <textarea
           value={response}
           onChange={(event) => { setResponse(event.target.value); setResponseResult(null) }}
           placeholder='{"v":1,"protocol":"nomos-identity",…}'
           rows={4}
-          className="input mt-3 font-mono text-[10px]"
+          className="input mt-3 font-mono text-sm"
           spellCheck={false}
         />
-        <button type="button" onClick={() => { void checkResponse() }} disabled={!response.trim() || responseBusy} className="btn-primary mt-2 w-full py-2">
+        <button type="button" onClick={() => { void checkResponse() }} disabled={!response.trim() || responseBusy} className="btn-primary mt-2 w-full">
           {responseBusy ? <><span className="spinner mr-2" /> Checking…</> : 'Check response'}
         </button>
         {responseResult && (
-          <div className="mt-3 border hairline p-3">
-            <p className={`font-mono text-[10px] font-bold uppercase tracking-[0.14em] ${responseResult.ok ? 'text-nomos-accent' : 'text-nomos-refuse'}`}>
+          <div className="mt-3 rounded-lg border hairline p-3">
+            <p className={`text-xs font-medium ${responseResult.ok ? 'text-nomos-ok' : 'text-nomos-refuse'}`}>
               {responseResult.ok ? 'Authenticated' : 'Rejected'}
             </p>
             {responseResult.checks.map((c) => (

@@ -6,9 +6,10 @@ import KeyboardShortcuts from './components/KeyboardShortcuts'
 import { ToastProvider } from './components/Toast'
 
 const PAGE_TITLES: Record<string, string> = {
-  '/': 'Connect',
+  '/': 'Spending rules for Bitcoin Cash',
+  '/connect': 'Connect',
   '/vault': 'Vault',
-  '/mandate': 'Set Mandate',
+  '/mandate': 'Rules',
   '/pay': 'Pay',
   '/activity': 'Activity',
   '/rescue': 'Rescue',
@@ -16,18 +17,19 @@ const PAGE_TITLES: Record<string, string> = {
   '/bridge': 'Swap',
   '/identity': 'Nostr Identity',
   '/simulate': 'Simulator',
-  '/architecture': 'Architecture',
+  '/architecture': "How it's built",
 }
 
 function PageTitle() {
   const { pathname } = useLocation()
   useEffect(() => {
     const label = PAGE_TITLES[pathname]
-    document.title = label ? `${label} · Nomos` : 'Nomos'
+    document.title = pathname === '/' ? 'Nomos · Spending rules for Bitcoin Cash' : label ? `${label} · Nomos` : 'Nomos'
   }, [pathname])
   return null
 }
 
+const Landing = lazy(() => import('./pages/Landing'))
 const Connect = lazy(() => import('./pages/Connect'))
 const VaultHome = lazy(() => import('./pages/VaultHome'))
 const SetMandate = lazy(() => import('./pages/SetMandate'))
@@ -57,8 +59,9 @@ export default function App() {
         <PageTitle />
         <Suspense fallback={<RouteLoading />}>
           <Routes>
+            <Route path="/" element={<Landing />} />
             <Route element={<Layout />}>
-              <Route path="/" element={<Connect />} />
+              <Route path="/connect" element={<Connect />} />
               <Route path="/vault" element={<VaultHome />} />
               <Route path="/mandate" element={<SetMandate />} />
               <Route path="/pay" element={<Pay />} />

@@ -40,17 +40,16 @@ test reports 14 checks, including refusals that fail on the exact rule:
 
 ## StableSwap prototype
 
-`StableSwap.scash` is an experimental BCH ↔ one configured CashToken category
+`StableSwap.scash` is a prototype BCH ↔ one configured CashToken category
 AMM with a 0.3% constant-product fee, bounded arithmetic, token-container
 checks, minimum-output checks, and admin-only liquidity management. The mock
 test seeds test tokens, exercises both swap directions, checks reserves and
 slippage, and verifies that only the admin can withdraw liquidity. The intended
 PUSD category and metadata are not verified or configured in this repository.
 
-It has no LP-share accounting or oracle, and has not been audited or deployed.
-See [`docs/BRIDGE_DESIGN.md`](../../docs/BRIDGE_DESIGN.md) and
-[`docs/MAINNET_PROOFS.md`](../../docs/MAINNET_PROOFS.md) before treating it as
-anything other than a local prototype.
+It has no LP-share accounting or oracle, and is not deployed. See
+[`docs/BRIDGE_DESIGN.md`](../../docs/BRIDGE_DESIGN.md) for what a deployment
+would need.
 
 ## BCH hash-time-lock prototype
 

@@ -46,7 +46,7 @@ export default function SetMandate() {
       .catch(() => setWalletBal(null))
   }, [wallet?.address])
 
-  if (!wallet?.connected) return <Navigate to="/" replace />
+  if (!wallet?.connected) return <Navigate to="/connect" replace />
 
   // No on-chain vault yet: either never configured, or configured but the
   // state NFT was never minted. Either way this form creates it.
@@ -176,31 +176,22 @@ export default function SetMandate() {
   return (
     <div className="page-enter space-y-4">
       <header>
-        <p className="eyebrow">OWNER AUTHORIZATION · COVENANT SETTINGS</p>
-        <h1 className="page-title">{needsDeploy ? 'Create vault' : 'Set mandate'}</h1>
+        <h1 className="page-title">{needsDeploy ? 'Create vault' : 'Rules'}</h1>
       </header>
 
-      {/* Info banner */}
-      {needsDeploy ? (
-        <div className="card border-nomos-pending/25 bg-nomos-pending/[0.04] p-4 text-xs text-nomos-pending">
-          <strong>Create your vault.</strong> Your wallet funds the vault and mints the state NFT
-          that tracks spending. You may need to confirm one or two transactions.
-        </div>
-      ) : (
-        <div className="card border-nomos-pending/25 bg-nomos-pending/[0.04] p-4 text-xs text-nomos-pending">
-          <strong>Updating mandate.</strong> This creates a new contract address and moves the NFT and vault funds under the new rules.
-        </div>
-      )}
+      <p className="text-sm text-nomos-muted">
+        {needsDeploy
+          ? 'Your wallet funds the vault. You may confirm one or two transactions.'
+          : 'Saving moves the vault to a new address with the new rules.'}
+      </p>
 
       {noPubkey && (
-        <div className="card border-nomos-refuse/15 bg-nomos-refuse/[0.04] p-4 text-xs text-nomos-refuse" style={{ borderWidth: '1px', borderStyle: 'solid' }}>
-          Your wallet didn't provide a public key. Reconnect with WizardConnect for full support.
-        </div>
+        <p className="text-sm text-nomos-refuse">Your wallet did not share a public key. Reconnect with WizardConnect.</p>
       )}
 
       {/* Daily limit */}
       <div>
-        <label className="label mb-2 block">Daily Limit (BCH)</label>
+        <label className="label mb-2 block">Daily limit (BCH)</label>
         <input
           type="number"
           step="0.00000001"
@@ -214,7 +205,7 @@ export default function SetMandate() {
       {/* Initial deposit (new vault only) */}
       {needsDeploy && (
         <div>
-          <label className="label mb-2 block">Initial Deposit (BCH)</label>
+          <label className="label mb-2 block">Deposit (BCH)</label>
           <input
             type="number"
             step="0.00000001"
@@ -224,12 +215,9 @@ export default function SetMandate() {
             placeholder="0.0001"
             className="input"
           />
-          <p className="mt-1.5 text-[10px] text-nomos-muted">
-            Moved from your wallet into the vault. You can top up later.
-          </p>
           {walletBal !== null && (
-            <p className="mt-1 text-[10px] text-nomos-muted-bright">
-              Wallet balance: <span className="font-mono text-nomos-accent">{(walletBal / 1e8).toFixed(8)} BCH</span>
+            <p className="mt-1.5 text-sm text-nomos-muted">
+              Wallet balance: <span className="tabular-nums text-nomos-text">{(walletBal / 1e8).toFixed(8)} BCH</span>
             </p>
           )}
         </div>
@@ -237,59 +225,61 @@ export default function SetMandate() {
 
       {/* Allowlist */}
       <div>
-        <label className="mb-3 flex items-center gap-2 label cursor-pointer">
+        <label className="mb-2 flex cursor-pointer items-center gap-2 text-[15px] text-nomos-text">
           <input
             type="checkbox"
             checked={allowlistEnabled}
             onChange={(e) => setAllowlistEnabled(e.target.checked)}
-            className="accent-nomos-accent h-3.5 w-3.5"
+            className="h-4 w-4 accent-nomos-accent"
           />
-          Allowlist (up to 5 addresses)
+          Only pay up to 5 chosen addresses
         </label>
         {allowlistEnabled && (
           <textarea
             value={allowlistInput}
             onChange={(e) => setAllowlistInput(e.target.value)}
-            placeholder={'bitcoincash:qr…\nnpub1… or name@domain'}
+            placeholder={'One per line: address, npub or name@domain'}
             rows={4}
-            className="input text-xs resize-none"
+            className="input resize-none"
           />
         )}
       </div>
 
       {/* Agent key */}
       <div>
-        <label className="label mb-2 block">Agent Public Key (optional)</label>
+        <label className="label mb-2 block">Agent key (optional)</label>
         <input
           type="text"
           value={agentPk}
           onChange={(e) => setAgentPk(e.target.value)}
-          placeholder="02abc…"
-          className="input text-xs"
+          placeholder="Public key, 02… or 03…"
+          className="input font-mono text-sm"
+          spellCheck={false}
         />
       </div>
 
       {/* Rescue key */}
       <div>
-        <label className="label mb-2 block">Rescue Co-signer Key (optional)</label>
+        <label className="label mb-2 block">Rescue key (optional)</label>
         <input
           type="text"
           value={rescuePk}
           onChange={(e) => setRescuePk(e.target.value)}
-          placeholder="03def…"
-          className="input text-xs"
+          placeholder="Public key, 02… or 03…"
+          className="input font-mono text-sm"
+          spellCheck={false}
         />
       </div>
 
-      {step && <p className="pulse-text text-xs text-nomos-accent">{step}</p>}
-      {error && <p className="text-xs text-nomos-refuse">{error}</p>}
+      {step && <p className="pulse-text text-sm text-nomos-muted-bright">{step}</p>}
+      {error && <p className="text-sm text-nomos-refuse">{error}</p>}
 
       <button onClick={handleConfirm} disabled={submitting} className="btn-primary w-full">
         {submitting
           ? <><span className="spinner mr-2" /> Signing…</>
           : needsDeploy
-            ? 'Create Vault'
-            : 'Update Mandate'}
+            ? 'Create vault'
+            : 'Save rules'}
       </button>
     </div>
   )

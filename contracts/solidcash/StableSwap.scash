@@ -1,7 +1,7 @@
 pragma solidcash ^0.51.0;
 
 // Minimal constant-product market-maker for BCH and one configured CashToken
-// category. This is an unaudited prototype: admin-only liquidity operations,
+// category. This is a prototype: admin-only liquidity operations,
 // no transferable LP shares, no oracle, and no emergency pause.
 
 event Swapped(bytes20 indexed trader, int bchDelta, int pusdDelta);
