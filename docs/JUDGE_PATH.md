@@ -1,6 +1,7 @@
 # Judge path
 
-The fastest way through Nomos: the live app first, then the tests.
+The fastest way through Nomos: the live app first, then the tests. Short on
+time? The [demo video](https://youtu.be/eR8DS4LNMvA) shows the whole flow.
 
 ## 1. The live app (about 5 minutes, needs a BCH wallet)
 
@@ -36,6 +37,8 @@ the identity link.
 
 ```bash
 cd contracts/solidcash && npm ci && npm test   # vault, StableSwap and HTLC in the BCH VM (mock network)
+cd contracts && npm ci && npm run test:swap    # SwapLock.cash, the PUSD side of the swap, in the BCH VM
+cd contracts/evm && npm ci && npm test         # SwapLock.sol, the USDC side, in a local EVM
 cd xo && npm ci && npm test                    # 14 offline checks of the XO template against CashScript
 cd frontend && npm ci && npm run build         # type check and production build
 ```

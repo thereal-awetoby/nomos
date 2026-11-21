@@ -26,6 +26,9 @@ npm run dev
 For chipnet development, configure `VITE_BCH_NETWORK=chipnet` as described in
 the root README. Do not use a mainnet wallet for testing.
 
+To publish the site, see [`docs/DEPLOY.md`](docs/DEPLOY.md): build settings,
+environment variables and the route rule each host needs.
+
 ### CashScript covenant
 
 ```bash
