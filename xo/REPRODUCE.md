@@ -124,6 +124,13 @@ outputs as confirmed, including the vault.
 This is not something the template can fix; it happens on any machine using
 this package on chipnet.
 
+**Fixed upstream:** chipnet switched to 60-second blocks at height 332,451, so
+the expected target there was computed with the wrong block time.
+`@xo-cash/engine` 0.1.1-next.18230317763 brings `@electrum-cash/checkpoint`
+0.8.0, whose chipnet parameters include that switch
+(`{ fromHeight: 332451, idealBlockTimeInSeconds: 60 }`). `xo/package.json`
+now pins that engine; see [Second run](#second-run) below.
+
 **Workarounds tried:** querying Electrum directly instead of
 `engine.listUnspentOutputs()`, and reading the vault script hash back from the
 genesis transaction. Neither got the run to the pay step; the last run's
@@ -144,3 +151,66 @@ transaction: it queries Electrum for the owner's history, decodes each
 transaction with libauth's `decodeTransaction` and takes the output carrying
 `token.nft`. In the last run this lookup failed (`object is not iterable`), so
 the script fell back to the compiled script hash, which matched anyway.
+
+## Second run
+
+Prepared for the rest of the lifecycle: pay, pay again the same day, an
+over-limit payment, and the rescue, all through XO invitations.
+
+### What changed
+
+- **Engine:** `@xo-cash/engine` 0.1.1-next.18230317763 (fixes blocker 3) and
+  `@xo-cash/utils` 0.0.12 to match it. The 14 offline checks pass on both, and
+  `npm run export` leaves `nomos.template.json` unchanged, so the template
+  identifier, the derived keys and the vault address stay the same.
+- **Reuses the vault.** When the vault for these keys already exists (the one
+  created by genesis `d73393f2…`), the script continues from its NFT output
+  and needs no new funding. Funding and genesis run only when there is none.
+- **Fixes in `scripts/chipnet.mjs`**, none of which the first run reached:
+  - stored key secrets are referenced by the lookup key State returns (the
+    script used a random one, so signing would have failed);
+  - the vault state is read as two little-endian 8-byte integers, the way the
+    covenant writes it, and a commitment from an earlier day counts as nothing
+    spent, as in the covenant;
+  - each step waits for the vault coin it spends to confirm;
+  - the refused over-limit invitation is archived, which releases its
+    reservation of the vault coin before the rescue.
+- **Rescue with two engines.** An XO engine signs only with keys from its own
+  account, and the rescue needs the owner's and the rescuer's signatures. The
+  owner creates the rescue invitation and adds its signature
+  (`appendOwnInputResolutions`); a second engine for the rescuer, in its own
+  process and state (`chipnet.mjs rescuer-sign`), accepts the invitation and
+  signs the input (`signInvitation`); the owner merges the result and
+  broadcasts it. The first version tried to sign both roles in one engine,
+  which would have produced two owner signatures.
+
+### Running it
+
+On GitHub Actions (`.github/workflows/xo-chipnet.yml`):
+
+1. Add two repository secrets with chipnet-only BIP39 mnemonics:
+   `XO_OWNER_MNEMONIC` and `XO_RESCUER_MNEMONIC`. To continue from the vault
+   created by `d73393f2…`, use the two chipnet mnemonics that run used.
+2. Actions → **XO chipnet run** → Run workflow (or push to the `xo-chipnet`
+   branch).
+3. Results go to the `xo-chipnet-results` artifact and the
+   `xo-chipnet-output` branch: `invitations/2-pay-3000.json`,
+   `3-pay-4000.json`, `4-pay-5000-overlimit.json`, `5-rescue-1-owner.json`,
+   `5-rescue-2-rescuer.json`, `5-rescue.json`, `run.json` (every transaction
+   ID and the node's answer to the over-limit payment) and
+   `chipnet-output.txt`.
+
+Locally (Linux or macOS; on Windows the engine's SQLite dependency needs C++
+build tools):
+
+```bash
+cd xo
+npm ci
+OWNER_MNEMONIC="…" RESCUER_MNEMONIC="…" node scripts/chipnet.mjs run
+```
+
+The invitation files are XO's own serialized format (`serializeInvitation`
+from `@xo-cash/utils`); `deserializeInvitation` reads them back. They carry
+public keys and signatures, never private keys.
+
+Results of the second run are added here once it has run.

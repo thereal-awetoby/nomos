@@ -1,0 +1,88 @@
+name: XO chipnet run
+
+# Runs the Nomos vault through XO's engine on chipnet (BCH testnet):
+# pay, pay again, an over-limit pay the covenant refuses, and a two-engine
+# rescue. Start it from the Actions tab, or push to the xo-chipnet branch.
+#
+# Needs two repository secrets holding chipnet-only BIP39 mnemonics:
+#   XO_OWNER_MNEMONIC, XO_RESCUER_MNEMONIC
+# Keys never appear in the repository. Results (invitations, run.json, log)
+# are uploaded as an artifact and pushed to the xo-chipnet-output branch.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [xo-chipnet]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: xo-chipnet
+  cancel-in-progress: false
+
+jobs:
+  chipnet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      OWNER_MNEMONIC: ${{ secrets.XO_OWNER_MNEMONIC }}
+      RESCUER_MNEMONIC: ${{ secrets.XO_RESCUER_MNEMONIC }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check the secrets are set
+        run: |
+          if [ -z "$OWNER_MNEMONIC" ] || [ -z "$RESCUER_MNEMONIC" ]; then
+            echo "::error::Add XO_OWNER_MNEMONIC and XO_RESCUER_MNEMONIC (chipnet-only mnemonics) as repository secrets."
+            exit 1
+          fi
+
+      - name: Install
+        working-directory: xo
+        run: npm ci --no-audit --no-fund
+
+      - name: Offline checks
+        working-directory: xo
+        run: npm test
+
+      - name: Funding address (only used if no vault exists yet)
+        working-directory: xo
+        run: node scripts/chipnet.mjs fund
+
+      - name: Run on chipnet
+        id: run
+        working-directory: xo
+        run: |
+          set -o pipefail
+          node scripts/chipnet.mjs run 2>&1 | tee chipnet-output.txt
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xo-chipnet-results
+          path: |
+            xo/invitations/
+            xo/chipnet-output.txt
+          if-no-files-found: warn
+
+      - name: Push results to the xo-chipnet-output branch
+        if: always()
+        run: |
+          mkdir -p /tmp/results
+          cp -r xo/invitations /tmp/results/ 2>/dev/null || true
+          cp xo/chipnet-output.txt /tmp/results/ 2>/dev/null || true
+          git config user.name "thereal-awetoby"
+          git config user.email "183822406+thereal-awetoby@users.noreply.github.com"
+          git checkout --orphan xo-chipnet-output
+          # Empty the tree (node_modules included) so only the results are committed.
+          git rm -rq --cached . && git clean -fdxq
+          cp -r /tmp/results/. .
+          git add -A
+          git commit -q -m "XO chipnet run ${GITHUB_RUN_ID}: ${{ steps.run.outcome }}" || exit 0
+          git push -q --force origin xo-chipnet-output
