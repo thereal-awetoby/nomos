@@ -13,30 +13,36 @@
  *   3. pay #2    — pay 4,000 sats the same day from the state of step 2.
  *   4. pay #3    — pay 5,000 sats more (12,000 > 10,000): signed and sent
  *                  to the node; the rejection is recorded.
- *   5. rescue    — ONE XO invitation co-signed by OWNER_KEY and
- *                  RESCUER_KEY sweeps the vault back to the owner.
+ *   5. rescue    — ONE XO invitation passed between two engines: the owner
+ *                  adds its signature, the rescuer (a second engine in its
+ *                  own process, `rescuer-sign` mode) accepts the invitation
+ *                  and signs, and the owner broadcasts the sweep.
  *
- * Every invitation is saved to OUT_DIR/<n>-<action>.json (no keys). Every
- * txid and the rejection message are printed.
+ * If the vault for these keys already exists on chipnet (for example the one
+ * created by an earlier run), steps 0–1 are skipped and the demo continues
+ * from it, so no new funding is needed.
+ *
+ * Every invitation is saved to OUT_DIR/<n>-<action>.json (no keys), and a
+ * summary of every step to OUT_DIR/run.json.
  *
  * Usage:
  *   node scripts/chipnet.mjs fund   → print the chipnet funding address and stop
- *   node scripts/chipnet.mjs run    → run the full demo (needs funded address)
+ *   node scripts/chipnet.mjs run    → run the full demo
  *
  * Environment:
  *   OWNER_MNEMONIC    BIP39 mnemonic of the owner XO account
- *   OWNER_KEY         WIF of the owner key — must be derivation index 0 of
- *                     OWNER_MNEMONIC (the engine derives template keys from
- *                     the mnemonic; this script pins them to index 0)
+ *   OWNER_KEY         optional WIF of the owner key; when set it must be
+ *                     derivation index 0 of OWNER_MNEMONIC (the key the vault
+ *                     uses). Derived from the mnemonic when not set.
  *   RESCUER_MNEMONIC  BIP39 mnemonic of the rescuer XO account
- *   RESCUER_KEY       WIF of the rescuer key — derivation index 0 of
- *                     RESCUER_MNEMONIC
+ *   RESCUER_KEY       optional WIF of the rescuer key, index 0 of RESCUER_MNEMONIC
  *   DATABASE_PATH     state directory (default ./xo-chipnet-data)
  *   OUT_DIR           invitations output directory (default ./invitations)
  *   FUND_SATOSHIS     funding amount to require in run mode (default 60000)
  */
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { generateMnemonic } from 'bip39';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -54,7 +60,7 @@ import {
   secp256k1,
 } from '@bitauth/libauth';
 import { convertMnemonicToSeedBytes, computeAccountHash } from '@xo-cash/crypto';
-import { parseTemplate, generateTemplateIdentifier, serializeInvitation } from '@xo-cash/utils';
+import { parseTemplate, generateTemplateIdentifier, serializeInvitation, deserializeInvitation } from '@xo-cash/utils';
 
 // Deterministic script hash: sha256(script).reverse(), hex-encoded.
 // We use Node's built-in crypto instead of @xo-cash/utils' scriptToScriptHash
@@ -127,21 +133,22 @@ function wifFromMnemonic(mnemonic, templateIdentifier, derivationIndex) {
 }
 
 function loadAccount(role, mnemonicVar, wifVar) {
-  const mnemonic = env[mnemonicVar];
-  const wif = env[wifVar];
+  const mnemonic = env[mnemonicVar]?.trim();
+  const wif = env[wifVar]?.trim();
   if (!mnemonic) fail(`${mnemonicVar} is required`);
-  if (!wif) fail(`${wifVar} is required`);
   const seedBytes = convertMnemonicToSeedBytes(mnemonic);
   const template = parseTemplate(JSON.parse(readFileSync(join(XO_DIR, 'nomos.template.json'), 'utf8')));
   const templateIdentifier = generateTemplateIdentifier(template);
+  // The vault is built with derivation index 0 of each account, the same key
+  // the engine derives for a secret pinned to index 0.
   const expectedKey = deriveTemplateKey(seedBytes, templateIdentifier, 0, 'testnet');
-  const providedKey = wifToPrivKey(wif);
-  if (binToHex(expectedKey) !== binToHex(providedKey)) {
+  const privateKey = wif ? wifToPrivKey(wif) : expectedKey;
+  if (binToHex(expectedKey) !== binToHex(privateKey)) {
     fail(`${wifVar} does not match derivation index 0 of ${mnemonicVar} for the Nomos template`);
   }
-  const publicKey = secp256k1.derivePublicKeyCompressed(providedKey);
-  const address = privateKeyToP2pkhCashAddress({ privateKey: providedKey, prefix: 'bchtest', throwErrors: true }).address;
-  return { role, mnemonic, seedBytes, privateKey: providedKey, publicKey, address, template, templateIdentifier };
+  const publicKey = secp256k1.derivePublicKeyCompressed(privateKey);
+  const address = privateKeyToP2pkhCashAddress({ privateKey, prefix: 'bchtest', throwErrors: true }).address;
+  return { role, mnemonic, seedBytes, privateKey, wif: privKeyToWif(privateKey), publicKey, address, template, templateIdentifier };
 }
 
 // ── State helpers (second connection on the same database) ──────────────────
@@ -170,16 +177,16 @@ async function preStoreScriptHash(state, account, scriptHash, lockingBytecode, l
   });
 }
 
+// Store a key secret pinned to a derivation index of this account and return
+// the lookup key State assigns to it; invitations refer to the secret by it.
 async function preStoreSecret(state, account, secretIdentifier, derivationIndex = 0) {
-  const secretLookupKey = binToHex(crypto.getRandomValues(new Uint8Array(32)));
-  await state.storeSecretData({
+  return state.storeSecretData({
     secretIdentifier,
     isPrivate: true,
     isEntropy: true,
     value: String(derivationIndex),
     templateIdentifier: account.templateIdentifier,
   });
-  return secretLookupKey;
 }
 
 async function attachSecret(state, invitationIdentifier, invitation, secret) {
@@ -374,8 +381,25 @@ function commitmentHex(spentToday, dayMarker) {
   return binToHex(new Uint8Array([...spent, ...day]));
 }
 
+// The commitment is two 8-byte little-endian integers: spent today, then the day.
+function readLittleEndian(hex) {
+  return Number(BigInt(`0x${hex.match(/../g).reverse().join('')}`));
+}
+
 function spentTodayFromCommitment(commitmentHexStr) {
-  return Number(BigInt(commitmentHexStr.slice(0, 16), 16));
+  return readLittleEndian(commitmentHexStr.slice(0, 16));
+}
+
+function dayFromCommitment(commitmentHexStr) {
+  return readLittleEndian(commitmentHexStr.slice(16, 32));
+}
+
+// Results of every step, written to OUT_DIR/run.json for REPRODUCE.md.
+const summary = { network: 'chipnet', startedAt: new Date().toISOString(), steps: [] };
+function record(step) {
+  summary.steps.push({ at: new Date().toISOString(), ...step });
+  mkdirSync(OUT_DIR, { recursive: true });
+  writeFileSync(join(OUT_DIR, 'run.json'), `${JSON.stringify(summary, null, 2)}\n`);
 }
 
 async function confirmedVaultUtxos(engine, vaultScriptHash, vaultRawBytecode, templateIdentifier) {
@@ -395,6 +419,47 @@ async function confirmedVaultUtxos(engine, vaultScriptHash, vaultRawBytecode, te
 // ── Main ────────────────────────────────────────────────────────────────────
 
 async function main() {
+  if (mode === 'rescuer-sign') {
+    // The rescuer's engine, in its own process and state: accept the rescue
+    // invitation the owner signed, sign the vault input with the rescue key,
+    // and write the invitation back for the owner to broadcast.
+    const [inFile, outFile] = process.argv.slice(3);
+    if (!inFile || !outFile) fail('usage: chipnet.mjs rescuer-sign <invitation-in.json> <invitation-out.json>');
+    if (!env.VAULT_BYTECODE || !env.VAULT_SCRIPT_HASH) fail('VAULT_BYTECODE and VAULT_SCRIPT_HASH are required');
+    const rescuer = loadAccount('rescuer', 'RESCUER_MNEMONIC', 'RESCUER_KEY');
+    mkdirSync(DATABASE_PATH, { recursive: true });
+    const state = await openState(rescuer);
+    await preStoreScriptHash(state, rescuer, env.VAULT_SCRIPT_HASH, env.VAULT_BYTECODE, 'vault');
+    const rescueSecret = await preStoreSecret(state, rescuer, 'rescueKey');
+    const { Engine } = await import('@xo-cash/engine');
+    const engine = await Engine.create(rescuer.mnemonic, { network: 'chipnet', storageType: 'indexeddb', databasePath: DATABASE_PATH });
+    await engine.importTemplate(JSON.parse(readFileSync(join(XO_DIR, 'nomos.template.json'), 'utf8')));
+    const { monitorScriptHash } = await import('@electrum-cash/application');
+    await monitorScriptHash(env.VAULT_SCRIPT_HASH);
+
+    const invitation = deserializeInvitation(readFileSync(inFile, 'utf8'));
+    // An engine signs only inputs it tracks, so wait until it sees the vault coin.
+    const spent = invitation.commits.flatMap((c) => c.data?.inputs ?? []).find((i) => i.outpointTransactionHash !== undefined);
+    const spentHash = typeof spent.outpointTransactionHash === 'string' ? spent.outpointTransactionHash : binToHex(spent.outpointTransactionHash);
+    const deadline = Date.now() + 20 * 60 * 1000;
+    while (!(await engine.listUnspentOutputs()).some((u) => String(u.outpointTransactionHash) === spentHash && u.outpointIndex === spent.outpointIndex)) {
+      if (Date.now() > deadline) fail(`rescuer engine never saw the vault coin ${spentHash}:${spent.outpointIndex}`);
+      await new Promise((r) => setTimeout(r, 10_000));
+    }
+
+    const accepted = await engine.acceptInvitation(invitation, { roleIdentifier: 'rescuer' });
+    await attachSecret(state, accepted.invitationIdentifier, accepted.invitation, {
+      secretIdentifier: 'rescueKey',
+      secretLookupKey: rescueSecret,
+      templateIdentifier: rescuer.templateIdentifier,
+    });
+    const signed = await engine.signInvitation(accepted.invitationIdentifier, 0);
+    writeFileSync(outFile, `${serializeInvitation(signed.invitation)}\n`);
+    log(`  rescuer signed: ${outFile}`);
+    await engine.stop();
+    return;
+  }
+
   if (mode === 'keys') {
     // Generate mnemonics + derivation-index-0 WIFs + addresses.
     // Use FIXED_OWNER_MNEMONIC / FIXED_RESCUER_MNEMONIC if set (deterministic
@@ -549,83 +614,93 @@ async function main() {
     }
   }
 
-  // ── Step 0: funding ───────────────────────────────────────────────────────
-  // First check if the vault already exists (e.g. a previous run broadcast the
-  // genesis tx but couldn't track the confirmation due to a stale chipnet
-  // checkpoint). If so, skip funding + genesis and proceed to the pay flow.
-  // Accept confirmed OR pending (mempool) vault UTXOs — the genesis tx may
-  // still be in the mempool.
-  log('\n[0] Checking for existing vault…');
-  {
-    const { fetchUnspentOutputsForLockingBytecode } = await import('@xo-cash/engine');
-    const allVault = await fetchUnspentOutputsForLockingBytecode(vaultRawBytecode, owner.templateIdentifier);
-    const existing = allVault.find((u) => u.tokenNftCommitment !== undefined);
-    if (existing) {
-      log(`  vault NFT UTXO already exists: ${existing.outpointTransactionHash}:${existing.outpointIndex} (${existing.valueSatoshis} sats, status: ${existing.status})`);
-      log('  skipping funding + genesis, proceeding to pay flow');
-    }
-  }
-
-  log('\n[0] Waiting for funding…');
-  let fundingUtxo = null;
-  const fundingDeadline = Date.now() + 2 * 60 * 60 * 1000;
-  let lastLogTime = 0;
-  while (Date.now() < fundingDeadline) {
-    const all = await ownerEngine.listUnspentOutputs();
-    // Diagnostic: log what the engine reports (every ~60s)
-    if (Date.now() - lastLogTime > 60_000) {
-      lastLogTime = Date.now();
-      log(`  engine reports ${all.length} unspent outputs`);
-      for (const u of all) {
-        log(`    ${u.outpointTransactionHash}:${u.outpointIndex} — ${u.valueSatoshis} sats — scriptHash: ${u.scriptHash} — reservedBy: ${u.reservedBy ?? 'none'}`);
+  // ── Step 0: an existing vault, or funding + genesis ──────────────────────
+  // A vault for these keys may already be on chipnet (an earlier run broadcast
+  // its genesis). Its NFT output carries the state, so the demo continues from
+  // it and needs no new funding.
+  log('\n[0] Checking for an existing vault…');
+  const { fetchUnspentOutputsForLockingBytecode } = await import('@xo-cash/engine');
+  const existingVault = (await fetchUnspentOutputsForLockingBytecode(vaultRawBytecode, owner.templateIdentifier))
+    .find((u) => u.tokenNftCommitment !== undefined);
+  if (existingVault) {
+    log(`  vault found: ${existingVault.outpointTransactionHash}:${existingVault.outpointIndex} (${existingVault.valueSatoshis} sats, ${existingVault.status}); skipping funding and genesis`);
+    record({ step: 'existing-vault', outpoint: `${existingVault.outpointTransactionHash}:${existingVault.outpointIndex}`, satoshis: String(existingVault.valueSatoshis), commitment: existingVault.tokenNftCommitment, status: existingVault.status });
+  } else {
+    log('\n[0] Waiting for funding…');
+    let fundingUtxo = null;
+    const fundingDeadline = Date.now() + 2 * 60 * 60 * 1000;
+    let lastLogTime = 0;
+    while (Date.now() < fundingDeadline) {
+      const all = await ownerEngine.listUnspentOutputs();
+      // Diagnostic: log what the engine reports (every ~60s)
+      if (Date.now() - lastLogTime > 60_000) {
+        lastLogTime = Date.now();
+        log(`  engine reports ${all.length} unspent outputs`);
+        for (const u of all) {
+          log(`    ${u.outpointTransactionHash}:${u.outpointIndex} — ${u.valueSatoshis} sats — scriptHash: ${u.scriptHash} — reservedBy: ${u.reservedBy ?? 'none'}`);
+        }
       }
+      // Match by script hash (owner p2pkh). Accept ANY status — confirmed
+      // AND unconfirmed (mempool, status 'pending') UTXOs. BCH lets us spend
+      // unconfirmed coins, and CashScript / the engine can spend mempool
+      // UTXOs. Also accept reservedBy being null/undefined.
+      const candidates = all.filter(
+        (u) => u.scriptHash === ownerScriptHash && u.valueSatoshis >= FUND_SATOSHIS,
+      );
+      if (candidates.length > 0) {
+        const chosen = candidates.sort((a, b) => a.outpointIndex - b.outpointIndex)[0];
+        fundingUtxo = {
+          txid: chosen.outpointTransactionHash,
+          vout: chosen.outpointIndex,
+          satoshis: BigInt(chosen.valueSatoshis),
+        };
+        log(`  funding UTXO status: ${chosen.status} (confirmed or mempool)`);
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 20_000));
     }
-    // Match by script hash (owner p2pkh). Accept ANY status — confirmed
-    // AND unconfirmed (mempool, status 'pending') UTXOs. BCH lets us spend
-    // unconfirmed coins, and CashScript / the engine can spend mempool
-    // UTXOs. Also accept reservedBy being null/undefined.
-    const candidates = all.filter(
-      (u) => u.scriptHash === ownerScriptHash && u.valueSatoshis >= FUND_SATOSHIS,
-    );
-    if (candidates.length > 0) {
-      const chosen = candidates.sort((a, b) => a.outpointIndex - b.outpointIndex)[0];
-      fundingUtxo = {
-        txid: chosen.outpointTransactionHash,
-        vout: chosen.outpointIndex,
-        satoshis: BigInt(chosen.valueSatoshis),
-      };
-      log(`  funding UTXO status: ${chosen.status} (confirmed or mempool)`);
-      break;
+    if (!fundingUtxo) {
+      log(`\nNo funded UTXO of ≥ ${FUND_SATOSHIS} sats found for ${owner.address}.`);
+      log('Fund the address, wait for confirmation, then run again.');
+      await ownerEngine.stop();
+      return;
     }
-    await new Promise((r) => setTimeout(r, 20_000));
-  }
-  if (!fundingUtxo) {
-    log(`\nNo funded UTXO of ≥ ${FUND_SATOSHIS} sats found for ${owner.address}.`);
-    log('Fund the address, wait for confirmation, then run again.');
-    await ownerEngine.stop();
-    return;
-  }
-  log(`  funding UTXO: ${fundingUtxo.txid}:${fundingUtxo.vout} (${fundingUtxo.satoshis} sats)`);
+    log(`  funding UTXO: ${fundingUtxo.txid}:${fundingUtxo.vout} (${fundingUtxo.satoshis} sats)`);
 
-  // ── Step 1: genesis ───────────────────────────────────────────────────────
-  log('\n[1] Genesis — create the chipnet vault…');
-  const genesisTxid = await buildAndSendGenesis(fundingUtxo, contract, owner.address, env.OWNER_KEY);
-  await waitForConfirmation(ownerEngine, fundingUtxo.txid, fundingUtxo.vout, { label: 'pre-genesis' });
-  await waitForTxVisible(genesisTxid);
-  // Wait for the genesis output (vault NFT UTXO) to be confirmed before
-  // proceeding — the pay flow only selects confirmed vault UTXOs.
-  {
-    const vaultDeadline = Date.now() + 30 * 60 * 1000;
-    let nftVaultUtxo1 = null;
-    while (Date.now() < vaultDeadline) {
-      nftVaultUtxo1 = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash, vaultRawBytecode, owner.templateIdentifier))
+    // ── Step 1: genesis ───────────────────────────────────────────────────────
+    log('\n[1] Genesis — create the chipnet vault…');
+    const genesisTxid = await buildAndSendGenesis(fundingUtxo, contract, owner.address, owner.wif);
+    await waitForConfirmation(ownerEngine, fundingUtxo.txid, fundingUtxo.vout, { label: 'pre-genesis' });
+    await waitForTxVisible(genesisTxid);
+    // Wait for the genesis output (vault NFT UTXO) to be confirmed before
+    // proceeding — the pay flow only selects confirmed vault UTXOs.
+    {
+      const vaultDeadline = Date.now() + 30 * 60 * 1000;
+      let nftVaultUtxo1 = null;
+      while (Date.now() < vaultDeadline) {
+        nftVaultUtxo1 = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash, vaultRawBytecode, owner.templateIdentifier))
+          .find((u) => u.tokenNftCommitment !== undefined);
+        if (nftVaultUtxo1) break;
+        await new Promise((r) => setTimeout(r, 15_000));
+      }
+      if (!nftVaultUtxo1) fail('vault NFT output not confirmed after genesis');
+    }
+    log(`  genesis confirmed: ${genesisTxid}`);
+    record({ step: 'genesis', txid: genesisTxid });
+  }
+
+  // The vault coin each step spends must be confirmed; chipnet blocks come
+  // about once a minute, so wait for it instead of failing straight away.
+  async function waitForVault(label, timeoutMs = 30 * 60 * 1000) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const found = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash, vaultRawBytecode, owner.templateIdentifier))
         .find((u) => u.tokenNftCommitment !== undefined);
-      if (nftVaultUtxo1) break;
+      if (found) return found;
       await new Promise((r) => setTimeout(r, 15_000));
     }
-    if (!nftVaultUtxo1) fail('vault NFT output not confirmed after genesis');
+    throw new Error(`vault NFT output not confirmed ${label}`);
   }
-  log(`  genesis confirmed: ${genesisTxid}`);
 
   // ── Step 2: pay #1 ───────────────────────────────────────────────────────
   // Nodes reject a tx whose locktime is later than the chain's median time
@@ -652,7 +727,9 @@ async function main() {
     const commitment = vaultUtxo.tokenNftCommitment;
     const vaultSatoshis = vaultUtxo.valueSatoshis;
     const payVaultSatoshis = BigInt(vaultSatoshis) - BigInt(amount) - BigInt(MINER_FEE_SATOSHIS);
-    const newSpentToday = spentTodayFromCommitment(commitment) + amount;
+    // Same rule as the covenant: a commitment from another day counts as zero.
+    const previousSpent = dayFromCommitment(commitment) === dayMarker ? spentTodayFromCommitment(commitment) : 0;
+    const newSpentToday = previousSpent + amount;
     const newCommitment = commitmentHex(newSpentToday, dayMarker);
     const invitation = await ownerEngine.createInvitation({
       templateIdentifier: owner.templateIdentifier,
@@ -704,32 +781,32 @@ async function main() {
     return invitation;
   }
 
-  let nftVaultUtxo1 = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash, vaultRawBytecode, owner.templateIdentifier)).find((u) => u.tokenNftCommitment !== undefined);
-  if (!nftVaultUtxo1) fail('vault NFT output not found after genesis');
+  const nftVaultUtxo1 = await waitForVault('after genesis');
   const pay1 = await pay(2, PAY_1_SATOSHIS, nftVaultUtxo1);
   const pay1Result = await ownerEngine.executeAction(pay1.invitationIdentifier, { broadcastTransaction: true });
   await saveInvitation(2, 'pay-3000', pay1Result.storedInvitation.invitation);
   log(`  pay #1 txid: ${pay1Result.builtTransaction.transactionHash}`);
+  record({ step: 'pay', satoshis: String(PAY_1_SATOSHIS), txid: pay1Result.builtTransaction.transactionHash, invitation: '2-pay-3000.json' });
   await waitForConfirmation(ownerEngine, nftVaultUtxo1.outpointTransactionHash, nftVaultUtxo1.outpointIndex, { label: 'pay #1' });
   await waitForTxVisible(pay1Result.builtTransaction.transactionHash);
 
   // ── Step 3: pay #2 (follow-up, same day, from step 2's state) ────────────
-  let nftVaultUtxo2 = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash, vaultRawBytecode, owner.templateIdentifier)).find((u) => u.tokenNftCommitment !== undefined);
-  if (!nftVaultUtxo2) fail('vault NFT output not found after pay #1');
+  const nftVaultUtxo2 = await waitForVault('after pay #1');
   const pay2 = await pay(3, PAY_2_SATOSHIS, nftVaultUtxo2);
   const pay2Result = await ownerEngine.executeAction(pay2.invitationIdentifier, { broadcastTransaction: true });
   await saveInvitation(3, 'pay-4000', pay2Result.storedInvitation.invitation);
   log(`  pay #2 txid: ${pay2Result.builtTransaction.transactionHash}`);
+  record({ step: 'pay', satoshis: String(PAY_2_SATOSHIS), txid: pay2Result.builtTransaction.transactionHash, invitation: '3-pay-4000.json' });
   await waitForConfirmation(ownerEngine, nftVaultUtxo2.outpointTransactionHash, nftVaultUtxo2.outpointIndex, { label: 'pay #2' });
   await waitForTxVisible(pay2Result.builtTransaction.transactionHash);
 
   // ── Step 4: pay #3 (over the daily limit — expect rejection) ─────────────
   log(`\n[4] Pay ${PAY_3_SATOSHIS} sats more (12,000 > 10,000) — expect rejection…`);
-  let nftVaultUtxo3 = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash, vaultRawBytecode, owner.templateIdentifier)).find((u) => u.tokenNftCommitment !== undefined);
-  if (!nftVaultUtxo3) fail('vault NFT output not found after pay #2');
+  const nftVaultUtxo3 = await waitForVault('after pay #2');
   const pay3 = await pay(4, PAY_3_SATOSHIS, nftVaultUtxo3);
   let rejectionMessage = null;
   let pay3Txid = null;
+  let nodeResponse = null;
   try {
     const pay3Result = await ownerEngine.executeAction(pay3.invitationIdentifier, { broadcastTransaction: true });
     pay3Txid = pay3Result.builtTransaction.transactionHash;
@@ -744,79 +821,101 @@ async function main() {
       pay3Txid = await broadcastTransaction(built.serializedTransaction);
       log(`  pay #3 txid (sent to node): ${pay3Txid}`);
     } catch (broadcastError) {
-      log(`  node rejected the broadcast: ${String(broadcastError?.message ?? broadcastError).split('\n')[0]}`);
+      nodeResponse = String(broadcastError?.message ?? broadcastError).split('\n')[0];
+      log(`  node rejected the broadcast: ${nodeResponse}`);
     }
   }
   await saveInvitation(4, 'pay-5000-overlimit', (await ownerEngine.getInvitation(pay3.invitationIdentifier)).invitation);
   if (rejectionMessage) log(`  rejection recorded: ${rejectionMessage}`);
+  record({ step: 'pay-over-limit', satoshis: String(PAY_3_SATOSHIS), refusedBeforeBroadcast: rejectionMessage, nodeResponse, unexpectedTxid: pay3Txid, invitation: '4-pay-5000-overlimit.json' });
+  // The refused invitation still reserves the vault coin; archiving it releases the coin for the rescue.
+  try {
+    await ownerEngine.archiveInvitation(pay3.invitationIdentifier);
+  } catch (error) {
+    log(`  could not archive the refused invitation: ${error?.message ?? error}`);
+  }
 
-  // ── Step 5: rescue (ONE invitation, both keys) ───────────────────────────
-  log('\n[5] Rescue — sweep the vault back to the owner with owner + rescuer…');
-  let nftVaultUtxoRescue = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash, vaultRawBytecode, owner.templateIdentifier)).find((u) => u.tokenNftCommitment !== undefined);
-  if (!nftVaultUtxoRescue) fail('vault NFT output not found before rescue');
-  const withdrawSatoshis = BigInt(nftVaultUtxoRescue.valueSatoshis) - BigInt(MINER_FEE_SATOSHIS);
+  // ── Step 5: rescue (ONE invitation, two engines) ─────────────────────────
+  // The rescue unlocking script needs the owner's and the rescuer's
+  // signatures. An engine signs only with its own account's keys, so the
+  // invitation travels: the owner adds its signature as a resolution, a second
+  // engine for the rescuer (own process, own state) accepts it and signs the
+  // input, and the owner merges that and broadcasts.
+  log('\n[5] Rescue — owner and rescuer sign one invitation in two engines…');
+  try {
+    const nftVaultUtxoRescue = await waitForVault('before rescue');
+    const withdrawSatoshis = BigInt(nftVaultUtxoRescue.valueSatoshis) - BigInt(MINER_FEE_SATOSHIS);
 
-  const rescueInvitation = await ownerEngine.createInvitation({
-    templateIdentifier: owner.templateIdentifier,
-    actionIdentifier: 'rescue',
-    roleIdentifier: 'owner',
-    inputs: [{
-      inputIdentifier: 'vaultRescueInput',
-      outpointTransactionHash: nftVaultUtxoRescue.outpointTransactionHash,
-      outpointIndex: nftVaultUtxoRescue.outpointIndex,
-      valueSatoshis: BigInt(nftVaultUtxoRescue.valueSatoshis),
-      token: {
-        category: nftVaultUtxoRescue.tokenCategory,
-        amount: 0n,
-        nft: { capability: 'mutable', commitment: nftVaultUtxoRescue.tokenNftCommitment },
+    const rescueInvitation = await ownerEngine.createInvitation({
+      templateIdentifier: owner.templateIdentifier,
+      actionIdentifier: 'rescue',
+      roleIdentifier: 'owner',
+      inputs: [{
+        inputIdentifier: 'vaultRescueInput',
+        outpointTransactionHash: nftVaultUtxoRescue.outpointTransactionHash,
+        outpointIndex: nftVaultUtxoRescue.outpointIndex,
+        valueSatoshis: BigInt(nftVaultUtxoRescue.valueSatoshis),
+        token: {
+          category: nftVaultUtxoRescue.tokenCategory,
+          amount: 0n,
+          nft: { capability: 'mutable', commitment: nftVaultUtxoRescue.tokenNftCommitment },
+        },
+      }],
+      outputs: [{
+        outputIdentifier: 'returnOutput',
+        valueSatoshis: withdrawSatoshis,
+        token: {
+          category: nftVaultUtxoRescue.tokenCategory,
+          amount: 0n,
+          nft: { capability: 'mutable', commitment: nftVaultUtxoRescue.tokenNftCommitment },
+        },
+      }],
+      variables: {
+        ...vaultVariables,
+        vaultCategory: nftVaultUtxoRescue.tokenCategory,
+        vaultSatoshis: BigInt(nftVaultUtxoRescue.valueSatoshis),
+        vaultCommitment: nftVaultUtxoRescue.tokenNftCommitment,
+        returnLockingScript: ownerLockingBytecode,
+        minerFeeSatoshis: BigInt(MINER_FEE_SATOSHIS),
       },
-    }],
-    outputs: [{
-      outputIdentifier: 'returnOutput',
-      valueSatoshis: withdrawSatoshis,
-      token: {
-        category: nftVaultUtxoRescue.tokenCategory,
-        amount: 0n,
-        nft: { capability: 'mutable', commitment: nftVaultUtxoRescue.tokenNftCommitment },
+    });
+    await attachSecret(ownerState, rescueInvitation.invitationIdentifier, rescueInvitation.invitation, {
+      secretIdentifier: 'ownerKey',
+      secretLookupKey: ownerOwnerSecret,
+      templateIdentifier: owner.templateIdentifier,
+    });
+    const withOwnerSignature = await ownerEngine.appendOwnInputResolutions(rescueInvitation.invitationIdentifier, 0);
+    const toRescuer = join(OUT_DIR, '5-rescue-1-owner.json');
+    writeFileSync(toRescuer, `${serializeInvitation(withOwnerSignature.invitation)}\n`);
+    log(`  owner signed; invitation for the rescuer: ${toRescuer}`);
+
+    const fromRescuer = join(OUT_DIR, '5-rescue-2-rescuer.json');
+    execFileSync(process.execPath, [fileURLToPath(import.meta.url), 'rescuer-sign', toRescuer, fromRescuer], {
+      stdio: 'inherit',
+      timeout: 30 * 60 * 1000,
+      env: {
+        ...env,
+        DATABASE_PATH: `${DATABASE_PATH}-rescuer`,
+        VAULT_BYTECODE: vaultRawBytecode,
+        VAULT_SCRIPT_HASH: engineVaultScriptHash,
       },
-    }],
-    variables: {
-      ...vaultVariables,
-      vaultCategory: nftVaultUtxoRescue.tokenCategory,
-      vaultSatoshis: BigInt(nftVaultUtxoRescue.valueSatoshis),
-      vaultCommitment: nftVaultUtxoRescue.tokenNftCommitment,
-      returnLockingScript: ownerLockingBytecode,
-      minerFeeSatoshis: BigInt(MINER_FEE_SATOSHIS),
-    },
-  });
-  await attachSecret(ownerState, rescueInvitation.invitationIdentifier, rescueInvitation.invitation, {
-    secretIdentifier: 'ownerKey',
-    secretLookupKey: ownerOwnerSecret,
-    templateIdentifier: owner.templateIdentifier,
-  });
-  await ownerEngine.signInvitation(rescueInvitation.invitationIdentifier, 0);
+    });
 
-  // Rescuer joins and signs the same input with its key. The rescuer's
-  // secret was pre-stored on the owner's state, so the single owner engine
-  // can accept, sign, and update for the rescuer role too.
-  const rescuerStored = await ownerEngine.acceptInvitation(rescueInvitation.invitation, { roleIdentifier: 'rescuer' });
-  await attachSecret(ownerState, rescuerStored.invitationIdentifier, rescuerStored.invitation, {
-    secretIdentifier: 'rescueKey',
-    secretLookupKey: rescuerRescueSecret,
-    templateIdentifier: owner.templateIdentifier,
-  });
-  await ownerEngine.signInvitation(rescuerStored.invitationIdentifier, 0);
+    await ownerEngine.updateInvitation(deserializeInvitation(readFileSync(fromRescuer, 'utf8')));
+    const rescueResult = await ownerEngine.executeAction(rescueInvitation.invitationIdentifier, { broadcastTransaction: true });
+    await saveInvitation(5, 'rescue', rescueResult.storedInvitation.invitation);
+    const rescueTxid = rescueResult.builtTransaction.transactionHash;
+    log(`  rescue txid: ${rescueTxid}`);
+    record({ step: 'rescue', satoshis: String(withdrawSatoshis), txid: rescueTxid, invitations: ['5-rescue-1-owner.json', '5-rescue-2-rescuer.json', '5-rescue.json'] });
+    await waitForTxVisible(rescueTxid);
+  } catch (error) {
+    const message = String(error?.message ?? error).split('\n')[0];
+    log(`  rescue did not complete: ${message}`);
+    record({ step: 'rescue', error: message });
+  }
 
-  // The rescuer's updated invitation goes back to the owner's engine.
-  const rescuerUpdated = await ownerEngine.getInvitation(rescuerStored.invitationIdentifier);
-  await ownerEngine.updateInvitation(rescuerUpdated.invitation);
-
-  const rescueResult = await ownerEngine.executeAction(rescueInvitation.invitationIdentifier, { broadcastTransaction: true });
-  await saveInvitation(5, 'rescue', rescueResult.storedInvitation.invitation);
-  log(`  rescue txid: ${rescueResult.builtTransaction.transactionHash}`);
-  await waitForConfirmation(ownerEngine, nftVaultUtxoRescue.outpointTransactionHash, nftVaultUtxoRescue.outpointIndex, { label: 'rescue' });
-  await waitForTxVisible(rescueResult.builtTransaction.transactionHash);
-
+  record({ step: 'done' });
+  await ownerEngine.stop();
   log('\nDone. Invitations saved to', OUT_DIR);
 }
 
