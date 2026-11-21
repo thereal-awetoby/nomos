@@ -11,8 +11,9 @@
  *                  (a template action cannot do genesis).
  *   2. pay #1    — pay 3,000 sats (owner, spend path) via an XO invitation.
  *   3. pay #2    — pay 4,000 sats the same day from the state of step 2.
- *   4. pay #3    — pay 5,000 sats more (12,000 > 10,000): signed and sent
- *                  to the node; the rejection is recorded.
+ *   4. pay #3    — pay more than is left today (5,000 sats after the two
+ *                  pays: 12,000 > 10,000): signed and sent to the node; the
+ *                  node's answer is recorded in full.
  *   5. rescue    — ONE XO invitation passed between two engines: the owner
  *                  adds its signature, the rescuer (a second engine in its
  *                  own process, `rescuer-sign` mode) accepts the invitation
@@ -20,7 +21,10 @@
  *
  * If the vault for these keys already exists on chipnet (for example the one
  * created by an earlier run), steps 0–1 are skipped and the demo continues
- * from it, so no new funding is needed.
+ * from it, so no new funding is needed. The run can be repeated the same day:
+ * a pay that the vault's state says would go over today's limit (or would
+ * leave too little to rescue) is skipped and recorded, not attempted.
+ * The process exits non-zero when a step fails, the rescue included.
  *
  * Every invitation is saved to OUT_DIR/<n>-<action>.json (no keys), and a
  * summary of every step to OUT_DIR/run.json.
@@ -40,7 +44,7 @@
  *   OUT_DIR           invitations output directory (default ./invitations)
  *   FUND_SATOSHIS     funding amount to require in run mode (default 25000)
  */
-import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { generateMnemonic } from 'bip39';
@@ -98,6 +102,26 @@ function fail(message) {
   console.error(`ERROR: ${message}`);
   process.exit(1);
 }
+
+// The whole text of an error, with any raw transaction hex shortened. An
+// Electrum server puts the node's own reason on the lines after "the
+// transaction was rejected by network rules.", so every line is kept.
+function errorText(error) {
+  return String(error?.message ?? error)
+    .split('\n')
+    .map((line) => line.trim().replace(/\[?[0-9a-f]{200,}\]?/gi, '[transaction hex]'))
+    .filter(Boolean)
+    .join(' ');
+}
+
+// Once the work is done, closing the engine's Electrum connections can reject
+// in the background; that must not turn a finished run into a crash.
+let shuttingDown = false;
+process.on('unhandledRejection', (reason) => {
+  if (shuttingDown) return;
+  console.error(`FAILED: ${errorText(reason)}`);
+  process.exit(1);
+});
 
 function log(message) {
   console.log(message);
@@ -518,8 +542,10 @@ async function main() {
     const signed = await engine.signInvitation(idOf(accepted), 0);
     writeFileSync(outFile, `${serializeInvitation(signed.invitation)}\n`);
     log(`  rescuer signed: ${outFile}`);
-    await engine.stop();
-    return;
+    // The signed invitation on disk is all the owner needs. In run #26,
+    // stopping the engine here left a rejected Electrum promise behind that
+    // crashed this process after the signature was written, so stop now.
+    process.exit(0);
   }
 
   if (mode === 'keys') {
@@ -650,7 +676,8 @@ async function main() {
   const ownerUnspent = await fetchScriptHashUnspentOutputs(ownerScriptHash);
   log(`  Electrum reports ${ownerUnspent.length} unspent output(s) for owner script hash`);
   for (const u of ownerUnspent) {
-    log(`    ${u.outpointTransactionHash}:${u.outpointIndex} — ${u.valueSatoshis} sats`);
+    // Electrum's own field names: tx_hash, tx_pos, value, height (0 = mempool).
+    log(`    ${u.tx_hash}:${u.tx_pos} — ${u.value} sats${u.height ? '' : ' (mempool)'}${u.token_data ? ' (holds a token)' : ''}`);
   }
 
   // The vault script hash is pre-stored from the CashScript contract (the
@@ -852,58 +879,99 @@ async function main() {
     return invitation;
   }
 
-  const nftVaultUtxo1 = await waitForVault('after genesis');
-  const pay1 = await pay(2, PAY_1_SATOSHIS, nftVaultUtxo1);
-  const pay1Result = await ownerEngine.executeAction(idOf(pay1), { broadcastTransaction: true });
-  await saveInvitation(2, 'pay-3000', pay1Result.storedInvitation.invitation);
-  log(`  pay #1 txid: ${pay1Result.builtTransaction.transactionHash}`);
-  record({ step: 'pay', satoshis: String(PAY_1_SATOSHIS), txid: pay1Result.builtTransaction.transactionHash, invitation: '2-pay-3000.json' });
-  await waitForConfirmation(ownerEngine, nftVaultUtxo1.outpointTransactionHash, nftVaultUtxo1.outpointIndex, { label: 'pay #1' });
-  await waitForTxVisible(pay1Result.builtTransaction.transactionHash);
-
-  // ── Step 3: pay #2 (follow-up, same day, from step 2's state) ────────────
-  const nftVaultUtxo2 = await waitForVault('after pay #1');
-  const pay2 = await pay(3, PAY_2_SATOSHIS, nftVaultUtxo2);
-  const pay2Result = await ownerEngine.executeAction(idOf(pay2), { broadcastTransaction: true });
-  await saveInvitation(3, 'pay-4000', pay2Result.storedInvitation.invitation);
-  log(`  pay #2 txid: ${pay2Result.builtTransaction.transactionHash}`);
-  record({ step: 'pay', satoshis: String(PAY_2_SATOSHIS), txid: pay2Result.builtTransaction.transactionHash, invitation: '3-pay-4000.json' });
-  await waitForConfirmation(ownerEngine, nftVaultUtxo2.outpointTransactionHash, nftVaultUtxo2.outpointIndex, { label: 'pay #2' });
-  await waitForTxVisible(pay2Result.builtTransaction.transactionHash);
-
-  // ── Step 4: pay #3 (over the daily limit — expect rejection) ─────────────
-  log(`\n[4] Pay ${PAY_3_SATOSHIS} sats more (12,000 > 10,000) — expect rejection…`);
-  const nftVaultUtxo3 = await waitForVault('after pay #2');
-  const pay3 = await pay(4, PAY_3_SATOSHIS, nftVaultUtxo3);
-  let rejectionMessage = null;
-  let pay3Txid = null;
-  let nodeResponse = null;
-  try {
-    const pay3Result = await ownerEngine.executeAction(idOf(pay3), { broadcastTransaction: true });
-    pay3Txid = pay3Result.builtTransaction.transactionHash;
-    log(`  NOT REFUSED (unexpected): ${pay3Txid}`);
-  } catch (error) {
-    rejectionMessage = String(error?.message ?? error).split('\n')[0];
-    log(`  REFUSED by the contract before broadcast: ${rejectionMessage}`);
-    // Still send the signed tx to the node and record what the network says.
-    try {
-      const built = await ownerEngine.buildInvitationTransactionFromMergedCommit(idOf(pay3));
-      const { broadcastTransaction } = await import('@electrum-cash/application');
-      pay3Txid = await broadcastTransaction(built.serializedTransaction);
-      log(`  pay #3 txid (sent to node): ${pay3Txid}`);
-    } catch (broadcastError) {
-      nodeResponse = String(broadcastError?.message ?? broadcastError).split('\n')[0];
-      log(`  node rejected the broadcast: ${nodeResponse}`);
-    }
+  // What the vault may still pay today, read from its NFT commitment with the
+  // covenant's own rule (a commitment from another day counts as zero).
+  // Keeping RESCUE_RESERVE_SATOSHIS in the vault leaves enough for the rescue.
+  const RESCUE_RESERVE_SATOSHIS = 2 * MINER_FEE_SATOSHIS;
+  function vaultToday(vaultUtxo) {
+    const commitment = vaultUtxo.tokenNftCommitment;
+    const spent = dayFromCommitment(commitment) === dayMarker ? spentTodayFromCommitment(commitment) : 0;
+    return { spent, remaining: DAILY_LIMIT_SATOSHIS - spent, satoshis: Number(vaultUtxo.valueSatoshis) };
   }
-  await saveInvitation(4, 'pay-5000-overlimit', (await ownerEngine.getInvitation(idOf(pay3))).invitation);
-  if (rejectionMessage) log(`  rejection recorded: ${rejectionMessage}`);
-  record({ step: 'pay-over-limit', satoshis: String(PAY_3_SATOSHIS), refusedBeforeBroadcast: rejectionMessage, nodeResponse, unexpectedTxid: pay3Txid, invitation: '4-pay-5000-overlimit.json' });
-  // The refused invitation still reserves the vault coin; archiving it releases the coin for the rescue.
-  try {
-    await ownerEngine.archiveInvitation(idOf(pay3));
-  } catch (error) {
-    log(`  could not archive the refused invitation: ${error?.message ?? error}`);
+
+  // Steps 2 and 3: pays the vault allows. When an earlier run the same day
+  // already used the allowance, the pay is skipped and recorded instead.
+  async function payStep(n, amount) {
+    const vaultUtxo = await waitForVault(`before pay #${n - 1}`);
+    const today = vaultToday(vaultUtxo);
+    const reason = amount > today.remaining
+      ? `${today.spent} of the ${DAILY_LIMIT_SATOSHIS}-sat limit already spent today`
+      : today.satoshis - amount - MINER_FEE_SATOSHIS < RESCUE_RESERVE_SATOSHIS
+        ? `the vault holds ${today.satoshis} sats, too little to pay ${amount} and still rescue`
+        : null;
+    if (reason) {
+      log(`\n[${n}] Pay ${amount} sats: skipped (${reason})`);
+      record({ step: 'pay-skipped', satoshis: String(amount), reason });
+      return;
+    }
+    const invitation = await pay(n, amount, vaultUtxo);
+    const result = await ownerEngine.executeAction(idOf(invitation), { broadcastTransaction: true });
+    const name = `pay-${amount}`;
+    await saveInvitation(n, name, result.storedInvitation.invitation);
+    const txid = result.builtTransaction.transactionHash;
+    log(`  pay #${n - 1} txid: ${txid}`);
+    record({ step: 'pay', satoshis: String(amount), txid, invitation: `${n}-${name}.json` });
+    await waitForConfirmation(ownerEngine, vaultUtxo.outpointTransactionHash, vaultUtxo.outpointIndex, { label: `pay #${n - 1}` });
+    await waitForTxVisible(txid);
+  }
+
+  await payStep(2, PAY_1_SATOSHIS);
+  await payStep(3, PAY_2_SATOSHIS);
+
+  // ── Step 4: a pay over the daily limit (expect the node to refuse it) ────
+  const nftVaultUtxo3 = await waitForVault('before the over-limit pay');
+  const today3 = vaultToday(nftVaultUtxo3);
+  // 5,000 sats when that is over what is left today, else 1,000 more than is left.
+  const overAmount = PAY_3_SATOSHIS > today3.remaining ? PAY_3_SATOSHIS : today3.remaining + 1_000;
+  if (today3.satoshis - overAmount - MINER_FEE_SATOSHIS < MINER_FEE_SATOSHIS) {
+    // Paying more than today's allowance would also be more than the vault
+    // holds, so the node would refuse it for that reason instead.
+    const reason = `the vault holds ${today3.satoshis} sats and ${today3.remaining} sats are still allowed today`;
+    log(`\n[4] Over-limit pay: skipped (${reason})`);
+    record({ step: 'pay-over-limit-skipped', reason });
+  } else {
+    log(`\n[4] Pay ${overAmount} sats: ${today3.spent} already spent today + ${overAmount} = ${today3.spent + overAmount} > ${DAILY_LIMIT_SATOSHIS}; expect the node to refuse it…`);
+    const pay3 = await pay(4, overAmount, nftVaultUtxo3);
+    let engineError = null;
+    let pay3Txid = null;
+    let nodeResponse = null;
+    try {
+      const pay3Result = await ownerEngine.executeAction(idOf(pay3), { broadcastTransaction: true });
+      pay3Txid = pay3Result.builtTransaction.transactionHash;
+      log(`  NOT REFUSED (unexpected): ${pay3Txid}`);
+    } catch (error) {
+      engineError = errorText(error);
+      log(`  REFUSED: the engine's broadcast failed: ${engineError}`);
+      // Send the same signed transaction straight to the node and record its answer.
+      try {
+        const built = await ownerEngine.buildInvitationTransactionFromMergedCommit(idOf(pay3));
+        const { broadcastTransaction } = await import('@electrum-cash/application');
+        pay3Txid = await broadcastTransaction(built.serializedTransaction);
+        log(`  NOT REFUSED (unexpected) when sent directly: ${pay3Txid}`);
+      } catch (broadcastError) {
+        nodeResponse = errorText(broadcastError);
+        log(`  the node refused it: ${nodeResponse}`);
+      }
+    }
+    const overLimitFile = `pay-${overAmount}-overlimit`;
+    await saveInvitation(4, overLimitFile, (await ownerEngine.getInvitation(idOf(pay3))).invitation);
+    record({
+      step: 'pay-over-limit',
+      satoshis: String(overAmount),
+      spentTodayBefore: String(today3.spent),
+      dailyLimit: String(DAILY_LIMIT_SATOSHIS),
+      refused: pay3Txid === null,
+      engineError,
+      nodeResponse,
+      unexpectedTxid: pay3Txid,
+      invitation: `4-${overLimitFile}.json`,
+    });
+    // The refused invitation still reserves the vault coin; archiving it releases the coin for the rescue.
+    try {
+      await ownerEngine.archiveInvitation(idOf(pay3));
+    } catch (error) {
+      log(`  could not archive the refused invitation: ${error?.message ?? error}`);
+    }
   }
 
   // ── Step 5: rescue (ONE invitation, two engines) ─────────────────────────
@@ -953,16 +1021,24 @@ async function main() {
     log(`  owner signed; invitation for the rescuer: ${toRescuer}`);
 
     const fromRescuer = join(OUT_DIR, '5-rescue-2-rescuer.json');
-    execFileSync(process.execPath, [fileURLToPath(import.meta.url), 'rescuer-sign', toRescuer, fromRescuer], {
-      stdio: 'inherit',
-      timeout: 30 * 60 * 1000,
-      env: {
-        ...env,
-        DATABASE_PATH: `${DATABASE_PATH}-rescuer`,
-        VAULT_BYTECODE: vaultRawBytecode,
-        VAULT_SCRIPT_HASH: engineVaultScriptHash,
-      },
-    });
+    rmSync(fromRescuer, { force: true });
+    try {
+      execFileSync(process.execPath, [fileURLToPath(import.meta.url), 'rescuer-sign', toRescuer, fromRescuer], {
+        stdio: 'inherit',
+        timeout: 30 * 60 * 1000,
+        env: {
+          ...env,
+          DATABASE_PATH: `${DATABASE_PATH}-rescuer`,
+          VAULT_BYTECODE: vaultRawBytecode,
+          VAULT_SCRIPT_HASH: engineVaultScriptHash,
+        },
+      });
+    } catch (error) {
+      // What the owner needs is the rescuer's signed invitation; a process
+      // that fails after writing it (as in run #26) does not change that.
+      if (!existsSync(fromRescuer)) throw error;
+      log('  the rescuer process exited with an error after signing; continuing with its signed invitation');
+    }
 
     await ownerEngine.updateInvitation(deserializeInvitation(readFileSync(fromRescuer, 'utf8')));
     const rescueResult = await ownerEngine.executeAction(idOf(rescueInvitation), { broadcastTransaction: true });
@@ -972,14 +1048,18 @@ async function main() {
     record({ step: 'rescue', satoshis: String(withdrawSatoshis), txid: rescueTxid, invitations: ['5-rescue-1-owner.json', '5-rescue-2-rescuer.json', '5-rescue.json'] });
     await waitForTxVisible(rescueTxid);
   } catch (error) {
-    const message = String(error?.message ?? error).split('\n')[0];
+    const message = errorText(error);
     log(`  rescue did not complete: ${message}`);
     record({ step: 'rescue', error: message });
   }
 
-  record({ step: 'done' });
-  await ownerEngine.stop();
-  log('\nDone. Invitations saved to', OUT_DIR);
+  const failedSteps = summary.steps.filter((s) => s.error);
+  record({ step: 'done', ok: failedSteps.length === 0 });
+  log(`\nDone. Invitations saved to ${OUT_DIR}`);
+  if (failedSteps.length > 0) log(`Steps that did not complete: ${failedSteps.map((s) => s.step).join(', ')}`);
+  shuttingDown = true;
+  await Promise.race([ownerEngine.stop().catch(() => {}), new Promise((r) => setTimeout(r, 10_000))]);
+  process.exit(failedSteps.length > 0 ? 1 : 0);
 }
 
 main().catch((error) => {
