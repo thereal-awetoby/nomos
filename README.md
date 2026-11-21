@@ -105,6 +105,7 @@ npm run build                                     # type check and production bu
 
 cd ../contracts/solidcash && npm ci && npm test   # SolidCash vault, StableSwap and HTLC in the BCH VM
 cd .. && npm ci && npm run test:swap              # SwapLock.cash, the PUSD side of the swap, in the BCH VM
+npm run test:close                                # closing a vault: only the owner, every coin back to the wallet
 cd evm && npm ci && npm test                      # SwapLock.sol, the USDC side, in a local EVM
 cd ../../xo && npm ci && npm test                 # XO template against CashScript, then through XO's engine
 npm run replay                                    # the chipnet runs' transactions, rebuilt and checked in the BCH VM

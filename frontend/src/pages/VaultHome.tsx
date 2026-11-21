@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
-import { remainingToday } from '../lib/contract'
+import { MIN_VAULT_DEPOSIT_SATS, remainingToday } from '../lib/contract'
 import { qrColors, THEME_CHANGE_EVENT } from '../lib/theme'
 import MandateCard from '../components/MandateCard'
 import SpendSparkline from '../components/SpendSparkline'
 import { useToast } from '../components/Toast'
-import { Panel, shortAddr } from '../components/ui'
+import { Panel, fmtBch, shortAddr } from '../components/ui'
+import AddFunds, { useWalletBalance } from '../components/AddFunds'
+import { addressMatchesPubkey } from '../lib/wallet'
+import { IS_CHIPNET } from '../lib/network'
 
 export default function VaultHome() {
   const { wallet, vault, vaultConfig, receipts, refreshVault, disconnect } = useWallet()
@@ -65,17 +68,7 @@ export default function VaultHome() {
 
   if (!wallet?.connected) return <Navigate to="/connect" replace />
 
-  if (!vaultConfig) {
-    return (
-      <div className="page-enter flex min-h-[50vh] flex-col items-center justify-center text-center">
-        <h1 className="page-title">No vault yet</h1>
-        <p className="mt-2 max-w-xs truncate font-mono text-xs text-nomos-muted">{shortAddr(wallet.address || '', 10, 6)}</p>
-        <Link to="/mandate" className="btn-primary mt-6">
-          Create vault
-        </Link>
-      </div>
-    )
-  }
+  if (!vaultConfig) return <NoVault address={wallet.address} />
 
   if (!vault) {
     return (
@@ -146,7 +139,6 @@ export default function VaultHome() {
             <p className="mt-2 font-display text-[2.6rem] font-extrabold leading-none tabular-nums tracking-tight text-nomos-text" style={{ fontStretch: '112%' }}>
               {(vault.balanceSats / 1e8).toFixed(8)} <span className="text-lg font-medium text-nomos-muted">BCH</span>
             </p>
-            {isLowBalance && <p className="mt-1 text-sm text-nomos-muted">Under 10,000 sats. Top up with the deposit address.</p>}
 
             <div className="mt-4 divide-hairline border-t hairline">
               {addressRow('Vault address', vault.address, copied, () => { void copy(vault.address, 'Vault address', setCopied) }, showQr, () => setShowQr((q) => !q))}
@@ -156,6 +148,17 @@ export default function VaultHome() {
             </div>
           </section>
 
+          {isLowBalance && (
+            <AddFunds
+              address={vault.address}
+              onRefresh={() => { void refreshVault() }}
+              title={vault.balanceSats === 0 ? 'Your vault is empty' : 'Top up your vault'}
+              body={IS_CHIPNET
+                ? 'The vault holds under 10,000 sats. Send test BCH to the vault address from any chipnet wallet or the faucet.'
+                : 'The vault holds under 10,000 sats. Send BCH to the vault address from any wallet. Short on BCH? Buy some person to person on Mercar, then send it here.'}
+            />
+          )}
+
           <Link to="/pay" className="btn-primary w-full">Pay</Link>
 
           <nav aria-label="More" className="card divide-hairline px-4">
@@ -164,6 +167,7 @@ export default function VaultHome() {
               { to: '/identity', label: 'Nostr identity' },
               { to: '/proof', label: 'Proof checker' },
               ...(vaultConfig.rescuePk ? [{ to: '/rescue', label: 'Emergency rescue' }] : []),
+              ...(addressMatchesPubkey(wallet.address, vaultConfig.ownerPk) ? [{ to: '/mandate#close-vault', label: 'Close vault and start over' }] : []),
             ].map((item) => (
               <Link key={item.to} to={item.to} className="block py-3 text-[15px] text-nomos-text hover:text-nomos-muted-bright">
                 {item.label}
@@ -207,6 +211,31 @@ export default function VaultHome() {
         <button type="button" onClick={refreshVault} className="text-sm text-nomos-muted hover:text-nomos-text">Refresh</button>
         <button type="button" onClick={disconnect} className="text-sm text-nomos-muted hover:text-nomos-text">Disconnect</button>
       </div>
+    </div>
+  )
+}
+
+// ── No vault yet ────────────────────────────────────────────
+// An empty wallet sees how to add BCH first; otherwise, straight to creating.
+function NoVault({ address }: { address: string }) {
+  const { sats, refresh } = useWalletBalance(address)
+  const short = sats !== null && sats < MIN_VAULT_DEPOSIT_SATS + 1_500
+  return (
+    <div className="page-enter mx-auto max-w-3xl space-y-6 py-2">
+      <div>
+        <h1 className="page-title">Set up your vault</h1>
+        <p className="mt-2 text-[15px] text-nomos-muted">
+          Wallet balance <span className="tabular-nums font-semibold text-nomos-text">{sats === null ? '…' : `${fmtBch(sats)} BCH`}</span>
+        </p>
+      </div>
+      {short && <AddFunds address={address} onRefresh={() => { void refresh() }} title={sats === 0 ? 'Add BCH to your wallet first' : 'Add a little more BCH first'} />}
+      <section className="rounded-2xl border hairline bg-nomos-surface p-6">
+        <h2 className="text-[17px] font-semibold text-nomos-text">Create your vault</h2>
+        <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-nomos-muted">
+          Choose a daily limit and, if you like, allowed addresses, an agent key and a rescue key. Your wallet funds the vault with at least {MIN_VAULT_DEPOSIT_SATS.toLocaleString('en-US')} sats plus a small network fee.
+        </p>
+        <Link to="/mandate" className="btn-primary mt-5">Create vault</Link>
+      </section>
     </div>
   )
 }

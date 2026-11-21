@@ -24,6 +24,7 @@ import type { RefusalProof } from './proofs'
 import { signWcTransaction } from './wallet'
 import {
   decodeCashAddress,
+  encodeCashAddress,
   binToHex as libBinToHex,
   hexToBin,
   hash160,
@@ -35,6 +36,7 @@ import {
   createVirtualMachineBch2025,
   utf8ToBin,
 } from '@bitauth/libauth'
+import { BCH_NETWORK } from './network'
 
 // ── Artifact ───────────────────────────────────────────────
 let artifactCache: any = null
@@ -51,13 +53,33 @@ async function getArtifact(): Promise<any> {
 }
 
 // ── Network ────────────────────────────────────────────────
-const NETWORK = ((import.meta.env.VITE_BCH_NETWORK as string) || 'mainnet') as Network
+const NETWORK = BCH_NETWORK as Network
 
 export function getProvider(): NetworkProvider {
   return new ElectrumNetworkProvider(NETWORK)
 }
 
 export const DUST_LIMIT = 546n
+
+/**
+ * Confirmations for each transaction: 0 while it waits in the mempool, null
+ * when the server does not know it. Requests run together, so one connection
+ * serves the whole batch.
+ */
+export async function txConfirmations(txids: string[]): Promise<Record<string, number | null>> {
+  const provider = getProvider() as unknown as {
+    performRequest: (name: string, ...params: (string | number | boolean)[]) => Promise<unknown>
+  }
+  const results = await Promise.all(txids.map(async (txid) => {
+    try {
+      const tx = await provider.performRequest('blockchain.transaction.get', txid, true) as { confirmations?: number } | null
+      return [txid, tx && typeof tx === 'object' ? Number(tx.confirmations ?? 0) : null] as const
+    } catch {
+      return [txid, null] as const
+    }
+  }))
+  return Object.fromEntries(results)
+}
 
 /** Explorer base URL — switches automatically for chipnet. */
 export const EXPLORER_TX_URL = NETWORK === 'mainnet'
@@ -802,6 +824,54 @@ export async function executeSetMandate(
     txBuilder, walletProvider, 'Nomos: update mandate', wcIndex,
   )
   return { txid: result.txid, newConfig, amountSats: Number(changeSats), tokenAddress: newContract.tokenAddress }
+}
+
+// ── Close vault ────────────────────────────────────────────
+
+/**
+ * Close the vault: the owner, who may move the vault anywhere (setMandate),
+ * sends every coin back to the wallet as plain BCH. The state NFT goes to the
+ * wallet's token address with 1,000 sats rather than being burned, so the
+ * wallet is never asked to sign a token burn.
+ */
+export async function executeCloseVault(
+  config: VaultConfig,
+  ownerAddress: string,
+  walletProvider: WalletProviderType,
+  wcIndex: number = 0,
+): Promise<{ txid: string; amountSats: number }> {
+  const contract = await getContract(config)
+  const utxos = await contract.getUtxos()
+  const nftUtxo = findNftUtxo(utxos)
+  const plainUtxos = findPlainUtxos(utxos)
+  const inputs = [nftUtxo, ...plainUtxos]
+
+  const txBuilder = new TransactionBuilder({ provider: getProvider() })
+  for (const u of inputs) txBuilder.addInput(u, contract.unlock.setMandate(placeholderSignature()))
+
+  const total = inputs.reduce((sum, u) => sum + u.satoshis, 0n)
+  const nftSats = 1_000n
+  const fee = estimateFee({ contractInputs: inputs.length, tokenOutputs: 1, plainOutputs: 1 })
+  const back = total - fee - nftSats
+  if (back < DUST_LIMIT) throw new Error('The vault holds too little to cover the network fee.')
+
+  const owner = decodeCashAddress(ownerAddress)
+  if (typeof owner === 'string') throw new Error(owner)
+  const tokenAddress = encodeCashAddress({ prefix: owner.prefix as 'bitcoincash' | 'bchtest', type: 'p2pkhWithTokens', payload: owner.payload }).address
+
+  txBuilder.addOutput({ to: ownerAddress, amount: back })
+  txBuilder.addOutput({
+    to: tokenAddress,
+    amount: nftSats,
+    token: {
+      amount: 0n,
+      category: (nftUtxo as any).token.category,
+      nft: { capability: (nftUtxo as any).token.nft.capability, commitment: (nftUtxo as any).token.nft.commitment },
+    },
+  })
+
+  const result = await buildSignAndBroadcast(txBuilder, walletProvider, 'Nomos: close vault', wcIndex)
+  return { txid: result.txid, amountSats: Number(back) }
 }
 
 // ── Rescue ─────────────────────────────────────────────────

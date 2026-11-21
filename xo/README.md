@@ -66,7 +66,7 @@ The template ran the vault's lifecycle on chipnet through XO's engine on
 reaching the 10,000-sat daily limit), an over-limit payment the node refused with
 `Script failed an OP_VERIFY operation`, and a rescue signed by the owner and
 the rescuer in two separate engines
-(`ac6fa39439fd4486b6dae6984e2e727a47e909f3ec4986819cbb7434adcbbfb1`). The
+([`ac6fa394…`](https://chipnet.chaingraph.cash/tx/ac6fa39439fd4486b6dae6984e2e727a47e909f3ec4986819cbb7434adcbbfb1)). The
 transaction IDs, the saved invitations and what each run did are in
 [REPRODUCE.md](REPRODUCE.md#results) and [`runs/`](runs). Check them offline:
 

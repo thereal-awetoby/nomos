@@ -52,24 +52,16 @@ export default function Identity() {
 
   const looksLikeIdentity = isNostrIdentifier(query)
 
-  return (
-    <div className="page-enter space-y-4">
-      <h1 className="page-title">Nostr identity</h1>
-      <p className="text-sm text-nomos-muted">
-        Link your BCH address to your Nostr key, or check someone else's link. Everything is checked in your browser against relays and a BCH node.
-      </p>
-
-      <IdentityLink />
-
+  const lookup = (
       <form
-        className="card space-y-3 p-4"
+        className="space-y-3"
         onSubmit={(event) => {
           event.preventDefault()
           void handleLookup()
         }}
       >
-        <label htmlFor="nostr-identity" className="block text-[15px] font-semibold text-nomos-text">Look up a published address</label>
-        <div className="flex gap-2">
+        <label htmlFor="nostr-identity" className="block text-sm text-nomos-muted">See the BCH address a Nostr name points to, as Pay would use it.</label>
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input
             id="nostr-identity"
             name="nostr-identity"
@@ -81,7 +73,7 @@ export default function Identity() {
             autoComplete="off"
             spellCheck={false}
           />
-          <button type="submit" disabled={!query.trim() || !looksLikeIdentity || loading} className="btn-ghost shrink-0">
+          <button type="submit" disabled={!query.trim() || !looksLikeIdentity || loading} className="btn-primary shrink-0 sm:w-36">
             {loading ? <span className="spinner" /> : 'Look up'}
           </button>
         </div>
@@ -99,11 +91,23 @@ export default function Identity() {
             </div>
             <p className="mt-3 break-all font-mono text-sm text-nomos-text">{result.address}</p>
             <p className="mt-1 text-xs text-nomos-muted">
-              {result.link ? 'Linked by both keys' : 'Signed by the Nostr key only'} · {new Date(result.publishedAt * 1000).toLocaleDateString()}
+              {result.link ? 'Linked by both keys' : 'Signed by the Nostr key only'}, {new Date(result.publishedAt * 1000).toLocaleDateString()}
             </p>
           </div>
         )}
       </form>
+  )
+
+  return (
+    <div className="page-enter space-y-5">
+      <header>
+        <h1 className="page-title">Nostr identity</h1>
+        <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-nomos-muted">
+          Tie your Bitcoin Cash address to your Nostr account, so people can pay you by name, and check anyone else's link. Everything is checked in your browser against Nostr relays and a BCH node.
+        </p>
+      </header>
+
+      <IdentityLink lookup={lookup} />
 
       <details className="px-1 text-sm text-nomos-muted">
         <summary className="cursor-pointer">Relays used</summary>

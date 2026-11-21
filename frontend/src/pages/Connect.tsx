@@ -1,10 +1,12 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useWallet } from '../context/WalletContext'
 import { WizardConnectQRDialog } from '@wizardconnect/react'
-import { qrColors, THEME_CHANGE_EVENT } from '../lib/theme'
 import { WALLETCONNECT_ENABLED } from '../lib/env'
 import { useToast } from '../components/Toast'
+import NetworkSwitch from '../components/NetworkSwitch'
+import { IS_CHIPNET } from '../lib/network'
 
 export default function Connect() {
   const navigate = useNavigate()
@@ -18,14 +20,8 @@ export default function Connect() {
   const [localError, setLocalError] = useState<string | null>(null)
   const [showQr, setShowQr] = useState(false)
   const [wc2Uri, setWc2Uri] = useState<string | null>(null)
-  const [qrThemeVersion, setQrThemeVersion] = useState(0)
+  const [wc2Hidden, setWc2Hidden] = useState(false)
   const qrCanvasRef = useRef<HTMLCanvasElement>(null)
-
-  useEffect(() => {
-    const onThemeChange = () => setQrThemeVersion((version) => version + 1)
-    window.addEventListener(THEME_CHANGE_EVENT, onThemeChange)
-    return () => window.removeEventListener(THEME_CHANGE_EVENT, onThemeChange)
-  }, [])
 
   useEffect(() => {
     if (wallet?.connected) navigate('/vault', { replace: true })
@@ -47,16 +43,26 @@ export default function Connect() {
     let cancelled = false
     import('qrcode').then((QRCode) => {
       if (cancelled) return
+      // Dark on white in both themes: the pop-up is always light, for scanning.
       return QRCode.toCanvas(canvas, wc2Uri, {
-        width: 220,
-        margin: 2,
-        color: qrColors(),
+        width: 240,
+        margin: 1,
+        color: { dark: '#0b1d17', light: '#ffffff' },
       })
     }).catch(() => {
       // QR generation failure leaves the pairing URI available to copy.
     })
     return () => { cancelled = true }
-  }, [wc2Uri, qrThemeVersion])
+  }, [wc2Uri, wc2Hidden])
+
+  // Escape closes the WalletConnect pop-up; the pairing keeps waiting.
+  const wc2Open = Boolean(wc2Uri) && connecting && !wc2Hidden
+  useEffect(() => {
+    if (!wc2Open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setWc2Hidden(true) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [wc2Open])
 
   const handleWizardConnect = useCallback(() => {
     setLocalError(null)
@@ -72,6 +78,7 @@ export default function Connect() {
   const handleWc2 = useCallback(async () => {
     setLocalError(null)
     setWc2Uri(null)
+    setWc2Hidden(false)
     try {
       await connectWc2()
       toast('Wallet connected', 'success')
@@ -142,20 +149,44 @@ export default function Connect() {
           )}
         </div>
 
-        {/* WC2 QR code */}
-        {wc2Uri && connecting && (
-          <div className="mt-6 flex flex-col items-center gap-3 rounded-2xl border hairline bg-nomos-surface p-5">
-            <p className="label">Scan with your BCH wallet</p>
-            <div className="rounded-xl bg-white p-3">
-              <canvas ref={qrCanvasRef} />
-            </div>
-            <button
-              onClick={() => { void copyWc2Uri() }}
-              className="text-sm text-nomos-muted transition-colors hover:text-nomos-text"
+        {/* WalletConnect pairing: a pop-up, like WizardConnect's. */}
+        {wc2Uri && connecting && !wc2Hidden && createPortal(
+          <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/60 p-3 sm:items-center" onClick={() => setWc2Hidden(true)}>
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="wc2-title"
+              className="w-full max-w-sm rounded-2xl bg-white p-6 text-[#0b1d17] shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
             >
-              Copy pairing URI
-            </button>
-          </div>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 id="wc2-title" className="text-lg font-bold">Scan with your BCH wallet</h2>
+                  <p className="mt-1 text-sm text-[#4e635a]">Open WalletConnect in Paytaca or Cashonize and scan. Then approve the connection and the one message it asks you to sign.</p>
+                </div>
+                <button type="button" onClick={() => setWc2Hidden(true)} aria-label="Close" className="-mr-1 -mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xl leading-none hover:bg-[#0b1d17]/5">×</button>
+              </div>
+              <div className="mx-auto mt-5 w-fit rounded-xl border border-[#0b1d17]/10 p-2">
+                <canvas ref={qrCanvasRef} />
+              </div>
+              <p className="mt-4 flex items-center justify-center gap-2 text-sm text-[#4e635a]">
+                <span className="spinner" aria-hidden="true" /> Waiting for your wallet…
+              </p>
+              <button
+                type="button"
+                onClick={() => { void copyWc2Uri() }}
+                className="mt-4 w-full rounded-full bg-[#0b1d17] px-4 py-3 text-[15px] font-semibold text-white hover:bg-[#0b1d17]/90"
+              >
+                Copy pairing link
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
+        {wc2Uri && connecting && wc2Hidden && (
+          <button type="button" className="mt-4 text-sm font-medium text-nomos-text underline-offset-4 hover:underline" onClick={() => setWc2Hidden(false)}>
+            Show the WalletConnect QR code again
+          </button>
         )}
 
         {wcWalletName && wcState === 'connected' && (
@@ -177,7 +208,14 @@ export default function Connect() {
           />
         )}
 
-        <p className="mt-8 text-sm text-nomos-muted">
+        <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <NetworkSwitch />
+          <p className="text-sm text-nomos-muted">
+            {IS_CHIPNET ? 'Chipnet coins are free test coins.' : 'Testing? Chipnet uses free test coins.'}
+          </p>
+        </div>
+
+        <p className="mt-6 text-sm text-nomos-muted">
           No wallet yet? <Link to="/simulate" className="font-medium text-nomos-text underline-offset-4 hover:underline">Try the simulator</Link>
         </p>
       </section>

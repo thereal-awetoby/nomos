@@ -4,6 +4,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useRef,
 } from 'react'
 import type { ReactNode } from 'react'
 import { useWizardConnect } from '@wizardconnect/react'
@@ -13,6 +14,7 @@ import {
   getWcPubkeyHex,
   getWcAddress,
   findFundedWcAddress,
+  addressMatchesPubkey,
 } from '../lib/wallet'
 import type {
   WalletConnection,
@@ -21,6 +23,7 @@ import type {
   Receipt,
   Mandate,
 } from '../lib/types'
+import { BCH_NETWORK, networkKey } from '../lib/network'
 
 // ── Context shape ──────────────────────────────────────────
 interface WalletCtx {
@@ -45,6 +48,8 @@ interface WalletCtx {
   sharePubkey: () => Promise<void>
   disconnect: () => Promise<void>
   setVaultConfig: (c: VaultConfig) => void
+  /** Forget the vault in this browser, after it has been closed on chain. */
+  clearVaultConfig: () => void
   refreshVault: () => Promise<void>
   addReceipt: (r: Receipt) => void
   /** Patch a stored receipt, for example to attach a node refusal result. */
@@ -62,9 +67,13 @@ export function useWallet(): WalletCtx {
 }
 
 // ── Storage helpers ────────────────────────────────────────
-const RECEIPTS_KEY = 'nomos:receipts'
-const WALLET_KEY = 'nomos:wallet'
-const CONFIG_KEY = 'nomos:vaultConfig'
+// Each network keeps its own wallet, vault and history (mainnet keeps the original keys).
+const RECEIPTS_KEY = networkKey('nomos:receipts')
+const WALLET_KEY = networkKey('nomos:wallet')
+// Earlier versions kept one vault for the whole browser under CONFIG_KEY. It is
+// read once into the per-wallet list and left in place as a backup.
+const CONFIG_KEY = networkKey('nomos:vaultConfig')
+const CONFIGS_KEY = networkKey('nomos:vaultConfigs')
 
 function load<T>(key: string, fallback: T): T {
   try {
@@ -79,6 +88,25 @@ function save(key: string, val: unknown) {
     if (val == null) localStorage.removeItem(key)
     else localStorage.setItem(key, JSON.stringify(val))
   } catch { /* noop */ }
+}
+
+/** Saved vaults, newest first, one per owner key. */
+function loadConfigs(): VaultConfig[] {
+  const list = load<VaultConfig[] | null>(CONFIGS_KEY, null)
+  if (Array.isArray(list)) return list
+  const legacy = load<VaultConfig | null>(CONFIG_KEY, null)
+  const migrated = legacy ? [legacy] : []
+  save(CONFIGS_KEY, migrated)
+  return migrated
+}
+
+/** The vault this address owns, else one it is the agent key of. */
+function configForAddress(address: string | undefined): VaultConfig | null {
+  if (!address) return null
+  const list = loadConfigs()
+  return list.find((c) => addressMatchesPubkey(address, c.ownerPk))
+    ?? list.find((c) => Boolean(c.agentPk) && addressMatchesPubkey(address, c.agentPk))
+    ?? null
 }
 
 // ── Provider component ─────────────────────────────────────
@@ -98,8 +126,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   })
   const [vault, setVault] = useState<VaultState | null>(null)
   const [vaultConfig, setVaultConfigState] = useState<VaultConfig | null>(
-    () => load(CONFIG_KEY, null),
+    () => configForAddress(wallet?.address),
   )
+  // Each wallet sees its own vault, so a second wallet can create one too.
+  const configAddress = useRef(wallet?.address ?? '')
+  useEffect(() => {
+    const address = wallet?.address ?? ''
+    if (address === configAddress.current) return
+    configAddress.current = address
+    setVaultConfigState(configForAddress(address))
+    setVault(null)
+  }, [wallet?.address])
   const [receipts, setReceipts] = useState<Receipt[]>(
     () => load(RECEIPTS_KEY, []),
   )
@@ -130,8 +167,21 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   // When WizardConnect reaches "connected", scan for the funded address
   useEffect(() => {
     if (wcState === 'connected' && wcManager) {
-      const network = ((import.meta.env.VITE_BCH_NETWORK as string) || 'mainnet') === 'chipnet' ? 'chipnet' : 'mainnet'
-      findFundedWcAddress(network).then(({ address, index }) => {
+      const network = BCH_NETWORK
+      const saved = loadConfigs()
+      // Prefer the address whose key owns (or is the agent of) a vault saved here.
+      const vaultIndex = saved.length === 0 ? -1 : Array.from({ length: 20 }, (_, i) => i).find((i) => {
+        try {
+          const pk = getWcPubkeyHex(i)
+          return Boolean(pk) && saved.some((c) => c.ownerPk === pk || c.agentPk === pk)
+        } catch {
+          return false
+        }
+      }) ?? -1
+      const pick = vaultIndex >= 0
+        ? Promise.resolve({ address: getWcAddress(network, vaultIndex), index: vaultIndex })
+        : findFundedWcAddress(network)
+      pick.then(({ address, index }) => {
         const pubkey = getWcPubkeyHex(index)
         if (address) {
           const conn: WalletConnection = {
@@ -238,15 +288,25 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [wallet, wcDisconnect])
 
   const setVaultConfig = useCallback((c: VaultConfig) => {
+    save(CONFIGS_KEY, [c, ...loadConfigs().filter((x) => x.ownerPk !== c.ownerPk)])
     setVaultConfigState(c)
-    save(CONFIG_KEY, c)
   }, [])
 
+  const clearVaultConfig = useCallback(() => {
+    if (vaultConfig) save(CONFIGS_KEY, loadConfigs().filter((x) => x.ownerPk !== vaultConfig.ownerPk))
+    setVaultConfigState(null)
+    setVault(null)
+  }, [vaultConfig])
+
+  // A slow read for a vault the wallet has moved away from must not land.
+  const currentConfig = useRef(vaultConfig)
+  currentConfig.current = vaultConfig
   const refreshVault = useCallback(async () => {
     if (!vaultConfig) return
     try {
       const { readVaultState } = await import('../lib/contract')
       const state = await readVaultState(vaultConfig)
+      if (currentConfig.current !== vaultConfig) return
       setVault(state)
     } catch (err: any) {
       console.warn('[nomos] refresh failed:', err.message)
@@ -268,6 +328,29 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       return next
     })
   }, [])
+
+  // A transaction shows as unconfirmed until it is mined. Check the ones still
+  // waiting against the chain now, then every minute while any remain.
+  useEffect(() => {
+    const waiting = receipts.filter((r) => r.status === 'submitted' && r.txHash)
+    if (waiting.length === 0) return undefined
+    let live = true
+    const check = async () => {
+      try {
+        const { txConfirmations } = await import('../lib/contract')
+        const confirmations = await txConfirmations(waiting.map((r) => r.txHash!))
+        if (!live) return
+        for (const r of waiting) {
+          if ((confirmations[r.txHash!] ?? 0) >= 1) updateReceipt(r.id, { status: 'paid' })
+        }
+      } catch (err) {
+        console.warn('[nomos] could not check confirmations:', err)
+      }
+    }
+    void check()
+    const timer = window.setInterval(() => { void check() }, 60_000)
+    return () => { live = false; window.clearInterval(timer) }
+  }, [receipts, updateReceipt])
 
   const clearReceipts = useCallback(() => {
     setReceipts([])
@@ -310,7 +393,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         wallet, vault, vaultConfig, receipts, connecting, error,
         wcState, wcUri, wcQrUri, wcWalletName,
         startWizardConnect, cancelWizardConnect, connectWc2, sharePubkey, disconnect,
-        setVaultConfig, refreshVault, addReceipt, updateReceipt, clearReceipts, updateMandate,
+        setVaultConfig, clearVaultConfig, refreshVault, addReceipt, updateReceipt, clearReceipts, updateMandate,
       }}
     >
       {children}

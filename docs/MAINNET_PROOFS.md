@@ -53,11 +53,11 @@ transaction IDs:
 
 | Step | Transaction |
 |------|-------------|
-| Pay 3,000 sats | `130d19ad7b009126f56d1f4c969d5960bed47c4184b0aeb00f4fc5a315be5695` |
-| Pay 3,000 sats | `4236d8ac82930401c33e4eb639603580e6c8234e680dd9c0ad24307290a915d3` |
-| Pay 4,000 sats (10,000 spent that day) | `ca1df8563f8ac631072d0d5f7c3944fd8d9aa0f0b74daaa851e046a95cdd0515` |
+| Pay 3,000 sats | [`130d19ad…`](https://chipnet.chaingraph.cash/tx/130d19ad7b009126f56d1f4c969d5960bed47c4184b0aeb00f4fc5a315be5695) |
+| Pay 3,000 sats | [`4236d8ac…`](https://chipnet.chaingraph.cash/tx/4236d8ac82930401c33e4eb639603580e6c8234e680dd9c0ad24307290a915d3) |
+| Pay 4,000 sats (10,000 spent that day) | [`ca1df856…`](https://chipnet.chaingraph.cash/tx/ca1df8563f8ac631072d0d5f7c3944fd8d9aa0f0b74daaa851e046a95cdd0515) |
 | Pay 5,000 more, tried twice | Refused by the node, `Script failed an OP_VERIFY operation`: the daily limit at `NomosVault.cash:45` |
-| Rescue, signed by the owner and the rescuer in two engines | `ac6fa39439fd4486b6dae6984e2e727a47e909f3ec4986819cbb7434adcbbfb1` |
+| Rescue, signed by the owner and the rescuer in two engines | [`ac6fa394…`](https://chipnet.chaingraph.cash/tx/ac6fa39439fd4486b6dae6984e2e727a47e909f3ec4986819cbb7434adcbbfb1) |
 
 `npm run replay` in `xo/` rebuilds the saved transactions from their XO
 invitations and checks them in the BCH VM, offline; see

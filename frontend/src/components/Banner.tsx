@@ -5,6 +5,7 @@ import ThemeToggle from './ThemeToggle'
 import BlazeStrip from './BlazeStrip'
 import NomosMark from './NomosMark'
 import WalletChip from './WalletChip'
+import NetworkSwitch, { ChipnetNotice } from './NetworkSwitch'
 import { useWallet } from '../context/WalletContext'
 import { OPEN_SHORTCUTS_EVENT } from '../lib/theme'
 import { ASGAYA_URL, DECK_URL, DEMO_VIDEO_URL, GITHUB_URL, MERCAR_URL } from '../lib/links'
@@ -98,6 +99,7 @@ export default function Banner() {
         )}
 
         <div className="ml-auto flex items-center gap-1.5">
+          <NetworkSwitch className="mr-1 hidden lg:inline-flex" />
           <WalletChip />
           <ThemeToggle />
           <button
@@ -112,6 +114,8 @@ export default function Banner() {
           </button>
         </div>
       </nav>
+
+      <ChipnetNotice />
 
       {/* Right-side slide panel. Rendered into <body>: the header's backdrop-filter
           would otherwise make it the containing block and clip the fixed panel. */}
@@ -135,6 +139,10 @@ export default function Banner() {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto px-2 pb-4">
+              <div className="mb-3 px-2 lg:hidden">
+                <p className="mb-1.5 text-xs text-nomos-muted">Network</p>
+                <NetworkSwitch />
+              </div>
               <ul className="space-y-0.5">
                 {MENU.map((item) => (
                   <li key={item.to}>

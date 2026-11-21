@@ -1,10 +1,14 @@
-import { useState, useEffect } from 'react'
-import { useNavigate, Navigate } from 'react-router-dom'
+import { useCallback, useState, useEffect, useRef } from 'react'
+import { useNavigate, Navigate, Link, useLocation } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
-import { executeSetMandate, executeCreateVault, validateAllowlistAddress, validateCashAddress, getWalletBalance, MIN_VAULT_DEPOSIT_SATS, verifyAnchor } from '../lib/contract'
+import { executeSetMandate, executeCreateVault, executeCloseVault, validateAllowlistAddress, validateCashAddress, getWalletBalance, MIN_VAULT_DEPOSIT_SATS, verifyAnchor } from '../lib/contract'
 import { isNostrIdentifier, resolveNostrPayee } from '../lib/nostr'
 import type { Mandate, VaultConfig } from '../lib/types'
 import SpentMeter from '../components/SpentMeter'
+import AddFunds from '../components/AddFunds'
+import { fmtBch } from '../components/ui'
+import { addressMatchesPubkey } from '../lib/wallet'
+import { IS_CHIPNET } from '../lib/network'
 
 function mandateSnapshot(config: VaultConfig): Mandate {
   return {
@@ -42,18 +46,21 @@ export default function SetMandate() {
   const [shareError, setShareError] = useState<string | null>(null)
 
   // Fetch wallet balance on mount so the user can see it before creating
-  useEffect(() => {
+  const loadBalance = useCallback(() => {
     if (!wallet?.address) return
     getWalletBalance(wallet.address)
       .then(setWalletBal)
       .catch(() => setWalletBal(null))
   }, [wallet?.address])
+  useEffect(() => { loadBalance() }, [loadBalance])
 
   if (!wallet?.connected) return <Navigate to="/connect" replace />
 
   // No on-chain vault yet: either never configured, or configured but the
   // state NFT was never minted. Either way this form creates it.
   const needsDeploy = !vaultConfig || (vault !== null && !vault.deployed)
+  // A wallet that is only the agent key sees the vault but cannot change it.
+  const isOwner = !vaultConfig || addressMatchesPubkey(wallet.address, vaultConfig.ownerPk)
 
   // Warn if pubkey is missing (WC2 wallet didn't support bch_getAddresses)
   const noPubkey = !wallet.pubkey
@@ -180,18 +187,42 @@ export default function SetMandate() {
   const previewLimitSats = Math.max(0, Math.round((parseFloat(dailyLimit) || 0) * 1e8))
   const previewAllowCount = allowlistInput.split('\n').map((l) => l.trim()).filter(Boolean).length
 
+  if (!isOwner) {
+    return (
+      <div className="page-enter mx-auto max-w-xl space-y-4">
+        <h1 className="page-title">Rules</h1>
+        <section className="rounded-2xl border hairline bg-nomos-surface p-6">
+          <p className="text-[15px] font-semibold text-nomos-text">You are connected as this vault's agent</p>
+          <p className="mt-1.5 text-sm leading-relaxed text-nomos-muted">
+            The agent key can pay within the daily limit. Only the owner wallet can change the rules or close the vault. To create a vault of your own, connect a wallet that is not this vault's agent.
+          </p>
+          <Link to="/vault" className="btn-secondary mt-4">Back to the vault</Link>
+        </section>
+      </div>
+    )
+  }
+
   return (
     <div className="page-enter lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)] lg:items-start lg:gap-12">
     <div className="space-y-4">
       <header>
-        <h1 className="page-title">{needsDeploy ? 'Create vault' : 'Rules'}</h1>
+        <h1 className="page-title">{needsDeploy ? 'Create vault' : 'Change rules'}</h1>
       </header>
 
       <p className="text-sm text-nomos-muted">
         {needsDeploy
           ? 'Your wallet funds the vault. You may confirm one or two transactions.'
-          : 'Saving moves the vault to a new address with the new rules.'}
+          : "Saving moves your coins to a new vault address with these rules, and today's spending starts again from zero. To start over with an empty form, close this vault at the bottom of the page."}
       </p>
+
+      {needsDeploy && walletBal !== null && walletBal < MIN_VAULT_DEPOSIT_SATS + 1_500 && (
+        <AddFunds
+          address={wallet.address}
+          onRefresh={loadBalance}
+          title={walletBal === 0 ? 'Add BCH to your wallet first' : 'Add a little more BCH first'}
+          body={`A vault needs at least ${MIN_VAULT_DEPOSIT_SATS.toLocaleString('en-US')} sats plus a small network fee, and your wallet holds ${walletBal.toLocaleString('en-US')} sats. ${IS_CHIPNET ? 'Get free test BCH from the chipnet faucet, sent to this address.' : 'Send BCH to this address, or buy some person to person on Mercar.'}`}
+        />
+      )}
 
       {noPubkey && (
         <div className="rounded-xl border-2 border-nomos-pending/60 bg-nomos-surface p-4">
@@ -316,8 +347,10 @@ export default function SetMandate() {
           ? <><span className="spinner mr-2" /> Signing…</>
           : needsDeploy
             ? 'Create vault'
-            : 'Save rules'}
+            : 'Save new rules'}
       </button>
+
+      {!needsDeploy && vault?.deployed && vaultConfig && <CloseVault />}
     </div>
 
     <aside className="hidden lg:sticky lg:top-24 lg:block" aria-label="Preview of your rules">
@@ -355,5 +388,74 @@ export default function SetMandate() {
       </div>
     </aside>
     </div>
+  )
+}
+
+// ── Close vault ─────────────────────────────────────────────
+// Sends every coin back to the owner's wallet. Afterwards this wallet can
+// create a new vault from scratch.
+function CloseVault() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { wallet, vault, vaultConfig, clearVaultConfig, addReceipt } = useWallet()
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const ref = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    if (location.hash === '#close-vault') ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [location.hash])
+
+  if (!wallet || !vault || !vaultConfig) return null
+
+  const close = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const result = await executeCloseVault(vaultConfig, wallet.address, wallet.provider, wallet.wcIndex ?? 0)
+      addReceipt({
+        id: result.txid,
+        kind: 'mandate',
+        status: 'submitted',
+        amount: result.amountSats,
+        destination: wallet.address,
+        destinationLabel: 'Vault closed',
+        txHash: result.txid,
+        mandate: mandateSnapshot(vaultConfig),
+        timestamp: Date.now(),
+      })
+      clearVaultConfig()
+      navigate('/vault')
+    } catch (err: any) {
+      setError(err?.message || 'The vault was not closed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section ref={ref} id="close-vault" className="mt-10 rounded-2xl border border-nomos-refuse/40 bg-nomos-surface p-5" aria-label="Close vault">
+      <h2 className="text-[17px] font-semibold text-nomos-text">Close vault</h2>
+      <p className="mt-1.5 text-sm leading-relaxed text-nomos-muted">
+        Sends all {fmtBch(vault.balanceSats)} BCH back to your wallet, minus a small network fee, and ends these rules. Then you can create a new vault from scratch.
+      </p>
+      {!confirming ? (
+        <button type="button" onClick={() => setConfirming(true)} className="btn-secondary mt-4 min-h-[40px] border-nomos-refuse/50 px-4 text-sm text-nomos-refuse">
+          Close vault
+        </button>
+      ) : (
+        <div className="mt-4 rounded-xl bg-nomos-surface-raised p-4">
+          <p className="text-sm text-nomos-text">Your wallet will ask you to sign one transaction to {wallet.address.replace(/^[a-z]+:/, '').slice(0, 10)}…, your own address.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" onClick={() => { void close() }} disabled={busy} className="btn-primary min-h-[40px] bg-nomos-refuse px-4 text-sm text-white hover:bg-nomos-refuse">
+              {busy ? <><span className="spinner mr-2" aria-hidden="true" /> Waiting for your wallet…</> : 'Sign and close vault'}
+            </button>
+            <button type="button" onClick={() => setConfirming(false)} disabled={busy} className="btn-ghost min-h-[40px] px-4 text-sm">Keep the vault</button>
+          </div>
+        </div>
+      )}
+      {error && <p className="mt-3 text-sm text-nomos-refuse">{error}</p>}
+    </section>
   )
 }

@@ -36,8 +36,11 @@ HTLC prototypes, which the app does not use.
 ```
 
 The application has no server that holds or signs user funds. Wallet
-signatures are requested from the connected wallet. Network selection is
-controlled by `VITE_BCH_NETWORK` (`mainnet` or `chipnet`). The `contract.ts`
+signatures are requested from the connected wallet. The network is mainnet
+or chipnet: `VITE_BCH_NETWORK` sets the default, and the Mainnet / Chipnet
+switch in the header changes it for this browser (`lib/network.ts`). Each
+network keeps its own wallet, vaults and history in local storage, and each
+wallet sees only the vault its key owns or is the agent of. The `contract.ts`
 module uses CashScript's `ElectrumNetworkProvider` to read UTXOs and build or
 broadcast transactions. Nostr lookups run client-side but contact external
 NIP-05 domains and public relays; event signatures are verified before an

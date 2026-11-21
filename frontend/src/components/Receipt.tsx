@@ -32,7 +32,7 @@ function receiptToText(receipt: ReceiptType, dateStr: string, timeStr: string): 
       : 'REFUSED'
   const kind = receipt.kind ?? 'payment'
   const recordLabel = kind === 'payment' ? 'Payment' : kind === 'rescue' ? 'Rescue sweep' : receipt.destinationLabel || 'Mandate update'
-  const amountLabel = kind === 'payment' ? 'Amount' : kind === 'rescue' ? 'Swept' : receipt.destinationLabel === 'Vault created' ? 'Initial deposit' : 'Vault value moved'
+  const amountLabel = kind === 'payment' ? 'Amount' : kind === 'rescue' ? 'Swept' : receipt.destinationLabel === 'Vault created' ? 'Initial deposit' : receipt.destinationLabel === 'Vault closed' ? 'Returned to wallet' : 'Vault value moved'
   return [
     `NOMOS RECEIPT | ${statusLabel}`,
     `Record: ${recordLabel}`,
@@ -151,7 +151,7 @@ export default function ReceiptCard({ receipt }: { receipt: ReceiptType }) {
   const remainingAfter = isRefused ? remainingBefore : Math.max(0, remainingBefore - receipt.amount)
   const isoTime = ts.toISOString().replace('T', ' ').slice(0, 19) + ' UTC'
   const heading = kind === 'mandate'
-    ? 'Rules updated'
+    ? (receipt.destinationLabel || 'Rules updated')
     : kind === 'rescue'
       ? 'Rescue'
       : isPaid

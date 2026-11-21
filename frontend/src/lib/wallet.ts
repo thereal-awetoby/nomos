@@ -17,6 +17,7 @@ import {
   secp256k1,
   stringify,
 } from '@bitauth/libauth'
+import { ADDRESS_PREFIX, WC2_CHAIN } from './network'
 import type { RecoveryId } from '@bitauth/libauth'
 
 // ── Active references (set by React layer) ────────────────
@@ -112,7 +113,7 @@ export async function connectWc2(): Promise<WalletConnection> {
       bch: {
         // bch_signMessage lets Nomos read the public key (see requestWc2Pubkey).
         methods: ['bch_getAddresses', 'bch_signTransaction', 'bch_signMessage'],
-        chains: ['bch:bitcoincash'],
+        chains: [WC2_CHAIN],
         events: ['accountsChanged'],
       },
     },
@@ -130,7 +131,7 @@ export async function connectWc2(): Promise<WalletConnection> {
   const rawAccount = accounts[0] ?? ''
   const parts = rawAccount.split(':')
   const address =
-    parts.length >= 3 ? `bitcoincash:${parts.slice(2).join(':')}` : rawAccount
+    parts.length >= 3 ? `${ADDRESS_PREFIX}:${parts.slice(2).join(':')}` : rawAccount
 
   if (!address) throw new Error('WalletConnect: no address received')
 
@@ -139,7 +140,7 @@ export async function connectWc2(): Promise<WalletConnection> {
   try {
     const addrResult = await wc2SignClient.request({
       topic: wc2Session.topic,
-      chainId: 'bch:bitcoincash',
+      chainId: WC2_CHAIN,
       request: { method: 'bch_getAddresses', params: {} },
     })
     if (Array.isArray(addrResult)) {
@@ -189,6 +190,15 @@ function signedMessageHash(message: string): Uint8Array {
 }
 
 /** Recover the compressed public key behind a message signature for `address`. */
+/** True when the address pays to this public key (same hash160, whatever the prefix or token flag). */
+export function addressMatchesPubkey(address: string, pubkeyHex: string): boolean {
+  if (!address || !/^[0-9a-f]{66}$/i.test(pubkeyHex || '')) return false
+  const decoded = decodeCashAddress(address)
+  if (typeof decoded === 'string') return false
+  const pk = new Uint8Array(pubkeyHex.match(/../g)!.map((h) => parseInt(h, 16)))
+  return libBinToHex(decoded.payload) === libBinToHex(hash160(pk) as Uint8Array)
+}
+
 export function recoverMessageSigner(message: string, signatureBase64: string, address: string): string {
   const signature = base64ToBin(signatureBase64.trim())
   if (signature.length !== 65) throw new Error('The wallet returned a signature in an unknown format')
@@ -213,7 +223,7 @@ export async function requestWc2Pubkey(address: string): Promise<string> {
   const message = `Nomos: share the public key of ${address} to set up your vault. This moves no funds. ${new Date().toISOString()}`
   const result = await wc2SignClient.request({
     topic: wc2Session.topic,
-    chainId: 'bch:bitcoincash',
+    chainId: WC2_CHAIN,
     request: {
       method: 'bch_signMessage',
       params: { message, userPrompt: 'Share your public key with Nomos (no funds move)' },
@@ -315,7 +325,7 @@ export async function signWcTransaction(
       throw new Error('No active WalletConnect session')
     const result = await wc2SignClient.request({
       topic: wc2Session.topic,
-      chainId: 'bch:bitcoincash',
+      chainId: WC2_CHAIN,
       // WC2 wallets parse libauth's extended JSON (bigint and Uint8Array
       // markers), as in the CashScript WalletConnect guide.
       request: { method: 'bch_signTransaction', params: JSON.parse(stringify(wcTxObj)) },
