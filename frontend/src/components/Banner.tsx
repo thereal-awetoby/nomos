@@ -2,11 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import ThemeToggle from './ThemeToggle'
-import { useToast } from './Toast'
+import BlazeStrip from './BlazeStrip'
 import { useWallet } from '../context/WalletContext'
-import { shortAddr } from './ui'
 import { OPEN_SHORTCUTS_EVENT } from '../lib/theme'
-import { ASGAYA_URL, DECK_URL, DEMO_VIDEO_URL, EMBER_ADDRESS, GITHUB_URL, MERCAR_URL } from '../lib/links'
+import { ASGAYA_URL, DECK_URL, DEMO_VIDEO_URL, GITHUB_URL, MERCAR_URL } from '../lib/links'
 
 // ── Site-wide top banner ────────────────────────────────────
 
@@ -48,7 +47,6 @@ function MenuGlyph({ open }: { open: boolean }) {
 }
 
 export default function Banner() {
-  const { toast } = useToast()
   const { wallet } = useWallet()
   const { pathname } = useLocation()
   const [open, setOpen] = useState(false)
@@ -68,18 +66,12 @@ export default function Banner() {
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('mousedown', onClick) }
   }, [open])
 
-  const copyEmberAddress = async () => {
-    try {
-      await navigator.clipboard.writeText(EMBER_ADDRESS)
-      toast('EMBER2026 address copied', 'success')
-    } catch {
-      toast('Could not copy the EMBER2026 address', 'error')
-    }
-  }
-
   const homeTo = wallet?.connected ? '/vault' : '/'
 
   return (
+    <>
+    {/* BCH BLAZE strip: scrolls away; the navigation below stays. */}
+    <BlazeStrip />
     <header className="site-banner sticky top-0 z-40 w-full border-b hairline bg-nomos-bg/95 backdrop-blur">
       <nav aria-label="Site navigation" className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-4">
         <Link to={homeTo} className="text-lg font-semibold tracking-tight text-nomos-text" aria-label="Nomos home">
@@ -116,28 +108,6 @@ export default function Banner() {
           </button>
         </div>
       </nav>
-
-      {/* Thin strip: EMBER2026 vote address */}
-      <div className="border-t hairline">
-        <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-1.5 text-xs text-nomos-muted">
-          {DECK_URL && (
-            <a href={DECK_URL} target="_blank" rel="noreferrer" className="shrink-0 font-medium text-nomos-text hover:underline">Deck</a>
-          )}
-          {DEMO_VIDEO_URL && (
-            <a href={DEMO_VIDEO_URL} target="_blank" rel="noreferrer" className="shrink-0 font-medium text-nomos-text hover:underline">Demo</a>
-          )}
-          <span className="shrink-0">EMBER2026</span>
-          <span className="min-w-0 truncate font-mono text-[11px] text-nomos-muted-bright" title={EMBER_ADDRESS}>{shortAddr(EMBER_ADDRESS, 6, 6)}</span>
-          <button
-            type="button"
-            onClick={() => { void copyEmberAddress() }}
-            aria-label="Copy EMBER2026 community address"
-            className="ml-auto shrink-0 font-medium text-nomos-text hover:underline"
-          >
-            Copy
-          </button>
-        </div>
-      </div>
 
       {/* Right-side slide panel. Rendered into <body>: the header's backdrop-filter
           would otherwise make it the containing block and clip the fixed panel. */}
@@ -207,5 +177,6 @@ export default function Banner() {
         document.body,
       )}
     </header>
+    </>
   )
 }

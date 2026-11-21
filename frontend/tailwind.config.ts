@@ -23,8 +23,21 @@ export default {
           muted: 'rgb(var(--nomos-muted) / <alpha-value>)',
           'muted-bright': 'rgb(var(--nomos-muted-bright) / <alpha-value>)',
         },
+        // The landing page's own palette, defined on .landing in index.css.
+        land: {
+          ground: 'rgb(var(--l-ground) / <alpha-value>)',
+          raised: 'rgb(var(--l-raised) / <alpha-value>)',
+          ink: 'rgb(var(--l-ink) / <alpha-value>)',
+          muted: 'rgb(var(--l-muted) / <alpha-value>)',
+          pass: 'rgb(var(--l-pass) / <alpha-value>)',
+          refuse: 'rgb(var(--l-refuse) / <alpha-value>)',
+          rule: 'rgb(var(--l-rule) / <alpha-value>)',
+          'rule-line': 'rgb(var(--l-rule-line) / <alpha-value>)',
+          'on-pass': 'rgb(var(--l-on-pass) / <alpha-value>)',
+        },
       },
       fontFamily: {
+        display: ['Archivo', 'Inter', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
         sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
