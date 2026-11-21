@@ -7,8 +7,8 @@ const SOURCE_URL = 'https://github.com/thereal-awetoby/nomos/blob/main/contracts
 
 // Reading width per route; anything not listed uses the full container.
 const PAGE_WIDTH: Record<string, string> = {
-  '/pay': 'max-w-2xl',
-  '/mandate': 'max-w-2xl',
+  '/pay': 'max-w-5xl',
+  '/mandate': 'max-w-5xl',
   '/rescue': 'max-w-2xl',
   '/activity': 'max-w-3xl',
   '/proof': 'max-w-3xl',

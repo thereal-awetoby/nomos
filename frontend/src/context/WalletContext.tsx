@@ -41,6 +41,8 @@ interface WalletCtx {
   cancelWizardConnect: () => Promise<void>
   /** Connect via BCH WalletConnect v2 */
   connectWc2: () => Promise<void>
+  /** Ask a WalletConnect wallet to sign a message, to learn its public key */
+  sharePubkey: () => Promise<void>
   disconnect: () => Promise<void>
   setVaultConfig: (c: VaultConfig) => void
   refreshVault: () => Promise<void>
@@ -86,6 +88,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     // For WizardConnect, don't restore as "connected" until the hook reconnects
     // (the manager isn't ready yet — signing would fail)
     if (saved?.provider === 'wizardconnect') {
+      return { ...saved, connected: false }
+    }
+    // A WalletConnect session is reopened below before it counts as connected.
+    if (saved?.provider === 'wc2') {
       return { ...saved, connected: false }
     }
     return saved
@@ -157,6 +163,21 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [wcState, wcManager])
 
+  // Reopen a saved WalletConnect session after a reload.
+  useEffect(() => {
+    const saved = load<WalletConnection | null>(WALLET_KEY, null)
+    if (saved?.provider !== 'wc2' || !saved.address) return
+    let live = true
+    import('../lib/wallet')
+      .then(({ restoreWc2Session }) => restoreWc2Session(saved.address))
+      .then((ok) => {
+        if (!live) return
+        if (ok) setWallet({ ...saved, connected: true })
+      })
+      .catch((e) => console.warn('[nomos] could not reopen the WalletConnect session:', e))
+    return () => { live = false }
+  }, [])
+
   // Surface WizardConnect errors
   useEffect(() => {
     if (wcError) setError(wcError)
@@ -189,6 +210,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setConnecting(false)
     }
   }, [])
+
+  /** WalletConnect: learn the public key from a signed message. */
+  const sharePubkey = useCallback(async () => {
+    if (!wallet || wallet.provider !== 'wc2') return
+    const { requestWc2Pubkey } = await import('../lib/wallet')
+    const pubkey = await requestWc2Pubkey(wallet.address)
+    const conn: WalletConnection = { ...wallet, pubkey }
+    setWallet(conn)
+    save(WALLET_KEY, conn)
+  }, [wallet])
 
   /** Disconnect — handles both providers */
   const disconnect = useCallback(async () => {
@@ -278,7 +309,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       value={{
         wallet, vault, vaultConfig, receipts, connecting, error,
         wcState, wcUri, wcQrUri, wcWalletName,
-        startWizardConnect, cancelWizardConnect, connectWc2, disconnect,
+        startWizardConnect, cancelWizardConnect, connectWc2, sharePubkey, disconnect,
         setVaultConfig, refreshVault, addReceipt, updateReceipt, clearReceipts, updateMandate,
       }}
     >

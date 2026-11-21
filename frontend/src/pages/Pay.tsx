@@ -165,13 +165,15 @@ export default function Pay() {
     try { await refreshVault() } catch { /* best-effort */ }
   }
 
+  const meter = <SpentMeter spentSats={spentToday} limitSats={mandate.dailyLimitSats} pendingSats={amountSats > 0 ? amountSats : 0} />
+
   return (
-    <div className="page-enter space-y-4">
+    <div className="page-enter lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)] lg:items-start lg:gap-12">
+    <div className="space-y-4">
       <h1 className="page-title">Pay</h1>
 
-      <div className="card p-4">
-        <SpentMeter spentSats={spentToday} limitSats={mandate.dailyLimitSats} pendingSats={amountSats > 0 ? amountSats : 0} />
-      </div>
+      {/* On a phone the meter sits above the form; on a wide screen, beside it. */}
+      <div className="card p-4 lg:hidden">{meter}</div>
 
       {/* Amount */}
       <div>
@@ -313,6 +315,16 @@ export default function Pay() {
           )}
         </div>
       )}
+    </div>
+
+    <aside className="hidden lg:sticky lg:top-24 lg:block" aria-label="Today's limit">
+      <div className="rounded-2xl border hairline bg-nomos-surface p-6">
+        {meter}
+        <p className="mt-5 border-t hairline pt-4 text-sm leading-relaxed text-nomos-muted">
+          Nomos checks the payment against your rules before your wallet signs. If a payment over the limit is signed and sent anyway, every node refuses it.
+        </p>
+      </div>
+    </aside>
     </div>
   )
 }

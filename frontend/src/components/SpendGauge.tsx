@@ -14,7 +14,7 @@ export default function SpendGauge({ spentSats, limitSats, size = 140 }: SpendGa
     const spent = Number.isFinite(spentSats) ? Math.max(0, spentSats) : 0
     const ratio = limit > 0 ? spent / limit : (spent > 0 ? 1 : 0)
     const percentage = Math.max(0, Math.min(ratio, 1))
-    const stroke = ratio >= 1 ? 'rgb(var(--nomos-refuse))' : 'rgb(var(--nomos-text))'
+    const stroke = ratio >= 1 ? 'rgb(var(--nomos-refuse))' : 'rgb(var(--nomos-ok))'
 
     return {
       pct: percentage,

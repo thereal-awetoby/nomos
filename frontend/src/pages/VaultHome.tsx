@@ -143,7 +143,7 @@ export default function VaultHome() {
         <div className="min-w-0 space-y-4">
           <section className="card p-5">
             <p className="text-sm text-nomos-muted">Balance</p>
-            <p className="mt-1 text-4xl font-semibold tabular-nums tracking-tight text-nomos-text">
+            <p className="mt-2 font-display text-[2.6rem] font-extrabold leading-none tabular-nums tracking-tight text-nomos-text" style={{ fontStretch: '112%' }}>
               {(vault.balanceSats / 1e8).toFixed(8)} <span className="text-lg font-medium text-nomos-muted">BCH</span>
             </p>
             {isLowBalance && <p className="mt-1 text-sm text-nomos-muted">Under 10,000 sats. Top up with the deposit address.</p>}

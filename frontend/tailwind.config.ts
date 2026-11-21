@@ -22,6 +22,8 @@ export default {
           text: 'rgb(var(--nomos-text) / <alpha-value>)',
           muted: 'rgb(var(--nomos-muted) / <alpha-value>)',
           'muted-bright': 'rgb(var(--nomos-muted-bright) / <alpha-value>)',
+          'on-accent': 'rgb(var(--nomos-on-accent) / <alpha-value>)',
+          'on-ok': 'rgb(var(--nomos-on-ok) / <alpha-value>)',
         },
         // The landing page's own palette, defined on .landing in index.css.
         land: {
