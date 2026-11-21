@@ -38,7 +38,7 @@
  *   RESCUER_KEY       optional WIF of the rescuer key, index 0 of RESCUER_MNEMONIC
  *   DATABASE_PATH     state directory (default ./xo-chipnet-data)
  *   OUT_DIR           invitations output directory (default ./invitations)
- *   FUND_SATOSHIS     funding amount to require in run mode (default 60000)
+ *   FUND_SATOSHIS     funding amount to require in run mode (default 25000)
  */
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -49,6 +49,7 @@ import { fileURLToPath } from 'node:url';
 import {
   binToHex,
   binToNumberUint32LE,
+  cashAddressToLockingBytecode,
   decodePrivateKeyWif,
   encodePrivateKeyWif,
   deriveHdPath,
@@ -81,7 +82,7 @@ const MINER_FEE_SATOSHIS = 1_000;
 const PAY_1_SATOSHIS = 3_000;
 const PAY_2_SATOSHIS = 4_000;
 const PAY_3_SATOSHIS = 5_000;
-const GENESIS_VAULT_NFT_SATOSHIS = 50_000;
+const GENESIS_VAULT_NFT_SATOSHIS = 20_000;
 const GENESIS_FEE_SATOSHIS = 1_000;
 const ZERO_COMMITMENT = '00000000000000000000000000000000';
 const DB_BASE_FILENAME = 'XO';
@@ -89,7 +90,7 @@ const DB_BASE_FILENAME = 'XO';
 const env = process.env;
 const DATABASE_PATH = env.DATABASE_PATH ?? join(XO_DIR, 'xo-chipnet-data');
 const OUT_DIR = env.OUT_DIR ?? join(XO_DIR, 'invitations');
-const FUND_SATOSHIS = Number(env.FUND_SATOSHIS ?? 60_000);
+const FUND_SATOSHIS = Number(env.FUND_SATOSHIS ?? 25_000);
 
 const mode = process.argv[2] ?? 'run';
 
@@ -148,7 +149,8 @@ function loadAccount(role, mnemonicVar, wifVar) {
   }
   const publicKey = secp256k1.derivePublicKeyCompressed(privateKey);
   const address = privateKeyToP2pkhCashAddress({ privateKey, prefix: 'bchtest', throwErrors: true }).address;
-  return { role, mnemonic, seedBytes, privateKey, wif: privKeyToWif(privateKey), publicKey, address, template, templateIdentifier };
+  const tokenAddress = privateKeyToP2pkhCashAddress({ privateKey, prefix: 'bchtest', throwErrors: true, tokenSupport: true }).address;
+  return { role, mnemonic, seedBytes, privateKey, wif: privKeyToWif(privateKey), publicKey, address, tokenAddress, template, templateIdentifier };
 }
 
 // ── State helpers (second connection on the same database) ──────────────────
@@ -297,6 +299,49 @@ async function deriveVaultScriptHashFromGenesis(ownerScriptHash) {
   return null;
 }
 
+// ── The first run's vault ────────────────────────────────────────────────────
+// The first chipnet run used the template from before the unlocking-script fix.
+// The template identifier is part of every key path, so that vault belongs to
+// keys from the same mnemonics under the old identifier. Its owner-only
+// setMandate path moves its coins to the new owner address, where they fund the
+// genesis of the vault built from the fixed template (no faucet needed).
+const FIRST_RUN_TEMPLATE_IDENTIFIER = '737aa245bf76bed8fd9b60562a41452940af7c2f168fb3b43243b886c9d83a13';
+const MIGRATION_FEE_SATOSHIS = 1_000n;
+const NFT_KEEP_SATOSHIS = 1_000n;
+
+async function migrateFirstRunVault(owner, rescuer, artifact) {
+  const { Contract, ElectrumNetworkProvider, SignatureTemplate, TransactionBuilder } = await import('cashscript');
+  const provider = new ElectrumNetworkProvider('chipnet');
+  const ownerKey = deriveTemplateKey(owner.seedBytes, FIRST_RUN_TEMPLATE_IDENTIFIER, 0, 'testnet');
+  const rescuerKey = deriveTemplateKey(rescuer.seedBytes, FIRST_RUN_TEMPLATE_IDENTIFIER, 0, 'testnet');
+  const ownerPub = secp256k1.derivePublicKeyCompressed(ownerKey);
+  const rescuerPub = secp256k1.derivePublicKeyCompressed(rescuerKey);
+  const zero = new Uint8Array(20);
+  const firstRunVault = new Contract(artifact, [ownerPub, ownerPub, BigInt(DAILY_LIMIT_SATOSHIS), false, zero, zero, zero, zero, zero, rescuerPub], { provider });
+  const coins = await firstRunVault.getUtxos();
+  const nft = coins.find((c) => c.token?.nft);
+  const usable = coins.filter((c) => !c.token || c === nft);
+  if (usable.length === 0) {
+    log(`  nothing left at ${firstRunVault.address}`);
+    return null;
+  }
+  const total = usable.reduce((sum, c) => sum + c.satoshis, 0n);
+  const keep = nft ? NFT_KEEP_SATOSHIS : 0n;
+  const amount = total - MIGRATION_FEE_SATOSHIS - keep;
+  if (amount < BigInt(FUND_SATOSHIS)) {
+    log(`  the first run's vault holds ${total} sats, not enough to fund a new vault`);
+    return null;
+  }
+  const tb = new TransactionBuilder({ provider });
+  for (const coin of usable) tb.addInput(coin, firstRunVault.unlock.setMandate(new SignatureTemplate(ownerKey)));
+  // vout 0: plain BCH for the new owner, usable directly as the genesis input.
+  tb.addOutput({ to: owner.address, amount });
+  if (nft) tb.addOutput({ to: owner.tokenAddress, amount: keep, token: nft.token });
+  const { txid } = await tb.send();
+  log(`  moved ${total} sats out of the first run's vault ${firstRunVault.address}: ${txid}`);
+  return { txid, vout: 0, satoshis: amount, from: firstRunVault.address };
+}
+
 // ── Genesis (CashScript genesis transaction) ────────────────────────────────
 //
 // CHIP-2022-02: a token category's genesis input must spend output index 0
@@ -360,6 +405,23 @@ async function buildAndSendGenesis(fundingUtxo, contract, ownerAddress, ownerWif
   const result = await genesisTx.send();
   log(`  genesis broadcast: ${result.txid}`);
   return result.txid;
+}
+
+// Engine calls return a StoredInvitation ({ invitation, entityIdentifier, … });
+// the identifier is on the invitation itself.
+const idOf = (stored) => stored.invitation.invitationIdentifier;
+
+// ── Invitation field shapes ─────────────────────────────────────────────────
+// Invitation inputs and outputs use libauth's Input/Output types: transaction
+// hashes, token categories and NFT commitments are bytes (UI byte order), not
+// hex. Variables are a list of { variableIdentifier, value }.
+
+function vaultNftToken(categoryHex, commitmentHex) {
+  return { category: hexToBin(categoryHex), amount: 0n, nft: { capability: 'mutable', commitment: hexToBin(commitmentHex) } };
+}
+
+function invitationVariables(values) {
+  return Object.entries(values).map(([variableIdentifier, value]) => ({ variableIdentifier, value }));
 }
 
 // ── Invitation helpers ───────────────────────────────────────────────────────
@@ -448,12 +510,12 @@ async function main() {
     }
 
     const accepted = await engine.acceptInvitation(invitation, { roleIdentifier: 'rescuer' });
-    await attachSecret(state, accepted.invitationIdentifier, accepted.invitation, {
+    await attachSecret(state, idOf(accepted), accepted.invitation, {
       secretIdentifier: 'rescueKey',
       secretLookupKey: rescueSecret,
       templateIdentifier: rescuer.templateIdentifier,
     });
-    const signed = await engine.signInvitation(accepted.invitationIdentifier, 0);
+    const signed = await engine.signInvitation(idOf(accepted), 0);
     writeFileSync(outFile, `${serializeInvitation(signed.invitation)}\n`);
     log(`  rescuer signed: ${outFile}`);
     await engine.stop();
@@ -527,8 +589,13 @@ async function main() {
   log(`  contract token address: ${contract.tokenAddress}`);
 
   // Vault locking bytecode + script hash from the CashScript contract.
-  let vaultRawBytecode = contract.bytecode;
-  let vaultScriptHash = scriptToScriptHash(hexToBin(vaultRawBytecode));
+  // Electrum indexes outputs by the hash of their locking bytecode. The vault's
+  // is the P2SH32 wrapper around the redeem script (contract.bytecode), so track
+  // and sign with that, not with the redeem script itself.
+  const vaultLocking = cashAddressToLockingBytecode(contract.address);
+  if (typeof vaultLocking === 'string') fail(`vault address: ${vaultLocking}`);
+  let vaultRawBytecode = binToHex(vaultLocking.bytecode);
+  let vaultScriptHash = scriptToScriptHash(vaultLocking.bytecode);
   const ownerLockingBytecode = binToHex(privateKeyToP2pkhLockingBytecode({ privateKey: owner.privateKey }));
   const ownerScriptHash = scriptToScriptHash(hexToBin(ownerLockingBytecode));
   log(`  vault script hash: ${vaultScriptHash}`);
@@ -545,7 +612,9 @@ async function main() {
   // The rescuer's rescue secret is pre-stored on the owner's state so the
   // owner engine can sign BOTH sides of the rescue invitation.
   const ownerState = await openState(owner);
-  await preStoreScriptHash(ownerState, owner, ownerScriptHash, ownerLockingBytecode, 'p2pkh-owner');
+  // The engine looks the identifier up in the template's lockingScripts, so it
+  // has to be one the template defines; 'ownerReturn' is the owner's wallet.
+  await preStoreScriptHash(ownerState, owner, ownerScriptHash, ownerLockingBytecode, 'ownerReturn');
   // Pre-store the vault script hash (from the CashScript contract) so the
   // engine tracks vault NFT UTXOs. The template's lockingBytecode is a
   // reference string resolved internally, not a hex bytecode — so we
@@ -626,9 +695,16 @@ async function main() {
     log(`  vault found: ${existingVault.outpointTransactionHash}:${existingVault.outpointIndex} (${existingVault.valueSatoshis} sats, ${existingVault.status}); skipping funding and genesis`);
     record({ step: 'existing-vault', outpoint: `${existingVault.outpointTransactionHash}:${existingVault.outpointIndex}`, satoshis: String(existingVault.valueSatoshis), commitment: existingVault.tokenNftCommitment, status: existingVault.status });
   } else {
-    log('\n[0] Waiting for funding…');
     let fundingUtxo = null;
-    const fundingDeadline = Date.now() + 2 * 60 * 60 * 1000;
+    log('\n[0] No vault for the fixed template yet; funding it from the first run\'s vault…');
+    try {
+      fundingUtxo = await migrateFirstRunVault(owner, rescuer, artifact);
+      if (fundingUtxo) record({ step: 'move-first-run-vault', txid: fundingUtxo.txid, from: fundingUtxo.from, satoshis: String(fundingUtxo.satoshis) });
+    } catch (error) {
+      log(`  could not move the first run's vault: ${error?.message ?? error}`);
+    }
+    if (!fundingUtxo) log('\n[0] Waiting for funding…');
+    const fundingDeadline = fundingUtxo ? 0 : Date.now() + 2 * 60 * 60 * 1000;
     let lastLogTime = 0;
     while (Date.now() < fundingDeadline) {
       const all = await ownerEngine.listUnspentOutputs();
@@ -696,7 +772,10 @@ async function main() {
     while (Date.now() < deadline) {
       const found = (await confirmedVaultUtxos(ownerEngine, engineVaultScriptHash, vaultRawBytecode, owner.templateIdentifier))
         .find((u) => u.tokenNftCommitment !== undefined);
-      if (found) return found;
+      // An invitation can only reserve and sign a coin the engine's own state tracks.
+      const tracked = found && (await ownerEngine.listUnspentOutputs())
+        .some((u) => String(u.outpointTransactionHash) === String(found.outpointTransactionHash) && u.outpointIndex === found.outpointIndex);
+      if (tracked) return found;
       await new Promise((r) => setTimeout(r, 15_000));
     }
     throw new Error(`vault NFT output not confirmed ${label}`);
@@ -737,31 +816,23 @@ async function main() {
       roleIdentifier: 'spender',
       inputs: [{
         inputIdentifier: 'vaultPayInput',
-        outpointTransactionHash: vaultUtxo.outpointTransactionHash,
+        outpointTransactionHash: hexToBin(vaultUtxo.outpointTransactionHash),
         outpointIndex: vaultUtxo.outpointIndex,
         valueSatoshis: BigInt(vaultSatoshis),
-        token: {
-          category: vaultUtxo.tokenCategory,
-          amount: 0n,
-          nft: { capability: 'mutable', commitment },
-        },
+        token: vaultNftToken(vaultUtxo.tokenCategory, commitment),
       }],
       outputs: [
         {
           outputIdentifier: 'vaultAfterPayOutput',
           valueSatoshis: payVaultSatoshis,
-          token: {
-            category: vaultUtxo.tokenCategory,
-            amount: 0n,
-            nft: { capability: 'mutable', commitment: newCommitment },
-          },
+          token: vaultNftToken(vaultUtxo.tokenCategory, newCommitment),
         },
         {
           outputIdentifier: 'paymentOutput',
           valueSatoshis: BigInt(amount),
         },
       ],
-      variables: {
+      variables: invitationVariables({
         ...vaultVariables,
         vaultCategory: vaultUtxo.tokenCategory,
         vaultSatoshis: BigInt(vaultSatoshis),
@@ -770,20 +841,20 @@ async function main() {
         payeeLockingScript: ownerLockingBytecode,
         locktime,
         minerFeeSatoshis: BigInt(MINER_FEE_SATOSHIS),
-      },
+      }),
     });
-    await attachSecret(ownerState, invitation.invitationIdentifier, invitation.invitation, {
+    await attachSecret(ownerState, idOf(invitation), invitation.invitation, {
       secretIdentifier: 'spenderKey',
       secretLookupKey: ownerSpenderSecret,
       templateIdentifier: owner.templateIdentifier,
     });
-    await ownerEngine.signInvitation(invitation.invitationIdentifier, 0);
+    await ownerEngine.signInvitation(idOf(invitation), 0);
     return invitation;
   }
 
   const nftVaultUtxo1 = await waitForVault('after genesis');
   const pay1 = await pay(2, PAY_1_SATOSHIS, nftVaultUtxo1);
-  const pay1Result = await ownerEngine.executeAction(pay1.invitationIdentifier, { broadcastTransaction: true });
+  const pay1Result = await ownerEngine.executeAction(idOf(pay1), { broadcastTransaction: true });
   await saveInvitation(2, 'pay-3000', pay1Result.storedInvitation.invitation);
   log(`  pay #1 txid: ${pay1Result.builtTransaction.transactionHash}`);
   record({ step: 'pay', satoshis: String(PAY_1_SATOSHIS), txid: pay1Result.builtTransaction.transactionHash, invitation: '2-pay-3000.json' });
@@ -793,7 +864,7 @@ async function main() {
   // ── Step 3: pay #2 (follow-up, same day, from step 2's state) ────────────
   const nftVaultUtxo2 = await waitForVault('after pay #1');
   const pay2 = await pay(3, PAY_2_SATOSHIS, nftVaultUtxo2);
-  const pay2Result = await ownerEngine.executeAction(pay2.invitationIdentifier, { broadcastTransaction: true });
+  const pay2Result = await ownerEngine.executeAction(idOf(pay2), { broadcastTransaction: true });
   await saveInvitation(3, 'pay-4000', pay2Result.storedInvitation.invitation);
   log(`  pay #2 txid: ${pay2Result.builtTransaction.transactionHash}`);
   record({ step: 'pay', satoshis: String(PAY_2_SATOSHIS), txid: pay2Result.builtTransaction.transactionHash, invitation: '3-pay-4000.json' });
@@ -808,7 +879,7 @@ async function main() {
   let pay3Txid = null;
   let nodeResponse = null;
   try {
-    const pay3Result = await ownerEngine.executeAction(pay3.invitationIdentifier, { broadcastTransaction: true });
+    const pay3Result = await ownerEngine.executeAction(idOf(pay3), { broadcastTransaction: true });
     pay3Txid = pay3Result.builtTransaction.transactionHash;
     log(`  NOT REFUSED (unexpected): ${pay3Txid}`);
   } catch (error) {
@@ -816,7 +887,7 @@ async function main() {
     log(`  REFUSED by the contract before broadcast: ${rejectionMessage}`);
     // Still send the signed tx to the node and record what the network says.
     try {
-      const built = await ownerEngine.buildInvitationTransactionFromMergedCommit(pay3.invitationIdentifier);
+      const built = await ownerEngine.buildInvitationTransactionFromMergedCommit(idOf(pay3));
       const { broadcastTransaction } = await import('@electrum-cash/application');
       pay3Txid = await broadcastTransaction(built.serializedTransaction);
       log(`  pay #3 txid (sent to node): ${pay3Txid}`);
@@ -825,12 +896,12 @@ async function main() {
       log(`  node rejected the broadcast: ${nodeResponse}`);
     }
   }
-  await saveInvitation(4, 'pay-5000-overlimit', (await ownerEngine.getInvitation(pay3.invitationIdentifier)).invitation);
+  await saveInvitation(4, 'pay-5000-overlimit', (await ownerEngine.getInvitation(idOf(pay3))).invitation);
   if (rejectionMessage) log(`  rejection recorded: ${rejectionMessage}`);
   record({ step: 'pay-over-limit', satoshis: String(PAY_3_SATOSHIS), refusedBeforeBroadcast: rejectionMessage, nodeResponse, unexpectedTxid: pay3Txid, invitation: '4-pay-5000-overlimit.json' });
   // The refused invitation still reserves the vault coin; archiving it releases the coin for the rescue.
   try {
-    await ownerEngine.archiveInvitation(pay3.invitationIdentifier);
+    await ownerEngine.archiveInvitation(idOf(pay3));
   } catch (error) {
     log(`  could not archive the refused invitation: ${error?.message ?? error}`);
   }
@@ -852,39 +923,31 @@ async function main() {
       roleIdentifier: 'owner',
       inputs: [{
         inputIdentifier: 'vaultRescueInput',
-        outpointTransactionHash: nftVaultUtxoRescue.outpointTransactionHash,
+        outpointTransactionHash: hexToBin(nftVaultUtxoRescue.outpointTransactionHash),
         outpointIndex: nftVaultUtxoRescue.outpointIndex,
         valueSatoshis: BigInt(nftVaultUtxoRescue.valueSatoshis),
-        token: {
-          category: nftVaultUtxoRescue.tokenCategory,
-          amount: 0n,
-          nft: { capability: 'mutable', commitment: nftVaultUtxoRescue.tokenNftCommitment },
-        },
+        token: vaultNftToken(nftVaultUtxoRescue.tokenCategory, nftVaultUtxoRescue.tokenNftCommitment),
       }],
       outputs: [{
         outputIdentifier: 'returnOutput',
         valueSatoshis: withdrawSatoshis,
-        token: {
-          category: nftVaultUtxoRescue.tokenCategory,
-          amount: 0n,
-          nft: { capability: 'mutable', commitment: nftVaultUtxoRescue.tokenNftCommitment },
-        },
+        token: vaultNftToken(nftVaultUtxoRescue.tokenCategory, nftVaultUtxoRescue.tokenNftCommitment),
       }],
-      variables: {
+      variables: invitationVariables({
         ...vaultVariables,
         vaultCategory: nftVaultUtxoRescue.tokenCategory,
         vaultSatoshis: BigInt(nftVaultUtxoRescue.valueSatoshis),
         vaultCommitment: nftVaultUtxoRescue.tokenNftCommitment,
         returnLockingScript: ownerLockingBytecode,
         minerFeeSatoshis: BigInt(MINER_FEE_SATOSHIS),
-      },
+      }),
     });
-    await attachSecret(ownerState, rescueInvitation.invitationIdentifier, rescueInvitation.invitation, {
+    await attachSecret(ownerState, idOf(rescueInvitation), rescueInvitation.invitation, {
       secretIdentifier: 'ownerKey',
       secretLookupKey: ownerOwnerSecret,
       templateIdentifier: owner.templateIdentifier,
     });
-    const withOwnerSignature = await ownerEngine.appendOwnInputResolutions(rescueInvitation.invitationIdentifier, 0);
+    const withOwnerSignature = await ownerEngine.appendOwnInputResolutions(idOf(rescueInvitation), 0);
     const toRescuer = join(OUT_DIR, '5-rescue-1-owner.json');
     writeFileSync(toRescuer, `${serializeInvitation(withOwnerSignature.invitation)}\n`);
     log(`  owner signed; invitation for the rescuer: ${toRescuer}`);
@@ -902,7 +965,7 @@ async function main() {
     });
 
     await ownerEngine.updateInvitation(deserializeInvitation(readFileSync(fromRescuer, 'utf8')));
-    const rescueResult = await ownerEngine.executeAction(rescueInvitation.invitationIdentifier, { broadcastTransaction: true });
+    const rescueResult = await ownerEngine.executeAction(idOf(rescueInvitation), { broadcastTransaction: true });
     await saveInvitation(5, 'rescue', rescueResult.storedInvitation.invitation);
     const rescueTxid = rescueResult.builtTransaction.transactionHash;
     log(`  rescue txid: ${rescueTxid}`);

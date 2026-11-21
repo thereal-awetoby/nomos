@@ -5,7 +5,7 @@
   "description": "Nomos as an XO template (BCH BLAZE Build with XO bounty)",
   "scripts": {
     "export": "node scripts/export.mjs",
-    "test": "node test/xo.test.mjs"
+    "test": "node test/xo.test.mjs && node test/engine.test.mjs"
   },
   "dependencies": {
     "@bitauth/libauth": "^3.1.0-next.8",

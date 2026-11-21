@@ -49,11 +49,11 @@ export function buildNomosTemplate(vaultBytecodeHex) {
     nomosRedeem: redeem(vaultBytecodeHex),
 
     // spend(sig spenderSig, pubkey spenderPk, int amount) is function 0; arguments pushed in reverse.
-    unlockPay: '<amountSatoshis> <spenderKey.public_key> <spenderKey.schnorr_signature.all_outputs> <0> <nomosRedeem>',
+    unlockPay: '<amountSatoshis> <spenderKey.public_key> <spenderKey.schnorr_signature.all_outputs> <0>',
     // setMandate(sig ownerSig) is function 1: only the owner's signature, no covenant on the outputs.
-    unlockWithdraw: '<ownerKey.schnorr_signature.all_outputs> <1> <nomosRedeem>',
+    unlockWithdraw: '<ownerKey.schnorr_signature.all_outputs> <1>',
     // rescue(sig ownerSig, sig rescueSig) is function 2.
-    unlockRescue: '<rescueKey.schnorr_signature.all_outputs> <ownerKey.schnorr_signature.all_outputs> <2> <nomosRedeem>',
+    unlockRescue: '<rescueKey.schnorr_signature.all_outputs> <ownerKey.schnorr_signature.all_outputs> <2>',
 
     // ---- State ----
     payLocktime: '<locktime>',

@@ -35,6 +35,10 @@ const SIGNING_SUBS = [
 ];
 const testScripts = Object.fromEntries(Object.entries(template.scripts).map(([k, v]) => [k, SIGNING_SUBS.reduce((s, [a, b]) => s.split(a).join(b), v)]));
 const testVariables = { ...template.variables, ...Object.fromEntries(SIGNING_SUBS.map(([, b]) => [b, { name: b, type: 'bytes' }])) };
+// XO's engine wraps a p2sh locking script the way libauth does: the unlocking
+// script in the template ends at the function selector, and the engine appends
+// the push of the redeem script (nomosRedeem). Compare the same bytes here.
+const withRedeem = (unlockingScript) => `${unlockingScript} <nomosRedeem>`;
 function compile(text, values) {
   const variables = Object.fromEntries(Object.entries(values).map(([k, v]) => [k, asEngineBytes(v)]));
   return compileCashAssemblyString({ cashAssemblyText: text, variables, templateVariables: testVariables, templateScripts: testScripts, evaluationDecodeMode: 'hex' });
@@ -154,7 +158,7 @@ for (const c of payCases) {
     };
     // unlocking script: same pushes, with CashScript's own signature + pubkey
     const csPushes = pushes(tx.inputs[0].unlockingBytecode);
-    const tplUnlock = compile('unlockPay', { ...v, testSpenderSig: csPushes[2], testSpenderPk: csPushes[1] });
+    const tplUnlock = compile(withRedeem('unlockPay'), { ...v, testSpenderSig: csPushes[2], testSpenderPk: csPushes[1] });
     assert.equal(tplUnlock, binToHex(tx.inputs[0].unlockingBytecode));
     // outputs and locktime
     assert.equal(compile('$(newCommitment)', v), binToHex(tx.outputs[0].token.nft.commitment));
@@ -180,7 +184,7 @@ it('pay: an agent key works the same way', async () => {
   await builder.debug();
   const tx = decodedTx(builder);
   const p = pushes(tx.inputs[0].unlockingBytecode);
-  assert.equal(compile('unlockPay', { ...values, amountSatoshis: 1_000n, testSpenderSig: p[2], testSpenderPk: p[1] }), binToHex(tx.inputs[0].unlockingBytecode));
+  assert.equal(compile(withRedeem('unlockPay'), { ...values, amountSatoshis: 1_000n, testSpenderSig: p[2], testSpenderPk: p[1] }), binToHex(tx.inputs[0].unlockingBytecode));
 });
 
 it('pay with allowlist: allowlisted payee accepted by the covenant', async () => {
@@ -198,7 +202,7 @@ it('withdraw (setMandate path): unlocking bytes equal a withdraw the covenant ac
   await b.debug();
   const tx = decodedTx(b);
   const p = pushes(tx.inputs[0].unlockingBytecode);
-  assert.equal(compile('unlockWithdraw', { ...values, testOwnerSig: p[0] }), binToHex(tx.inputs[0].unlockingBytecode));
+  assert.equal(compile(withRedeem('unlockWithdraw'), { ...values, testOwnerSig: p[0] }), binToHex(tx.inputs[0].unlockingBytecode));
   assert.equal(num(compile('$(withdrawSatoshis)', { vaultSatoshis: 50_000n, minerFeeSatoshis: 800n })), tx.outputs[0].valueSatoshis);
 });
 
@@ -210,7 +214,7 @@ it('rescue: both signatures in the right order; the covenant rejects a wrong co-
   await ok.debug(); // 49,200 out of a vault whose limit is 10,000: rescue ignores the limit
   const tx = decodedTx(ok);
   const p = pushes(tx.inputs[0].unlockingBytecode);
-  assert.equal(compile('unlockRescue', { ...values, testRescueSig: p[0], testOwnerSig: p[1] }), binToHex(tx.inputs[0].unlockingBytecode));
+  assert.equal(compile(withRedeem('unlockRescue'), { ...values, testRescueSig: p[0], testOwnerSig: p[1] }), binToHex(tx.inputs[0].unlockingBytecode));
   const bad = new TransactionBuilder({ provider }).addInput(nft, contract.unlock.rescue(owner, agent)).addOutput(out);
   await assert.rejects(async () => bad.debug(), /NomosVault\.cash:93/);
 });

@@ -157,22 +157,50 @@ the script fell back to the compiled script hash, which matched anyway.
 Prepared for the rest of the lifecycle: pay, pay again the same day, an
 over-limit payment, and the rescue, all through XO invitations.
 
-### What changed
+### The template bug the engine test found
+
+`test/engine.test.mjs` runs the template through two real `@xo-cash/engine`
+instances offline (the Engine constructor needs no Electrum connection) and
+checks every transaction they build in libauth's BCH VM. It found that the
+template's vault unlocking scripts ended with `<nomosRedeem>`. The vault's
+locking type is `p2sh`, so the engine already appends the redeem script push;
+the template pushed it a second time, the contract read its arguments one slot
+off, and every pay, withdraw and rescue built by XO failed with
+`OP_VERIFY`. The offline byte comparisons in `test/xo.test.mjs` compiled the
+unlocking scripts on their own and could not see it.
+
+`unlockPay`, `unlockWithdraw` and `unlockRescue` now end at the function
+selector, and `test/xo.test.mjs` appends the redeem push the way the engine
+does before comparing bytes with CashScript. With the fix, the engine test
+passes: pay 3,000, pay 4,000 the same day, a refused 5,000, and the rescue
+signed in two engines are all valid in the VM (`npm test`: 14/14, then 4/4).
+Run against the old template, it fails at the first payment.
+
+### What else changed
 
 - **Engine:** `@xo-cash/engine` 0.1.1-next.18230317763 (fixes blocker 3) and
-  `@xo-cash/utils` 0.0.12 to match it. The 14 offline checks pass on both, and
-  `npm run export` leaves `nomos.template.json` unchanged, so the template
-  identifier, the derived keys and the vault address stay the same.
-- **Reuses the vault.** When the vault for these keys already exists (the one
-  created by genesis `d73393f2…`), the script continues from its NFT output
-  and needs no new funding. Funding and genesis run only when there is none.
+  `@xo-cash/utils` 0.0.12 to match it.
+- **A new vault for the fixed template.** The template identifier is part of
+  every key path, so the fixed template has new keys and a new vault address.
+  The first run's vault (genesis `d73393f2…`, at `bchtest:pdmvyxul…lkezprue`)
+  belongs to the same mnemonics under the old identifier. When the new vault
+  does not exist yet, `chipnet.mjs` moves the first run's vault to the new
+  owner address through its owner-only `setMandate` path and funds the new
+  genesis from it, so no faucet is needed. It keeps the first run's NFT at the
+  owner's token address.
 - **Fixes in `scripts/chipnet.mjs`**, none of which the first run reached:
-  - stored key secrets are referenced by the lookup key State returns (the
-    script used a random one, so signing would have failed);
+  - the vault is tracked by its P2SH32 locking bytecode; the script used the
+    redeem script, whose script hash Electrum never reports;
+  - the owner's address is registered under `ownerReturn`, a locking script the
+    template defines (the engine stops on an unknown one);
+  - invitation inputs and outputs use the engine's types: outpoint hashes, token
+    categories and commitments as bytes, variables as a list, and the
+    invitation identifier read from `stored.invitation`;
+  - stored key secrets are referenced by the lookup key State returns;
   - the vault state is read as two little-endian 8-byte integers, the way the
     covenant writes it, and a commitment from an earlier day counts as nothing
     spent, as in the covenant;
-  - each step waits for the vault coin it spends to confirm;
+  - each step waits until the engine itself tracks the vault coin it spends;
   - the refused over-limit invitation is archived, which releases its
     reservation of the vault coin before the rescue.
 - **Rescue with two engines.** An XO engine signs only with keys from its own
@@ -181,16 +209,15 @@ over-limit payment, and the rescue, all through XO invitations.
   (`appendOwnInputResolutions`); a second engine for the rescuer, in its own
   process and state (`chipnet.mjs rescuer-sign`), accepts the invitation and
   signs the input (`signInvitation`); the owner merges the result and
-  broadcasts it. The first version tried to sign both roles in one engine,
-  which would have produced two owner signatures.
+  broadcasts it.
 
 ### Running it
 
 On GitHub Actions (`.github/workflows/xo-chipnet.yml`):
 
 1. Add two repository secrets with chipnet-only BIP39 mnemonics:
-   `XO_OWNER_MNEMONIC` and `XO_RESCUER_MNEMONIC`. To continue from the vault
-   created by `d73393f2…`, use the two chipnet mnemonics that run used.
+   `XO_OWNER_MNEMONIC` and `XO_RESCUER_MNEMONIC`. With the two mnemonics the
+   first run used, the new vault is funded from the first run's vault.
 2. Actions → **XO chipnet run** → Run workflow (or push to the `xo-chipnet`
    branch).
 3. Results go to the `xo-chipnet-results` artifact and the
