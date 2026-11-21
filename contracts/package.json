@@ -6,6 +6,7 @@
   "scripts": {
     "compile": "cashc NomosVault.cash -o ../frontend/src/lib/NomosVault.json",
     "test": "node test/vault.test.mjs",
+    "test:swap": "node test/swaplock.test.mjs",
     "mint": "node test/mint-nft.mjs"
   },
   "dependencies": {

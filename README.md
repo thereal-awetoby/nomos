@@ -11,6 +11,7 @@
 Nomos keeps your BCH in a CashScript vault, and your rules (a daily limit, an allowlist, an agent key and a rescue key) are part of the contract. A payment that breaks a rule fails the script, so no node relays it and no miner can include it, whichever app built it and whoever signed it.
 
 - **Use it:** [nomos.asgaya.org](https://nomos.asgaya.org), with Paytaca over WizardConnect. No account, no Nomos fee.
+- **Watch it:** [the demo video](https://youtu.be/eR8DS4LNMvA).
 - **Read the rule:** [`contracts/NomosVault.cash` line 45](contracts/NomosVault.cash#L45), `require(effectiveSpent + amount <= dailyLimitSats);`
 - **Check the chain:** [every mainnet transaction](docs/MAINNET_PROOFS.md), by component.
 - **Built for BCH BLAZE 2026:** Mainnet Track, SolidCash, Decentralized Identity, Stablecoin Bridge and XO ([map](#bch-blaze-2026)).
@@ -86,7 +87,7 @@ Light and dark themes, bottom tabs on phones, and keyboard shortcuts on desktop 
 | **Mainnet Track** | The [live app](https://nomos.asgaya.org); WizardConnect in [`wallet.ts`](frontend/src/lib/wallet.ts); the banner with the repository and the CashTokens address on every page ([`Banner.tsx`](frontend/src/components/Banner.tsx)); [mainnet transactions](docs/MAINNET_PROOFS.md) |
 | **Best SolidCash Application** | [`contracts/solidcash/`](contracts/solidcash): the vault, its mainnet run and its checks |
 | **Decentralized Identity** | [`docs/IDENTITY_PROTOCOL.md`](docs/IDENTITY_PROTOCOL.md) and [`/identity`](https://nomos.asgaya.org/identity) |
-| **Stablecoin Bridge** | [`SwapLock.cash`](contracts/SwapLock.cash), [`SwapLock.sol`](contracts/evm/SwapLock.sol) and [`/bridge`](https://nomos.asgaya.org/bridge) |
+| **Stablecoin Bridge** | [`SwapLock.cash`](contracts/SwapLock.cash), [`SwapLock.sol`](contracts/evm/SwapLock.sol), [`/bridge`](https://nomos.asgaya.org/bridge), and the [design and its tests](docs/BRIDGE_DESIGN.md) |
 | **Build with XO / Migrate to XO** | [`xo/README.md`](xo/README.md) and [`xo/REPRODUCE.md`](xo/REPRODUCE.md) |
 | **Community Choice** | Vote with EMBER2026 at `bitcoincash:zqz0cjlclvk6909mctktqsk77d7z6gev0cqejwlp4h` |
 
@@ -102,12 +103,16 @@ npm run dev                                       # the app
 npm run build                                     # type check and production build
 
 cd ../contracts/solidcash && npm ci && npm test   # SolidCash vault, StableSwap and HTLC in the BCH VM
+cd .. && npm ci && npm run test:swap              # SwapLock.cash, the PUSD side of the swap, in the BCH VM
+cd evm && npm ci && npm test                      # SwapLock.sol, the USDC side, in a local EVM
 cd ../../xo && npm ci && npm test                 # XO template against CashScript
 ```
 
+Publishing the site: [`docs/DEPLOY.md`](docs/DEPLOY.md).
+
 | Folder | What is in it |
 | --- | --- |
-| [`contracts/`](contracts) | `NomosVault.cash`, the swap locks (`SwapLock.cash`, `evm/SwapLock.sol`), chipnet tests |
+| [`contracts/`](contracts) | `NomosVault.cash`, the swap locks (`SwapLock.cash`, `evm/SwapLock.sol`) and their checks, chipnet tests |
 | [`contracts/solidcash/`](contracts/solidcash) | The SolidCash edition, its mainnet demo and mock-network tests |
 | [`frontend/src/`](frontend/src) | The app: pages, components, and `lib/` for the wallet, contract, Nostr, identity and swap |
 | [`xo/`](xo) | The XO template and its checks |
@@ -117,7 +122,7 @@ cd ../../xo && npm ci && npm test                 # XO template against CashScri
 
 - **Rescue with two different keys** goes through the XO template's rescue action; a wallet connection in the app signs with one key.
 - **Top-ups sent straight to the vault address** are merged by the owner on the next payment or rule change.
-- **Swaps need a counterparty**: Nomos runs no pool. The Base contract is deployed once from the Swap page.
+- **Swaps need a counterparty**: Nomos runs no pool. The Base contract is deployed once from the Swap page; each offer names it, and the other side's page checks its code against the audited bytecode before using it.
 - **Nostr lookups** depend on public relays, which can be slow.
 
 ---
