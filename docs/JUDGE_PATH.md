@@ -23,7 +23,8 @@ time? The [demo video](https://youtu.be/eR8DS4LNMvA) shows the whole flow.
 - **`/simulate`**: try the daily limit and allowlist with example numbers.
 - **`/identity?verify=<npub or BCH address>`**: checks a BCH and Nostr link
   against relays and a BCH node in your browser. The page also creates links
-  and checks signed login responses.
+  and checks signed login responses. A link made on mainnet:
+  [check it](https://nomos.asgaya.org/identity?verify=npub1lx04uta90k4ytqnuxrd9pt7u9hjrnhv5zgpmr4jtm8afxdwhp37sc5u5rv).
 - **`/proof`**: send signed transaction hex to a node and see its answer.
 - **`/architecture`**: the parts of the system and the contracts.
 

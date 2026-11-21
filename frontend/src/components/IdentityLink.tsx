@@ -33,6 +33,8 @@ type Scope = 'link' | 'prove' | 'verify'
 
 const NOS2X_URL = 'https://github.com/fiatjaf/nos2x'
 const ALBY_URL = 'https://getalby.com'
+const CHALLENGE_RE = /^[0-9a-f]{32}$/
+const BAD_CHALLENGE = 'Paste the 32-character challenge exactly as you received it.'
 const NO_ANSWER = 'No answer from your Nostr extension. Click its icon in the browser toolbar: it may be waiting for you to allow Nomos, or to finish its own setup.'
 
 function verifyUrl(input: string): string {
@@ -203,6 +205,7 @@ export default function IdentityLink({ lookup }: { lookup?: ReactNode }) {
 
   const proveNostr = () => step('Signing challenge', async () => {
     if (!linked) return
+    if (!CHALLENGE_RE.test(nonce)) throw new Error(BAD_CHALLENGE)
     const event = await signNostrChallenge(nonce)
     const check = verifyNostrChallenge(event, linked.pubkeyHex, nonce)
     setProofResult({ ...check, proof: JSON.stringify(makeAuthResponse('nostr', nonce, linked, event)) })
@@ -210,6 +213,7 @@ export default function IdentityLink({ lookup }: { lookup?: ReactNode }) {
 
   const proveBch = () => step('Signing challenge', async () => {
     if (!linked || !wallet?.connected) return
+    if (!CHALLENGE_RE.test(nonce)) throw new Error(BAD_CHALLENGE)
     if (wallet.address.toLowerCase() !== linked.address.toLowerCase()) {
       throw new Error('Connect the wallet for the linked address to answer with BCH.')
     }
@@ -455,7 +459,18 @@ export default function IdentityLink({ lookup }: { lookup?: ReactNode }) {
               <>
                 <KV label="Linked address">{shortAddr(linked.address, 10, 6)}</KV>
                 <KV label="Linked key">{shortAddr(nip19.npubEncode(linked.pubkeyHex), 10, 6)}</KV>
-                <KV label="Challenge">{nonce}</KV>
+                <label htmlFor="prove-challenge" className="mt-4 block text-sm font-semibold text-nomos-text">Challenge to answer</label>
+                <input
+                  id="prove-challenge"
+                  value={nonce}
+                  onChange={(e) => { setNonce(e.target.value.trim().toLowerCase()); setProofResult(null) }}
+                  className="input mt-2 font-mono text-sm"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                <p className="mt-1.5 text-xs leading-relaxed text-nomos-muted">
+                  Paste the challenge from the person checking you. To try it on your own, copy the one under Check a response. Answers expire after 10 minutes.
+                </p>
                 <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <button type="button" onClick={() => { void proveNostr() }} disabled={Boolean(busy)} className="btn-secondary">Answer with Nostr key</button>
                   <button type="button" onClick={() => { void proveBch() }} disabled={Boolean(busy) || !wallet?.connected} className="btn-secondary">Answer with BCH wallet</button>
@@ -469,8 +484,8 @@ export default function IdentityLink({ lookup }: { lookup?: ReactNode }) {
                       {proofResult.ok ? 'Authenticated' : 'Rejected'}
                     </p>
                     <p className="mt-1 text-sm text-nomos-muted-bright">{proofResult.reason}</p>
-                    <button type="button" onClick={() => { void navigator.clipboard.writeText(proofResult.proof) }} className="link-action mt-2">
-                      Copy signed response
+                    <button type="button" onClick={() => copy('proof', proofResult.proof)} className="link-action mt-2">
+                      {copied === 'proof' ? 'Copied' : 'Copy signed response'}
                     </button>
                   </div>
                 )}
