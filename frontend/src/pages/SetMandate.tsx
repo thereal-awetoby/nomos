@@ -4,6 +4,7 @@ import { useWallet } from '../context/WalletContext'
 import { executeSetMandate, executeCreateVault, validateAllowlistAddress, validateCashAddress, getWalletBalance, MIN_VAULT_DEPOSIT_SATS, verifyAnchor } from '../lib/contract'
 import { isNostrIdentifier, resolveNostrPayee } from '../lib/nostr'
 import type { Mandate, VaultConfig } from '../lib/types'
+import SpentMeter from '../components/SpentMeter'
 
 function mandateSnapshot(config: VaultConfig): Mandate {
   return {
@@ -19,7 +20,7 @@ function mandateSnapshot(config: VaultConfig): Mandate {
 
 export default function SetMandate() {
   const navigate = useNavigate()
-  const { wallet, vault, vaultConfig, setVaultConfig, addReceipt } = useWallet()
+  const { wallet, vault, vaultConfig, setVaultConfig, addReceipt, sharePubkey, disconnect } = useWallet()
   // Pre-fill from existing config when editing an active mandate
   const [dailyLimit, setDailyLimit] = useState(
     vaultConfig ? (vaultConfig.dailyLimitSats / 1e8).toString() : '',
@@ -37,6 +38,8 @@ export default function SetMandate() {
   const [step, setStep] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [walletBal, setWalletBal] = useState<number | null>(null)
+  const [sharing, setSharing] = useState(false)
+  const [shareError, setShareError] = useState<string | null>(null)
 
   // Fetch wallet balance on mount so the user can see it before creating
   useEffect(() => {
@@ -173,8 +176,13 @@ export default function SetMandate() {
     }
   }
 
+  // Live preview of the rules being set (desktop column).
+  const previewLimitSats = Math.max(0, Math.round((parseFloat(dailyLimit) || 0) * 1e8))
+  const previewAllowCount = allowlistInput.split('\n').map((l) => l.trim()).filter(Boolean).length
+
   return (
-    <div className="page-enter space-y-4">
+    <div className="page-enter lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)] lg:items-start lg:gap-12">
+    <div className="space-y-4">
       <header>
         <h1 className="page-title">{needsDeploy ? 'Create vault' : 'Rules'}</h1>
       </header>
@@ -186,7 +194,36 @@ export default function SetMandate() {
       </p>
 
       {noPubkey && (
-        <p className="text-sm text-nomos-refuse">Your wallet did not share a public key. Reconnect with WizardConnect.</p>
+        <div className="rounded-xl border-2 border-nomos-pending/60 bg-nomos-surface p-4">
+          <p className="text-[15px] font-semibold text-nomos-text">Share your public key</p>
+          {wallet.provider === 'wc2' ? (
+            <>
+              <p className="mt-1 text-sm text-nomos-muted-bright">
+                Your wallet shared its address but not its public key, which the vault contract needs. Sign a short message in your wallet to share it. No funds move.
+              </p>
+              <button
+                type="button"
+                className="btn-primary mt-3 min-h-[40px] px-4 text-sm"
+                disabled={sharing}
+                onClick={() => {
+                  setSharing(true)
+                  setShareError(null)
+                  sharePubkey()
+                    .catch((err: unknown) => setShareError(err instanceof Error ? err.message : 'The wallet did not sign the message'))
+                    .finally(() => setSharing(false))
+                }}
+              >
+                {sharing ? <><span className="spinner" aria-hidden="true" /> Waiting for your wallet…</> : 'Sign to share public key'}
+              </button>
+              {shareError && <p className="mt-2 text-sm text-nomos-refuse">{shareError}</p>}
+            </>
+          ) : (
+            <>
+              <p className="mt-1 text-sm text-nomos-muted-bright">Your wallet did not share a public key, which the vault contract needs. Disconnect and connect again.</p>
+              <button type="button" className="btn-secondary mt-3" onClick={() => { void disconnect().then(() => navigate('/connect')) }}>Disconnect</button>
+            </>
+          )}
+        </div>
       )}
 
       {/* Daily limit */}
@@ -281,6 +318,42 @@ export default function SetMandate() {
             ? 'Create vault'
             : 'Save rules'}
       </button>
+    </div>
+
+    <aside className="hidden lg:sticky lg:top-24 lg:block" aria-label="Preview of your rules">
+      <div className="rounded-2xl border hairline bg-nomos-surface p-6">
+        <p className="text-sm text-nomos-muted">Daily limit</p>
+        <p className="mt-1 font-display text-[2.4rem] font-extrabold leading-none tabular-nums text-nomos-text" style={{ fontStretch: '112%' }}>
+          {previewLimitSats > 0 ? previewLimitSats.toLocaleString('en-US') : '0'}
+          <span className="ml-2 text-base font-semibold text-nomos-muted">sats</span>
+        </p>
+        {previewLimitSats > 0 && (
+          <div className="mt-6">
+            <SpentMeter spentSats={0} limitSats={previewLimitSats} />
+          </div>
+        )}
+        <ul className="mt-6 space-y-2.5 text-sm">
+          {[
+            { label: 'Allowlist', value: allowlistEnabled ? `${Math.min(previewAllowCount, 5)} of 5 addresses` : 'Off', on: allowlistEnabled },
+            { label: 'Agent key', value: agentPk.trim() ? 'Set' : 'None', on: Boolean(agentPk.trim()) },
+            { label: 'Rescue key', value: rescuePk.trim() ? 'Set' : 'None', on: Boolean(rescuePk.trim()) },
+          ].map((row) => (
+            <li key={row.label} className="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-2 text-nomos-muted">
+                <span className={`h-2 w-2 rounded-full ${row.on ? 'bg-nomos-ok' : 'bg-nomos-surface-raised'}`} aria-hidden="true" />
+                {row.label}
+              </span>
+              <span className="text-nomos-text">{row.value}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-6 border-t hairline pt-4 text-sm leading-relaxed text-nomos-muted">
+          {previewLimitSats > 0
+            ? `Once the vault exists, any payment that would take today's total past ${previewLimitSats.toLocaleString('en-US')} sats is refused by every Bitcoin Cash node.`
+            : 'Enter a daily limit to see your vault.'}
+        </p>
+      </div>
+    </aside>
     </div>
   )
 }

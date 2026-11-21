@@ -13,7 +13,8 @@ const NODE_ANSWER = 'mandatory-script-verify-flag-failed (Script failed an OP_VE
 
 // 0 empty, 1 first paid, 2 second paid, 3 third crossing the line, 4 refused
 type Step = 0 | 1 | 2 | 3 | 4
-const TIMELINE: [Step, number][] = [[1, 500], [2, 1500], [3, 2600], [4, 3250]]
+// The coins float for a moment first, then drop in one by one.
+const TIMELINE: [Step, number][] = [[1, 1400], [2, 2400], [3, 3400], [4, 3950]]
 
 const sats = (n: number) => n.toLocaleString('en-US')
 const share = (n: number) => `${(n / LIMIT) * 100}%`
@@ -66,8 +67,12 @@ export default function LimitDemo() {
       </p>
 
       {/* Keyed by run, so Replay starts from an empty track instead of shrinking it. */}
-      <div key={run} className="mt-9" aria-hidden="true">
+      <div key={run} className="mt-24" aria-hidden="true">
         <div className="limit-track">
+          {/* Each payment is a coin that drops into the bar; the last one hits the limit and bounces off. */}
+          <span className={`coin ${step >= 1 ? 'is-dropped' : 'is-floating'}`} style={{ left: share(FIRST / 2) }}>{sats(FIRST)}</span>
+          <span className={`coin coin-delay-1 ${step >= 2 ? 'is-dropped' : 'is-floating'}`} style={{ left: share(FIRST + SECOND / 2) }}>{sats(SECOND)}</span>
+          <span className={`coin coin-delay-2 coin-over ${step >= 4 ? 'is-bounced' : step >= 3 ? 'is-hitting' : 'is-floating'}`}>{sats(OVER)}</span>
           <span className={`limit-seg is-paid ${step >= 1 ? 'is-shown' : ''}`} style={{ left: 0, width: step >= 1 ? `calc(${share(FIRST)} - 3px)` : 0 }}>
             <span className="limit-seg-label">{sats(FIRST)}</span>
           </span>
@@ -78,7 +83,6 @@ export default function LimitDemo() {
             className={`limit-seg is-attempt ${step >= 4 ? 'is-refused is-shown' : ''}`}
             style={{ left: share(FIRST + SECOND), width: step >= 3 ? share(OVER) : 0 }}
           >
-            <span className="limit-seg-over">{sats(OVER)}</span>
           </span>
           <span className={`limit-line ${step >= 4 ? 'is-hit' : ''}`}>
             <span className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[12px] font-bold text-land-rule-line">Limit</span>

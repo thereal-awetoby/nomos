@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import ThemeToggle from './ThemeToggle'
 import BlazeStrip from './BlazeStrip'
+import NomosMark from './NomosMark'
+import WalletChip from './WalletChip'
 import { useWallet } from '../context/WalletContext'
 import { OPEN_SHORTCUTS_EVENT } from '../lib/theme'
 import { ASGAYA_URL, DECK_URL, DEMO_VIDEO_URL, GITHUB_URL, MERCAR_URL } from '../lib/links'
@@ -74,8 +76,9 @@ export default function Banner() {
     <BlazeStrip />
     <header className="site-banner sticky top-0 z-40 w-full border-b hairline bg-nomos-bg/95 backdrop-blur">
       <nav aria-label="Site navigation" className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-4">
-        <Link to={homeTo} className="text-lg font-semibold tracking-tight text-nomos-text" aria-label="Nomos home">
-          Nomos
+        <Link to={homeTo} className="flex items-center gap-2 text-nomos-text" aria-label="Nomos home">
+          <NomosMark size={18} />
+          <span className="font-display text-[19px] font-extrabold tracking-tight" style={{ fontStretch: '112%' }}>Nomos</span>
         </Link>
 
         {wallet?.connected && (
@@ -94,7 +97,8 @@ export default function Banner() {
           </div>
         )}
 
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex items-center gap-1.5">
+          <WalletChip />
           <ThemeToggle />
           <button
             type="button"

@@ -187,7 +187,7 @@ export default function KeyboardShortcuts() {
                 })}
                 className={`shrink-0 rounded-lg px-3 py-1 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomos-accent ${
  shortcutsEnabled
- ? 'bg-nomos-accent text-nomos-bg'
+ ? 'bg-nomos-accent text-nomos-on-accent'
  : 'bg-nomos-surface text-nomos-muted'
  }`}
               >

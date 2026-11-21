@@ -96,79 +96,163 @@ export default function Connect() {
   const displayError = localError || error || null
 
   return (
-    <div className="page-enter flex min-h-[75vh] flex-col items-center justify-center text-center">
-      <div className="mb-8">
+    <div className="page-enter grid gap-10 py-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16 lg:py-10">
+      <section>
         <h1 className="page-title">Connect your wallet</h1>
-        <p className="mx-auto mt-2 max-w-xs text-[15px] leading-relaxed text-nomos-muted">
-          {WALLETCONNECT_ENABLED
-            ? 'Use Paytaca with WizardConnect, or any Bitcoin Cash wallet that supports WalletConnect.'
-            : 'Use Paytaca with WizardConnect: scan the QR code from the Paytaca app.'}
+        <p className="mt-3 max-w-md text-[15px] leading-relaxed text-nomos-muted">
+          Your wallet keeps your keys and signs every transaction. Nomos only reads your address and public key to build your vault.
         </p>
-      </div>
 
-      <div className="flex w-full max-w-sm flex-col gap-3">
-        <button
-          onClick={handleWizardConnect}
-          disabled={connecting || wcState === 'connecting'}
-          className="btn-primary"
-        >
-          {wcState === 'connecting'
-            ? <><span className="spinner mr-2" /> Scan QR to connect…</>
-            : wcState === 'reconnecting'
-              ? <><span className="spinner mr-2" /> Reconnecting…</>
-              : 'Connect with WizardConnect'}
-        </button>
-        {WALLETCONNECT_ENABLED && (
-          <button
-            onClick={handleWc2}
-            disabled={connecting || wcState === 'connecting'}
-            className="btn-ghost"
-          >
-            {connecting ? <><span className="spinner mr-2" /> Connecting…</> : 'Connect with WalletConnect v2'}
-          </button>
-        )}
-      </div>
-
-      {/* WC2 QR code */}
-      {wc2Uri && connecting && (
-        <div className="mt-8 flex flex-col items-center gap-3">
-          <p className="label">Scan with your BCH wallet</p>
-          <div className="card p-3">
-            <canvas ref={qrCanvasRef} />
+        <div className="mt-8 space-y-3">
+          <div className="rounded-2xl border-2 border-nomos-accent/70 bg-nomos-surface p-5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[17px] font-semibold text-nomos-text">WizardConnect</p>
+              <span className="rounded-full bg-nomos-accent px-2.5 py-0.5 text-xs font-semibold text-nomos-on-accent">Recommended</span>
+            </div>
+            <p className="mt-1.5 text-sm leading-relaxed text-nomos-muted">
+              Scan a QR code with your wallet. It shares the public key the vault needs and works with HD wallets.
+            </p>
+            <button
+              onClick={handleWizardConnect}
+              disabled={connecting || wcState === 'connecting'}
+              className="btn-primary mt-4 w-full"
+            >
+              {wcState === 'connecting'
+                ? <><span className="spinner mr-2" /> Scan QR to connect…</>
+                : wcState === 'reconnecting'
+                  ? <><span className="spinner mr-2" /> Reconnecting…</>
+                  : 'Connect with WizardConnect'}
+            </button>
           </div>
-          <button
-            onClick={() => { void copyWc2Uri() }}
-            className="text-sm text-nomos-muted transition-colors hover:text-nomos-text"
-          >
-            Copy pairing URI
-          </button>
+
+          {WALLETCONNECT_ENABLED && (
+            <div className="rounded-2xl border hairline-strong bg-nomos-surface p-5">
+              <p className="text-[17px] font-semibold text-nomos-text">WalletConnect</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-nomos-muted">
+                For wallets with BCH WalletConnect. After connecting, your wallet asks you to sign one message so Nomos can read your public key. No funds move.
+              </p>
+              <button
+                onClick={handleWc2}
+                disabled={connecting || wcState === 'connecting'}
+                className="btn-secondary mt-4 w-full"
+              >
+                {connecting ? <><span className="spinner mr-2" /> Connecting…</> : 'Connect with WalletConnect'}
+              </button>
+            </div>
+          )}
         </div>
-      )}
 
-      {wcWalletName && wcState === 'connected' && (
-        <p className="mt-5 text-sm text-nomos-muted-bright">
-          Connected to {wcWalletName}
+        {/* WC2 QR code */}
+        {wc2Uri && connecting && (
+          <div className="mt-6 flex flex-col items-center gap-3 rounded-2xl border hairline bg-nomos-surface p-5">
+            <p className="label">Scan with your BCH wallet</p>
+            <div className="rounded-xl bg-white p-3">
+              <canvas ref={qrCanvasRef} />
+            </div>
+            <button
+              onClick={() => { void copyWc2Uri() }}
+              className="text-sm text-nomos-muted transition-colors hover:text-nomos-text"
+            >
+              Copy pairing URI
+            </button>
+          </div>
+        )}
+
+        {wcWalletName && wcState === 'connected' && (
+          <p className="mt-5 text-sm text-nomos-muted-bright">Connected to {wcWalletName}</p>
+        )}
+
+        {displayError && (
+          <p className="mt-5 text-sm text-nomos-refuse">{displayError}</p>
+        )}
+
+        {wcUri && wcQrUri && (
+          <WizardConnectQRDialog
+            show={showQr}
+            onClose={() => { setShowQr(false); cancelWizardConnect() }}
+            uri={wcUri}
+            qrUri={wcQrUri}
+            title="Nomos"
+            subtitle="Scan with your BCH wallet to connect"
+          />
+        )}
+
+        <p className="mt-8 text-sm text-nomos-muted">
+          No wallet yet? <Link to="/simulate" className="font-medium text-nomos-text underline-offset-4 hover:underline">Try the simulator</Link>
         </p>
-      )}
+      </section>
 
-      {displayError && (
-        <p className="mt-5 text-sm text-nomos-refuse">{displayError}</p>
-      )}
+      <aside className="space-y-8">
+        <div>
+          <h2 className="text-[15px] font-semibold text-nomos-text">Wallets that work</h2>
+          <ul className="mt-3 space-y-3">
+            {WALLETS.map((w) => (
+              <li key={w.name}>
+                <a
+                  href={w.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex gap-4 rounded-2xl border hairline bg-nomos-surface p-4 transition-colors hover:bg-nomos-surface-raised"
+                >
+                  <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg font-extrabold ${w.tone}`} aria-hidden="true">
+                    {w.name[0]}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[15px] font-semibold text-nomos-text">{w.name}</span>
+                    <span className="mt-0.5 block text-sm leading-relaxed text-nomos-muted">{w.body}</span>
+                    <span className="mt-2 flex flex-wrap gap-1.5">
+                      {w.connects.map((c) => (
+                        <span key={c} className="rounded-full border hairline-strong px-2 py-0.5 text-xs text-nomos-muted-bright">{c}</span>
+                      ))}
+                    </span>
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
 
-      {wcUri && wcQrUri && (
-        <WizardConnectQRDialog
-          show={showQr}
-          onClose={() => { setShowQr(false); cancelWizardConnect() }}
-          uri={wcUri}
-          qrUri={wcQrUri}
-          title="Nomos"
-          subtitle="Scan with your BCH wallet to connect"
-        />
-      )}
-
-      <p className="mt-10 text-sm text-nomos-muted">
-        No wallet yet? <Link to="/simulate" className="text-nomos-text underline-offset-2 hover:underline">Try the simulator</Link>
-      </p>
+        <div>
+          <h2 className="text-[15px] font-semibold text-nomos-text">After you connect</h2>
+          <ol className="mt-3 space-y-3">
+            {NEXT.map((step, i) => (
+              <li key={step} className="flex items-start gap-3 text-sm leading-relaxed text-nomos-muted">
+                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${NEXT_TONE[i]}`}>{i + 1}</span>
+                <span className="pt-0.5">{step}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </aside>
     </div>
   )
 }
+
+// Wallets known to work with Nomos's connections. No logos: initials only.
+const WALLETS = [
+  {
+    name: 'Paytaca',
+    url: 'https://www.paytaca.com/',
+    body: 'Phone app and Chrome extension. The vaults on mainnet were made with Paytaca over WizardConnect.',
+    connects: ['WizardConnect', 'WalletConnect'],
+    tone: 'bg-nomos-accent text-nomos-on-accent',
+  },
+  {
+    name: 'Cashonize',
+    url: 'https://cashonize.com/',
+    body: 'Web and desktop wallet with CashTokens support.',
+    connects: ['WizardConnect', 'WalletConnect'],
+    tone: 'bg-nomos-ok text-nomos-on-ok',
+  },
+]
+
+const NEXT = [
+  'Choose a daily limit, and optionally allowed addresses, an agent key and a rescue key.',
+  'Your wallet funds the vault. The rules become part of its contract.',
+  'Pay as usual. A payment over a rule is refused by every node.',
+]
+const NEXT_TONE = [
+  'bg-nomos-surface-raised text-nomos-text',
+  'bg-nomos-ok text-nomos-on-ok',
+  'bg-nomos-refuse text-white',
+]

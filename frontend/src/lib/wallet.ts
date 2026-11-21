@@ -7,12 +7,17 @@ import { WC_PROJECT_ID, appIconUrl } from './env'
 import { binToHex } from '@wizardconnect/core'
 import type { DappConnectionManager } from '@wizardconnect/dapp'
 import {
+  base64ToBin,
+  decodeCashAddress,
   hash160,
+  hash256,
   encodeCashAddress,
   encodeTransaction,
   binToHex as libBinToHex,
+  secp256k1,
   stringify,
 } from '@bitauth/libauth'
+import type { RecoveryId } from '@bitauth/libauth'
 
 // ── Active references (set by React layer) ────────────────
 let wcManager: DappConnectionManager | null = null
@@ -105,7 +110,8 @@ export async function connectWc2(): Promise<WalletConnection> {
   const { uri, approval } = await wc2SignClient.connect({
     requiredNamespaces: {
       bch: {
-        methods: ['bch_signTransaction', 'bch_getAddresses'],
+        // bch_signMessage lets Nomos read the public key (see requestWc2Pubkey).
+        methods: ['bch_getAddresses', 'bch_signTransaction', 'bch_signMessage'],
         chains: ['bch:bitcoincash'],
         events: ['accountsChanged'],
       },
@@ -148,7 +154,102 @@ export async function connectWc2(): Promise<WalletConnection> {
     console.warn('[nomos] bch_getAddresses not supported by this wallet')
   }
 
+  // Wallets share addresses, not public keys; ask for a signed message.
+  if (!pubkey) {
+    try {
+      pubkey = await requestWc2Pubkey(address)
+    } catch (err) {
+      console.warn('[nomos] the wallet did not share a public key:', err)
+    }
+  }
+
   return { provider: 'wc2', address, pubkey, connected: true }
+}
+
+// ── Public key from a signed message ──────────────────────
+// The vault contract needs the owner's public key. A BCH WalletConnect
+// wallet shares only addresses, but a recoverable message signature
+// ("Bitcoin Signed Message", the format BCH wallets use) carries the key:
+// recover it, and keep it only if it hashes to the connected address.
+
+const MESSAGE_MAGIC = '\x18Bitcoin Signed Message:\n'
+
+function signedMessageHash(message: string): Uint8Array {
+  const enc = new TextEncoder()
+  const magic = enc.encode(MESSAGE_MAGIC)
+  const body = enc.encode(message)
+  const length = body.length < 0xfd
+    ? Uint8Array.of(body.length)
+    : Uint8Array.of(0xfd, body.length & 0xff, body.length >> 8)
+  const all = new Uint8Array(magic.length + length.length + body.length)
+  all.set(magic, 0)
+  all.set(length, magic.length)
+  all.set(body, magic.length + length.length)
+  return hash256(all)
+}
+
+/** Recover the compressed public key behind a message signature for `address`. */
+export function recoverMessageSigner(message: string, signatureBase64: string, address: string): string {
+  const signature = base64ToBin(signatureBase64.trim())
+  if (signature.length !== 65) throw new Error('The wallet returned a signature in an unknown format')
+  const decoded = decodeCashAddress(address)
+  if (typeof decoded === 'string') throw new Error(decoded)
+  const expected = libBinToHex(decoded.payload)
+  const hash = signedMessageHash(message)
+  const compact = signature.slice(1)
+  const header = signature[0]
+  // The header names the recovery id (27-34); try it first, then the rest.
+  const first = header >= 27 && header <= 34 ? (header - 27) & 3 : 0
+  for (const id of [first, 0, 1, 2, 3]) {
+    const key = secp256k1.recoverPublicKeyCompressed(compact, id as RecoveryId, hash)
+    if (typeof key !== 'string' && libBinToHex(hash160(key)) === expected) return libBinToHex(key)
+  }
+  throw new Error('The signature does not match your address')
+}
+
+/** Ask the connected WalletConnect wallet to sign a message, and return its public key. */
+export async function requestWc2Pubkey(address: string): Promise<string> {
+  if (!wc2SignClient || !wc2Session) throw new Error('No active WalletConnect session')
+  const message = `Nomos: share the public key of ${address} to set up your vault. This moves no funds. ${new Date().toISOString()}`
+  const result = await wc2SignClient.request({
+    topic: wc2Session.topic,
+    chainId: 'bch:bitcoincash',
+    request: {
+      method: 'bch_signMessage',
+      params: { message, userPrompt: 'Share your public key with Nomos (no funds move)' },
+    },
+  })
+  const signature = typeof result === 'string' ? result : result?.signature
+  if (!signature) throw new Error('The wallet did not return a signature')
+  return recoverMessageSigner(message, signature, address)
+}
+
+/**
+ * Reopen the WalletConnect session saved by an earlier visit, so a reload
+ * keeps signing working. Returns false when there is none for this address.
+ */
+export async function restoreWc2Session(address: string): Promise<boolean> {
+  if (!WC_PROJECT_ID) return false
+  if (wc2SignClient && wc2Session) return true
+  const { SignClient } = await import('@walletconnect/sign-client')
+  const client = await SignClient.init({
+    projectId: WC_PROJECT_ID,
+    metadata: {
+      name: 'Nomos',
+      description: 'On-chain spend mandates for BCH',
+      url: window.location.origin,
+      icons: [appIconUrl()],
+    },
+  })
+  const body = address.split(':').pop()
+  const sessions = client.session.getAll()
+    .filter((s: any) => (s.namespaces?.bch?.accounts ?? []).some((a: string) => a.split(':').pop() === body))
+    .filter((s: any) => !s.expiry || s.expiry * 1000 > Date.now())
+  const session = sessions[sessions.length - 1]
+  if (!session) return false
+  wc2SignClient = client
+  wc2Session = session
+  return true
 }
 
 // ── Signing ───────────────────────────────────────────────

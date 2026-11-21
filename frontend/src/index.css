@@ -3,47 +3,52 @@
 @tailwind utilities;
 
 /* ── Tokens ───────────────────────────────────────────────────
-   Neutral greys plus two signal colours: green for a payment that
-   went through, red for a refusal or an error. "accent" is the ink
-   colour used for primary buttons and links, not a hue. */
+   The vault palette, shared with the landing page: a vault-green ground,
+   chalk ink, Bitcoin Cash green for a payment that went through, red for
+   a refusal or an error, and saffron ("accent") for the rule itself and
+   the main action. Text on saffron is always the dark ink. */
 :root {
   color-scheme: dark;
-  --nomos-bg: 15 14 14;
-  --nomos-bg-deep: 21 20 20;
-  --nomos-surface: 24 23 23;
-  --nomos-surface-raised: 34 33 33;
-  --nomos-border: 255 255 255;
-  --nomos-border-bright: 255 255 255;
-  --nomos-accent: 240 240 238;
-  --nomos-ok: 74 196 128;
-  --nomos-refuse: 244 112 103;
-  --nomos-pending: 150 150 146;
-  --nomos-text: 240 240 238;
-  --nomos-muted: 150 150 146;
-  --nomos-muted-bright: 190 190 186;
-  --nomos-on-accent: 15 14 14;
-  --line: rgb(255 255 255 / 0.08);
-  --line-strong: rgb(255 255 255 / 0.14);
+  --nomos-bg: 11 29 23;
+  --nomos-bg-deep: 8 22 17;
+  --nomos-surface: 17 40 32;
+  --nomos-surface-raised: 26 54 43;
+  --nomos-border: 234 242 236;
+  --nomos-border-bright: 234 242 236;
+  --nomos-accent: 244 196 48;
+  --nomos-focus: 244 196 48;
+  --nomos-ok: 10 193 142;
+  --nomos-refuse: 255 106 92;
+  --nomos-pending: 147 168 156;
+  --nomos-text: 234 242 236;
+  --nomos-muted: 147 168 156;
+  --nomos-muted-bright: 196 212 203;
+  --nomos-on-accent: 11 29 23;
+  --nomos-on-ok: 11 29 23;
+  --line: rgb(234 242 236 / 0.08);
+  --line-strong: rgb(234 242 236 / 0.15);
 }
 
 :root[data-theme='light'] {
   color-scheme: light;
-  --nomos-bg: 248 248 246;
-  --nomos-bg-deep: 242 242 240;
+  --nomos-bg: 238 243 239;
+  --nomos-bg-deep: 230 237 232;
   --nomos-surface: 255 255 255;
-  --nomos-surface-raised: 243 243 241;
-  --nomos-border: 17 17 17;
-  --nomos-border-bright: 17 17 17;
-  --nomos-accent: 17 17 17;
-  --nomos-ok: 21 128 61;
-  --nomos-refuse: 196 43 28;
-  --nomos-pending: 110 110 106;
-  --nomos-text: 17 17 17;
-  --nomos-muted: 110 110 106;
-  --nomos-muted-bright: 64 64 62;
-  --nomos-on-accent: 255 255 255;
-  --line: rgb(17 17 17 / 0.08);
-  --line-strong: rgb(17 17 17 / 0.14);
+  --nomos-surface-raised: 228 236 231;
+  --nomos-border: 11 29 23;
+  --nomos-border-bright: 11 29 23;
+  --nomos-accent: 244 196 48;
+  --nomos-focus: 168 124 0;
+  --nomos-ok: 6 122 89;
+  --nomos-refuse: 194 49 30;
+  --nomos-pending: 78 99 90;
+  --nomos-text: 11 29 23;
+  --nomos-muted: 78 99 90;
+  --nomos-muted-bright: 40 58 50;
+  --nomos-on-accent: 11 29 23;
+  --nomos-on-ok: 255 255 255;
+  --line: rgb(11 29 23 / 0.09);
+  --line-strong: rgb(11 29 23 / 0.16);
 }
 
 @layer base {
@@ -60,7 +65,12 @@
   }
 
   ::selection {
-    background: rgb(var(--nomos-text) / 0.15);
+    background: rgb(var(--nomos-accent) / 0.35);
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--nomos-focus));
+    outline-offset: 2px;
   }
 
   @keyframes fadeUp {
@@ -128,17 +138,17 @@
 
   /* ── Buttons ─────────────────────────────────────────────── */
   .btn-primary {
-    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-[15px] font-semibold transition-opacity duration-150;
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full px-5 py-2.5 text-[15px] font-semibold transition-shadow duration-150;
     background: rgb(var(--nomos-accent));
     color: rgb(var(--nomos-on-accent));
   }
-  .btn-primary:hover { opacity: 0.88; }
+  .btn-primary:hover { box-shadow: 0 0 0 4px rgb(var(--nomos-accent) / 0.25); }
   .btn-primary:disabled { @apply cursor-not-allowed opacity-30; }
 
   .btn-ghost,
   .btn-secondary,
   .btn-danger {
-    @apply inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg bg-nomos-surface px-4 py-2 text-sm font-medium text-nomos-text transition-colors duration-150;
+    @apply inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-full bg-nomos-surface px-4 py-2 text-sm font-medium text-nomos-text transition-colors duration-150;
     border: 1px solid var(--line-strong);
   }
   .btn-ghost:hover,
@@ -175,7 +185,11 @@
     @apply tabular-nums;
   }
   .page-title {
-    @apply text-2xl font-semibold tracking-tight text-nomos-text;
+    @apply text-[1.75rem] leading-tight text-nomos-text sm:text-[2rem];
+    font-family: Archivo, Inter, system-ui, sans-serif;
+    font-stretch: 112%;
+    font-weight: 800;
+    letter-spacing: -0.015em;
   }
 
   /* ── Inputs ──────────────────────────────────────────────── */
@@ -185,7 +199,8 @@
     border: 1px solid var(--line-strong);
   }
   .input:focus {
-    border-color: rgb(var(--nomos-text) / 0.5);
+    border-color: rgb(var(--nomos-focus));
+    box-shadow: 0 0 0 3px rgb(var(--nomos-accent) / 0.18);
   }
 
   /* ── Motion ──────────────────────────────────────────────── */
@@ -430,6 +445,64 @@
   transform: none;
 }
 
+/* Coins: each payment floats above the bar, then drops into it. */
+.coin {
+  position: absolute;
+  top: -84px;
+  width: 44px;
+  height: 44px;
+  margin-left: -22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: #063d2c;
+  background: radial-gradient(circle at 32% 28%, #8af7d2 0%, #1fd6a0 36%, #0aae7c 68%, #07805c 100%);
+  box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.18), inset 0 2px 0 rgb(255 255 255 / 0.4), 0 12px 18px -8px rgb(0 0 0 / 0.5);
+  z-index: 3;
+  transition: top 0.55s cubic-bezier(0.55, 0, 0.9, 0.45), transform 0.55s cubic-bezier(0.55, 0, 0.9, 0.45), opacity 0.35s ease 0.25s;
+}
+.coin::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 1.5px solid rgb(6 61 44 / 0.35);
+}
+@media (min-width: 640px) {
+  .coin { width: 50px; height: 50px; margin-left: -25px; font-size: 12px; }
+}
+.coin.is-floating { animation: coinBob 2.6s ease-in-out infinite; }
+.coin.coin-delay-1.is-floating { animation-delay: -0.9s; }
+.coin.coin-delay-2.is-floating { animation-delay: -1.7s; }
+@keyframes coinBob {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -6px; }
+}
+/* Into the bar: the coin falls to the bar's middle and melts into its segment. */
+.coin.is-dropped {
+  top: 8px;
+  transform: scale(0.45);
+  opacity: 0;
+}
+/* The over-limit coin falls onto the limit line ... */
+.coin-over { left: 100%; }
+.coin-over.is-hitting { top: -40px; }
+/* ... and bounces off it, coming to rest past the bar with a red ring. */
+.coin-over.is-bounced {
+  animation: coinBounceOff 0.85s cubic-bezier(0.25, 0.7, 0.35, 1) forwards;
+  box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.18), 0 0 0 3px rgb(var(--l-refuse)), 0 12px 18px -8px rgb(0 0 0 / 0.5);
+}
+@keyframes coinBounceOff {
+  0% { top: -40px; left: 100%; transform: rotate(0deg); }
+  38% { top: -78px; left: calc(100% + 26px); transform: rotate(24deg); }
+  100% { top: 6px; left: calc(110% + 34px); transform: rotate(14deg); }
+}
+
 /* ── BCH BLAZE strip (every page) ─────────────────────────── */
 .blaze-strip {
   background: #f4c430;
@@ -456,7 +529,16 @@
 }
 
 .spent-meter-fill {
-  transition: width 0.5s ease-out, background-color 0.3s ease;
+  transition: width 0.5s ease-out, left 0.5s ease-out, background-color 0.3s ease;
+}
+
+/* The payment being previewed: it fits (green stripes) or it does not (red hatch). */
+.meter-pending {
+  background: repeating-linear-gradient(-45deg, rgb(var(--nomos-ok) / 0.75) 0 5px, rgb(var(--nomos-ok) / 0.35) 5px 10px);
+}
+.meter-over {
+  background: repeating-linear-gradient(-45deg, rgb(var(--nomos-refuse) / 0.8) 0 5px, rgb(var(--nomos-refuse) / 0.3) 5px 10px);
+  box-shadow: 0 0 0 1.5px rgb(var(--nomos-refuse));
 }
 
 @keyframes toast-enter {
@@ -498,6 +580,7 @@
   .limit-seg,
   .limit-seg-label,
   .limit-row,
+  .coin,
   .limit-line.is-hit,
   .limit-seg.is-refused,
   .l-btn-rule,

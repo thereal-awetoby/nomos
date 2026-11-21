@@ -120,7 +120,7 @@ export default function Simulate() {
             aria-pressed={allowlistOn}
             onClick={() => setAllowlistOn((enabled) => !enabled)}
             className={`rounded-lg border hairline-strong px-3 py-1 text-sm font-medium transition-colors ${
-              allowlistOn ? 'bg-nomos-accent text-nomos-bg' : 'bg-nomos-surface text-nomos-muted'
+              allowlistOn ? 'bg-nomos-accent text-nomos-on-accent' : 'bg-nomos-surface text-nomos-muted'
             }`}
           >
             {allowlistOn ? 'On' : 'Off'}
