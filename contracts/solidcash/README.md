@@ -47,9 +47,10 @@ test seeds test tokens, exercises both swap directions, checks reserves and
 slippage, and verifies that only the admin can withdraw liquidity. The intended
 PUSD category and metadata are not verified or configured in this repository.
 
-It has no LP-share accounting or oracle, and is not deployed. See
-[`docs/BRIDGE_DESIGN.md`](../../docs/BRIDGE_DESIGN.md) for what a deployment
-would need.
+It has no LP-share accounting or oracle. `swap-demo.mjs` runs it on a live
+network with a test token minted for the run, not PUSD; its mainnet run is
+pending. See [`docs/BRIDGE_DESIGN.md`](../../docs/BRIDGE_DESIGN.md) for what a
+real PUSD pool would need.
 
 ## BCH hash-time-lock prototype
 
@@ -58,8 +59,9 @@ deadline. Deploy a fresh instance per swap. The receiver can claim before the
 deadline by revealing the preimage; the sender can refund at or after the
 deadline. The test exercises
 claim and refund paths, wrong preimage/signer refusals, and both sides of the
-claim/refund deadline. It runs only on the mock network; it is not an EVM
-contract, an other-chain contract, or a deployed cross-chain bridge. A genuine
+claim/refund deadline. `htlc-demo.mjs` runs it on a live network; its mainnet
+run is pending. It is not an EVM contract, an other-chain contract, or a
+cross-chain bridge. A genuine
 cross-chain swap needs a separately reviewed contract on the other chain and
 carefully ordered timeouts.
 
@@ -89,6 +91,36 @@ sats split into a 16,000-sat coin plus a few smaller ones. Unspent funds come ba
 The refused payment failed its `require` when the SDK evaluated the transaction
 in the BCH VM, so it was never broadcast. A node rejecting a signed over-limit
 spend is shown for the CashScript vault in the main README.
+
+### Hash-time-lock and StableSwap runs
+
+```bash
+npm run key                                       # a throwaway key: address and WIF, printed once
+PRIVATE_KEY=<WIF> npm run htlc:mainnet            # claimed with the secret, refunded after the deadline
+PRIVATE_KEY=<WIF> npm run swap:mainnet            # test token, liquidity, swaps both ways, withdrawal
+PRIVATE_KEY=<WIF> node keys.mjs sweep <your address> mainnet
+```
+
+On Windows, `set PRIVATE_KEY=<WIF>` first, then run the commands without the
+`PRIVATE_KEY=<WIF>` part.
+
+`htlc-demo.mjs` deploys two locks of 2,000 sats. The receiver is a second key
+derived from the wallet's, so one key signs both sides, and its coins are swept
+back at the end. The first lock refuses a wrong secret, then is claimed with
+the right one; the second refuses a claim after its deadline, then refunds the
+sender.
+
+`swap-demo.mjs` mints a test token (a new CashToken category with no value),
+deploys the pool, adds 10,000 sats and 1,000,000 tokens, swaps 1,000 sats in and
+the tokens back out, sees a quote one token too high and a withdrawal signed by
+another key refused, then withdraws the pool. The SDK keeps about 1,000 sats in
+the pool on that last withdrawal.
+
+Each run costs about 35,000 to 40,000 sats: network fees plus the state and
+event outputs SolidCash leaves in every contract it deploys. Fund one key with
+170,000 sats for both runs and sweep the rest back. `node htlc-demo.mjs mock`
+and `node swap-demo.mjs mock` run the same steps offline, and `npm test`
+includes them.
 
 ## Notes
 

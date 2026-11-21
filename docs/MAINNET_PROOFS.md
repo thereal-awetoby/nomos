@@ -83,7 +83,9 @@ invitations and checks them in the BCH VM, offline; see
 the template fix, created an earlier vault: genesis
 [`d73393f2…`](https://chipnet.chaingraph.cash/tx/d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66).
 
-## Not deployed
+## SolidCash hash-time-lock and StableSwap
 
-StableSwap and the BCH-only HashedTimeLock (`contracts/solidcash/`) have
-mock-network tests only. They are not deployed and the app does not use them.
+Both have mock-network tests and a script for a live run
+(`contracts/solidcash/htlc-demo.mjs` and `swap-demo.mjs`, see the
+[SolidCash README](../contracts/solidcash/README.md#hash-time-lock-and-stableswap-runs)).
+Their mainnet runs are pending. The app does not use either contract.

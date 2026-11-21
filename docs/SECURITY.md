@@ -5,7 +5,8 @@
 This document describes the trust boundaries of the current code. The
 CashScript and SolidCash vaults have run on mainnet (see `MAINNET_PROOFS.md`);
 as with any new contract, start with small amounts. StableSwap and
-HashedTimeLock have mock-network tests only and are not deployed. The PUSD and
+HashedTimeLock have mock-network tests and live-run scripts; their mainnet runs
+are pending. The PUSD and
 USDC swap locks real funds on two chains; each lock refunds its sender after
 its timeout.
 
@@ -49,8 +50,9 @@ Important limits:
 configured CashToken category. The implementation includes bounded arithmetic,
 token-container/reserve consistency checks, minimum-output checks, and
 admin-only liquidity operations. It has no LP-share accounting or oracle, the
-configured PUSD category and metadata are not verified, and it is not deployed.
-Its tests use seeded mock tokens on the BCH VM. The app does not use it.
+configured PUSD category and metadata are not verified, and its live-run script
+uses a test token minted for the run, not PUSD. Its tests use seeded mock
+tokens on the BCH VM. The app does not use it.
 
 ## BCH-side HTLC prototype
 
@@ -58,8 +60,8 @@ Its tests use seeded mock tokens on the BCH VM. The app does not use it.
 locked through its `lock` method, permits a SHA-256 preimage claim before a
 timestamp deadline, and permits the sender to refund at or after the deadline.
 It does not hold PUSD, inspect another chain, or prove an external transaction.
-The mock-network test covers claim/refund and refusal cases, but is not a
-public-network or cross-chain test. A cross-chain protocol would additionally
+The mock-network test and the live-run script cover claim/refund and refusal
+cases on Bitcoin Cash only; neither is a cross-chain test. A cross-chain protocol would additionally
 need a separately implemented and reviewed contract on the other chain,
 compatible hash semantics, safely ordered timeouts, monitoring, and recovery
 procedures. None is integrated here.

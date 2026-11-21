@@ -6,9 +6,12 @@
   "engines": { "node": ">=22" },
   "scripts": {
     "build": "solidc NomosVault.scash -o build/NomosVault.json && solidc StableSwap.scash -o build/StableSwap.json && solidc HashedTimeLock.scash -o build/HashedTimeLock.json",
-    "test": "npm run build && node vault.test.mjs && node swap.test.mjs && node htlc.test.mjs",
+    "test": "npm run build && node vault.test.mjs && node swap.test.mjs && node htlc.test.mjs && node htlc-demo.mjs mock && node swap-demo.mjs mock",
     "demo:chipnet": "npm run build && node demo.mjs chipnet",
-    "demo:mainnet": "npm run build && node demo.mjs mainnet"
+    "demo:mainnet": "npm run build && node demo.mjs mainnet",
+    "htlc:mainnet": "npm run build && node htlc-demo.mjs mainnet",
+    "swap:mainnet": "npm run build && node swap-demo.mjs mainnet",
+    "key": "node keys.mjs new"
   },
   "dependencies": {
     "@noble/curves": "^1.9.0",
