@@ -253,12 +253,12 @@ mnemonics. Each run continued from the vault the previous one left.
 
 | Run | Step | Chipnet transaction |
 |-----|------|---------------------|
-| #25 | Moved the first run's vault to the new owner, created the new vault, paid 3,000 sats (3,000 spent today) | pay: `130d19ad7b009126f56d1f4c969d5960bed47c4184b0aeb00f4fc5a315be5695` |
-| #26 | Paid 3,000 sats through an XO invitation (6,000 spent today) | `4236d8ac82930401c33e4eb639603580e6c8234e680dd9c0ad24307290a915d3` |
-| #26 | Paid 4,000 sats (10,000 spent today, the daily limit) | `ca1df8563f8ac631072d0d5f7c3944fd8d9aa0f0b74daaa851e046a95cdd0515` |
+| #25 | Moved the first run's vault to the new owner, created the new vault, paid 3,000 sats (3,000 spent today) | pay: [`130d19ad…`](https://chipnet.chaingraph.cash/tx/130d19ad7b009126f56d1f4c969d5960bed47c4184b0aeb00f4fc5a315be5695) |
+| #26 | Paid 3,000 sats through an XO invitation (6,000 spent today) | [`4236d8ac…`](https://chipnet.chaingraph.cash/tx/4236d8ac82930401c33e4eb639603580e6c8234e680dd9c0ad24307290a915d3) |
+| #26 | Paid 4,000 sats (10,000 spent today, the daily limit) | [`ca1df856…`](https://chipnet.chaingraph.cash/tx/ca1df8563f8ac631072d0d5f7c3944fd8d9aa0f0b74daaa851e046a95cdd0515) |
 | #26 | Tried to pay 5,000 more (15,000 > 10,000) | refused by the node; would have been `175db211…` |
 | #27 | Tried the same over-limit payment again | refused by the node: `mandatory-script-verify-flag-failed (Script failed an OP_VERIFY operation) (code 16)`; would have been `7feeef9b…` |
-| #27 | Rescue: the owner and the rescuer signed one invitation in two engines; 6,000 sats and the vault NFT went back to the owner | `ac6fa39439fd4486b6dae6984e2e727a47e909f3ec4986819cbb7434adcbbfb1` |
+| #27 | Rescue: the owner and the rescuer signed one invitation in two engines; 6,000 sats and the vault NFT went back to the owner | [`ac6fa394…`](https://chipnet.chaingraph.cash/tx/ac6fa39439fd4486b6dae6984e2e727a47e909f3ec4986819cbb7434adcbbfb1) |
 
 New vault: `bchtest:pwxmnnnj6jcemm59q5wkclr7e4m5zcsh6gl36thqpjp6h9860f6lchj2vfev8`,
 token category `cf211e3bbe6e4ca7d10dc2900d3aad95b3114f2bcdfd5c467fefbe7cfe680f5f`;

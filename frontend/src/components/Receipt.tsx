@@ -32,7 +32,7 @@ function receiptToText(receipt: ReceiptType, dateStr: string, timeStr: string): 
       : 'REFUSED'
   const kind = receipt.kind ?? 'payment'
   const recordLabel = kind === 'payment' ? 'Payment' : kind === 'rescue' ? 'Rescue sweep' : receipt.destinationLabel || 'Mandate update'
-  const amountLabel = kind === 'payment' ? 'Amount' : kind === 'rescue' ? 'Swept' : receipt.destinationLabel === 'Vault created' ? 'Initial deposit' : 'Vault value moved'
+  const amountLabel = kind === 'payment' ? 'Amount' : kind === 'rescue' ? 'Swept' : receipt.destinationLabel === 'Vault created' ? 'Initial deposit' : receipt.destinationLabel === 'Vault closed' ? 'Returned to wallet' : 'Vault value moved'
   return [
     `NOMOS RECEIPT | ${statusLabel}`,
     `Record: ${recordLabel}`,
@@ -80,8 +80,29 @@ export default function ReceiptCard({ receipt }: { receipt: ReceiptType }) {
       const html2canvas = (await import('html2canvas')).default
       const canvas = await html2canvas(cardRef.current, {
         scale: Math.min(window.devicePixelRatio || 2, 3),
-        backgroundColor: document.documentElement.dataset.theme === 'light' ? '#f7f6f2' : '#111418',
+        backgroundColor: document.documentElement.dataset.theme === 'light' ? '#EEF3EF' : '#0B1D17',
         ignoreElements: (element) => element.classList.contains('receipt-actions'),
+        // html2canvas cuts off text inside overflow-hidden cells (the right
+        // column of each row), so the copy it draws lets text overflow.
+        // Its copy also replays the card's fade-in from the start, which left
+        // every saved image faint; the copy is drawn fully shown instead.
+        onclone: (_doc, card) => {
+          card.style.animation = 'none'
+          card.style.opacity = '1'
+          card.style.transform = 'none'
+          card.querySelectorAll<HTMLElement>('.kv > :last-child, .truncate').forEach((el) => {
+            el.style.overflow = 'visible'
+            el.style.paddingBottom = '2px'
+          })
+          // It also spaces tabular figures oddly and draws line-through in the
+          // wrong place, so the copy uses plain figures and no strike line.
+          ;[card, ...Array.from(card.querySelectorAll<HTMLElement>('*'))].forEach((el) => {
+            el.style.fontVariantNumeric = 'normal'
+          })
+          card.querySelectorAll<HTMLElement>('.line-through').forEach((el) => {
+            el.style.textDecoration = 'none'
+          })
+        },
       })
       const link = document.createElement('a')
       const safeId = receipt.id.replace(/[^a-z0-9_-]/gi, '-')
@@ -151,7 +172,7 @@ export default function ReceiptCard({ receipt }: { receipt: ReceiptType }) {
   const remainingAfter = isRefused ? remainingBefore : Math.max(0, remainingBefore - receipt.amount)
   const isoTime = ts.toISOString().replace('T', ' ').slice(0, 19) + ' UTC'
   const heading = kind === 'mandate'
-    ? 'Rules updated'
+    ? (receipt.destinationLabel || 'Rules updated')
     : kind === 'rescue'
       ? 'Rescue'
       : isPaid
@@ -237,8 +258,8 @@ export default function ReceiptCard({ receipt }: { receipt: ReceiptType }) {
             <p className="mt-1 break-words font-mono text-xs leading-relaxed text-nomos-text">{receipt.onChainRefusal.nodeError}</p>
             {nodeErrorExplanation && <p className="mt-1 text-xs leading-relaxed text-nomos-muted">{nodeErrorExplanation}</p>}
             <p className="mt-1 text-xs text-nomos-muted">{receipt.onChainRefusal.network} · {new Date(receipt.onChainRefusal.checkedAt).toLocaleString()}</p>
-            <details className="mt-2">
-              <summary className="cursor-pointer text-sm text-nomos-muted">Signed transaction</summary>
+            <details className="group mt-2">
+              <summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm text-nomos-muted [&::-webkit-details-marker]:hidden"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 2.5L8 6l-3.5 3.5" /></svg>Signed transaction</summary>
               <p className="mt-1 break-all font-mono text-[11px] text-nomos-muted">txid {receipt.onChainRefusal.txid}</p>
               <p className="mt-2 break-all font-mono text-[11px] leading-relaxed text-nomos-muted">{receipt.onChainRefusal.rawTx}</p>
             </details>

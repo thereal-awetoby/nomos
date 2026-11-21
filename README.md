@@ -87,7 +87,7 @@ Light and dark themes, bottom tabs on phones, and keyboard shortcuts on desktop 
 | --- | --- |
 | **Mainnet Track** | The [live app](https://nomos.asgaya.org); WizardConnect in [`wallet.ts`](frontend/src/lib/wallet.ts); the banner with the repository and the CashTokens address on every page ([`Banner.tsx`](frontend/src/components/Banner.tsx)); [mainnet transactions](docs/MAINNET_PROOFS.md) |
 | **Best SolidCash Application** | [`contracts/solidcash/`](contracts/solidcash): the vault, its mainnet run and its checks |
-| **Decentralized Identity** | [`docs/IDENTITY_PROTOCOL.md`](docs/IDENTITY_PROTOCOL.md) and [`/identity`](https://nomos.asgaya.org/identity) |
+| **Decentralized Identity** | [`docs/IDENTITY_PROTOCOL.md`](docs/IDENTITY_PROTOCOL.md) and [`/identity`](https://nomos.asgaya.org/identity); a link made on mainnet to [check in one click](https://nomos.asgaya.org/identity?verify=npub1lx04uta90k4ytqnuxrd9pt7u9hjrnhv5zgpmr4jtm8afxdwhp37sc5u5rv) |
 | **Stablecoin Bridge** | [`SwapLock.cash`](contracts/SwapLock.cash), [`SwapLock.sol`](contracts/evm/SwapLock.sol), [`/bridge`](https://nomos.asgaya.org/bridge), and the [design and its tests](docs/BRIDGE_DESIGN.md) |
 | **Build with XO / Migrate to XO** | [`xo/README.md`](xo/README.md) and [`xo/REPRODUCE.md`](xo/REPRODUCE.md) |
 | **Community Choice** | Vote with EMBER2026 at `bitcoincash:zqz0cjlclvk6909mctktqsk77d7z6gev0cqejwlp4h` |
@@ -105,6 +105,7 @@ npm run build                                     # type check and production bu
 
 cd ../contracts/solidcash && npm ci && npm test   # SolidCash vault, StableSwap and HTLC in the BCH VM
 cd .. && npm ci && npm run test:swap              # SwapLock.cash, the PUSD side of the swap, in the BCH VM
+npm run test:close                                # closing a vault: only the owner, every coin back to the wallet
 cd evm && npm ci && npm test                      # SwapLock.sol, the USDC side, in a local EVM
 cd ../../xo && npm ci && npm test                 # XO template against CashScript, then through XO's engine
 npm run replay                                    # the chipnet runs' transactions, rebuilt and checked in the BCH VM

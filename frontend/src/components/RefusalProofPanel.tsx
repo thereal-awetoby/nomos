@@ -252,8 +252,8 @@ export default function RefusalProofPanel({
           <p className="break-words font-mono text-xs text-nomos-muted-bright">{proof.nodeError}</p>
           <p className="truncate font-mono text-xs text-nomos-muted" title={proof.txid}>txid {proof.txid}</p>
           <p className="text-xs text-nomos-muted">{proof.network} · {new Date(proof.checkedAt).toLocaleString()} · saved on this device</p>
-          <details>
-            <summary className="cursor-pointer text-sm text-nomos-muted">Signed transaction</summary>
+          <details className="group">
+            <summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm text-nomos-muted [&::-webkit-details-marker]:hidden"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 2.5L8 6l-3.5 3.5" /></svg>Signed transaction</summary>
             <p className="mt-2 break-all font-mono text-[11px] leading-relaxed text-nomos-muted">{proof.rawTx}</p>
           </details>
         </div>

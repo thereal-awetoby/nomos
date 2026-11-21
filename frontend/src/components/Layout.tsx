@@ -12,8 +12,8 @@ const PAGE_WIDTH: Record<string, string> = {
   '/rescue': 'max-w-2xl',
   '/activity': 'max-w-3xl',
   '/proof': 'max-w-3xl',
-  '/identity': 'max-w-3xl',
-  '/bridge': 'max-w-3xl',
+  '/identity': 'max-w-5xl',
+  '/bridge': 'max-w-5xl',
 }
 
 function BackBar() {

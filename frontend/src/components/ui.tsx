@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { IS_CHIPNET } from '../lib/network'
 import type { ReceiptKind, TxStatus } from '../lib/types'
 
 // ── Formatting ─────────────────────────────────────────────
@@ -114,6 +115,6 @@ export function Chip({ kind, children }: { kind: ChipKind; children?: ReactNode 
 }
 
 export function NetworkChip() {
-  const isChipnet = ((import.meta.env.VITE_BCH_NETWORK as string) || 'mainnet') === 'chipnet'
+  const isChipnet = IS_CHIPNET
   return <span className={`chip ${isChipnet ? 'chip-pending' : 'chip-neutral'}`}>{isChipnet ? 'Chipnet' : 'Mainnet'}</span>
 }

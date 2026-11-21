@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
 import { useToast } from '../components/Toast'
-import { Panel, KV, shortAddr } from '../components/ui'
+import { shortAddr } from '../components/ui'
 import { EXPLORER_TX_URL } from '../lib/contract'
 import { qrColors } from '../lib/theme'
 import {
@@ -47,6 +47,7 @@ import {
 } from '../lib/evm'
 import type { BaseLock } from '../lib/evm'
 import { WALLETCONNECT_ENABLED } from '../lib/env'
+import { IS_CHIPNET, switchNetwork } from '../lib/network'
 const HOUR = 3600
 const INITIATOR_LOCK_S = 24 * HOUR
 const RESPONDER_LOCK_S = 12 * HOUR
@@ -90,8 +91,14 @@ interface Step {
   label: string
   detail: string
   done: boolean
+  /** A lock exists but does not match the offer. */
+  warn?: boolean
+  tx?: { label: string; href: string }
   action?: { label: string; run: () => Promise<void>; disabled?: boolean }
 }
+
+const bchTx = (txid?: string) => (txid ? { label: 'View on Bitcoin Cash', href: `${EXPLORER_TX_URL}${txid}` } : undefined)
+const baseTx = (hash?: string) => (hash ? { label: 'View on Base', href: `${BASE_EXPLORER_TX}${hash}` } : undefined)
 export default function Bridge() {
   const { wallet } = useWallet()
   const { toast } = useToast()
@@ -133,6 +140,13 @@ export default function Bridge() {
   const [counterparty, setCounterparty] = useState('')
   const [openText, setOpenText] = useState('')
   const [balances, setBalances] = useState<{ pusd?: bigint; usdc?: bigint }>({})
+  const wide = useWide()
+  // Refund countdowns tick while the page is open.
+  const [clock, setClock] = useState(now)
+  useEffect(() => {
+    const id = setInterval(() => setClock(now()), 30_000)
+    return () => clearInterval(id)
+  }, [])
 
   useEffect(() => {
     if (!offer) return
@@ -329,20 +343,20 @@ export default function Bridge() {
     if (offer.direction === 'pusd-to-usdc') {
       if (role === 'initiator') {
         steps.push(
-          { label: `Lock ${pusdText(offer.pusdUnits)} on Bitcoin Cash`, detail: `Refundable to you after ${when(bch.refundAfter)}.`, done: pusdLocked, action: lockPusdStep(offer.initiator.bchPk) },
+          { label: `Lock ${pusdText(offer.pusdUnits)} on Bitcoin Cash`, detail: `Refundable to you after ${when(bch.refundAfter)}.`, done: pusdLocked, tx: bchTx(progress.bchLockTxid), action: lockPusdStep(offer.initiator.bchPk) },
           { label: 'Send the offer link to the counterparty', detail: 'They check your PUSD lock, then lock the USDC.', done: Boolean(baseLock) },
-          { label: `Counterparty locks ${usdcText(offer.usdcUnits)} on Base`, detail: baseLock ? (baseLockOk ? 'Lock found and matches the offer.' : 'A lock exists but does not match the offer. Do not claim; wait for your refund.') : 'Not locked yet.', done: baseLockOk },
+          { label: `Counterparty locks ${usdcText(offer.usdcUnits)} on Base`, detail: baseLock ? (baseLockOk ? 'Lock found and matches the offer.' : 'A lock exists but does not match the offer. Do not claim; wait for your refund.') : 'Not locked yet.', done: baseLockOk, warn: Boolean(baseLock) && !baseLockOk },
           {
-            label: 'Claim the USDC on Base', detail: `This reveals the secret on Base. Claim before ${when(base.refundAfter)}.`, done: baseDone,
+            label: 'Claim the USDC on Base', detail: `This reveals the secret on Base. Claim before ${when(base.refundAfter)}.`, done: baseDone, tx: baseTx(progress.baseClaimHash),
             action: { label: 'Claim', disabled: !baseLockOk || baseDone, run: () => run('Claiming USDC', async () => { needBase(); updateProgress({ baseClaimHash: await claimUsdc(`0x${secret}`, activeContract) }) }) },
           },
         )
       } else {
         steps.push(
           { label: `Check the ${pusdText(offer.pusdUnits)} lock on Bitcoin Cash`, detail: pusdLocked ? `Locked at ${shortAddr(bchLockAddress(offer), 10, 6)}.` : 'Not locked yet.', done: pusdLocked },
-          { label: `Lock ${usdcText(offer.usdcUnits)} on Base`, detail: `For ${shortAddr(base.recipient, 6, 4)}. Refundable to you after ${when(base.refundAfter)}.`, done: Boolean(baseLock), action: pusdLocked ? lockUsdcStep() : undefined },
+          { label: `Lock ${usdcText(offer.usdcUnits)} on Base`, detail: `For ${shortAddr(base.recipient, 6, 4)}. Refundable to you after ${when(base.refundAfter)}.`, done: Boolean(baseLock), tx: baseTx(progress.baseLockHash), action: pusdLocked ? lockUsdcStep() : undefined },
           {
-            label: 'Claim the PUSD on Bitcoin Cash', detail: 'Uses the secret the other side revealed when claiming the USDC.', done: Boolean(progress.bchClaimTxid),
+            label: 'Claim the PUSD on Bitcoin Cash', detail: 'Uses the secret the other side revealed when claiming the USDC.', done: Boolean(progress.bchClaimTxid), tx: bchTx(progress.bchClaimTxid),
             action: {
               label: 'Find secret and claim', disabled: !baseDone || Boolean(progress.bchClaimTxid),
               run: () => run('Claiming PUSD', async () => {
@@ -357,11 +371,11 @@ export default function Bridge() {
       }
     } else if (role === 'initiator') {
       steps.push(
-        { label: `Lock ${usdcText(offer.usdcUnits)} on Base`, detail: `For ${shortAddr(base.recipient, 6, 4)}. Refundable to you after ${when(base.refundAfter)}.`, done: Boolean(baseLock), action: lockUsdcStep() },
+        { label: `Lock ${usdcText(offer.usdcUnits)} on Base`, detail: `For ${shortAddr(base.recipient, 6, 4)}. Refundable to you after ${when(base.refundAfter)}.`, done: Boolean(baseLock), tx: baseTx(progress.baseLockHash), action: lockUsdcStep() },
         { label: 'Send the offer link to the counterparty', detail: 'They check your USDC lock, then lock the PUSD.', done: pusdLocked },
         { label: `Counterparty locks ${pusdText(offer.pusdUnits)} on Bitcoin Cash`, detail: pusdLocked ? 'Lock found at the address this offer defines.' : 'Not locked yet.', done: pusdLocked },
         {
-          label: 'Claim the PUSD on Bitcoin Cash', detail: `This reveals the secret on Bitcoin Cash. Claim before ${when(bch.refundAfter - BCH_TIME_LAG_S)}, then send the counterparty the updated offer link.`, done: Boolean(progress.bchClaimTxid),
+          label: 'Claim the PUSD on Bitcoin Cash', detail: `This reveals the secret on Bitcoin Cash. Claim before ${when(bch.refundAfter - BCH_TIME_LAG_S)}, then send the counterparty the updated offer link.`, done: Boolean(progress.bchClaimTxid), tx: bchTx(progress.bchClaimTxid),
           action: {
             label: 'Claim in Paytaca', disabled: !pusdLocked || Boolean(progress.bchClaimTxid),
             run: () => run('Claiming PUSD', async () => {
@@ -373,10 +387,10 @@ export default function Bridge() {
       )
     } else {
       steps.push(
-        { label: `Check the ${usdcText(offer.usdcUnits)} lock on Base`, detail: baseLock ? (baseLockOk ? 'Lock found and matches the offer.' : 'A lock exists but does not match the offer. Do not lock PUSD.') : 'Not locked yet.', done: baseLockOk },
-        { label: `Lock ${pusdText(offer.pusdUnits)} on Bitcoin Cash`, detail: `Refundable to you after ${when(bch.refundAfter)}.`, done: pusdLocked, action: baseLockOk ? lockPusdStep(offer.responder.bchPk) : undefined },
+        { label: `Check the ${usdcText(offer.usdcUnits)} lock on Base`, detail: baseLock ? (baseLockOk ? 'Lock found and matches the offer.' : 'A lock exists but does not match the offer. Do not lock PUSD.') : 'Not locked yet.', done: baseLockOk, warn: Boolean(baseLock) && !baseLockOk },
+        { label: `Lock ${pusdText(offer.pusdUnits)} on Bitcoin Cash`, detail: `Refundable to you after ${when(bch.refundAfter)}.`, done: pusdLocked, tx: bchTx(progress.bchLockTxid), action: baseLockOk ? lockPusdStep(offer.responder.bchPk) : undefined },
         {
-          label: 'Claim the USDC on Base', detail: 'Paste the transaction in which the other side claimed the PUSD; it contains the secret.', done: baseDone,
+          label: 'Claim the USDC on Base', detail: 'Paste the transaction in which the other side claimed the PUSD; it contains the secret.', done: baseDone, tx: baseTx(progress.baseClaimHash),
           action: {
             label: 'Find secret and claim', disabled: baseDone || !claimTxid.trim(),
             run: () => run('Claiming USDC', async () => {
@@ -427,148 +441,509 @@ export default function Bridge() {
       toast(`Could not copy ${what.toLowerCase()}`, 'error')
     }
   }
-  return (
-    <div className="page-enter space-y-4">
-      <h1 className="page-title">Swap PUSD and USDC</h1>
-      <p className="text-sm text-nomos-muted">
-        Trade PUSD on Bitcoin Cash for USDC on Base with another person. Both sides lock to the same secret, and each lock refunds if the other side never pays.
-      </p>
-      <Panel title="Wallets">
-        <KV label="Bitcoin Cash">{wallet?.connected ? shortAddr(wallet.address, 10, 6) : 'Not connected'}</KV>
-        <KV label="PUSD balance">{balances.pusd === undefined ? '—' : pusdText(balances.pusd)}</KV>
-        <KV label="Base">{baseAddr ? shortAddr(baseAddr, 6, 4) : 'Not connected'}</KV>
-        <KV label="USDC balance">{balances.usdc === undefined ? '—' : usdcText(balances.usdc)}</KV>
-        {!baseAddr && (
-          <div className={`mt-3 grid gap-2 ${WALLETCONNECT_ENABLED ? 'grid-cols-2' : 'grid-cols-1'}`}>
-            <button type="button" className="btn-ghost text-sm" disabled={!hasInjectedWallet() || Boolean(busy)} onClick={() => { void connectBase('injected') }}>Browser wallet</button>
-            {WALLETCONNECT_ENABLED && (
-              <button type="button" className="btn-ghost text-sm" disabled={Boolean(busy)} onClick={() => { void connectBase('walletconnect') }}>WalletConnect</button>
-            )}
-          </div>
-        )}
-        {!baseAddr && !hasInjectedWallet() && (
-          <p className="mt-2 text-sm text-nomos-muted">
-            For the Base side, open this page in a browser with a Base wallet such as MetaMask, Rabby or Coinbase Wallet{WALLETCONNECT_ENABLED ? ', or pair one with WalletConnect' : ''}.
-          </p>
-        )}
-        {wcUri && (
-          <div className="mt-3 flex flex-col items-center gap-2">
-            <canvas ref={qrRef} />
-            <button type="button" className="text-sm font-medium text-nomos-text hover:underline" onClick={() => { void copy(wcUri, 'Pairing link') }}>Copy pairing link</button>
-          </div>
-        )}
-        {myDetails && (
-          <button type="button" className="mt-3 text-sm font-medium text-nomos-text hover:underline" onClick={() => { void copy(myDetails, 'Swap details') }}>
-            Copy my swap details
-          </button>
-        )}
-      </Panel>
 
-      {!activeContract && (
-        <Panel title="Swap contract not on Base yet">
-          <p className="text-sm text-nomos-muted">It has to be deployed once. That costs a few cents of ETH on Base.</p>
-          <button type="button" className="btn-ghost mt-3 w-full text-sm" disabled={!baseAddr || Boolean(busy)} onClick={() => { void deploy() }}>Deploy SwapLock on Base</button>
-        </Panel>
+  // PUSD and USDC live on mainnet and Base only.
+  if (IS_CHIPNET) return <MainnetOnly />
+
+  const left = (t: number) => {
+    const s = t - clock
+    if (s <= 0) return 'Open now'
+    const h = Math.floor(s / HOUR)
+    const m = Math.floor((s % HOUR) / 60)
+    return h > 0 ? `in ${h} h ${m} min` : `in ${m} min`
+  }
+
+  // ── Create an offer ──────────────────────────────────────
+  const giving: Token = direction === 'pusd-to-usdc' ? 'PUSD' : 'USDC'
+  const getting: Token = giving === 'PUSD' ? 'USDC' : 'PUSD'
+  const amountOf = (t: Token) => (t === 'PUSD' ? pusdAmount : usdcAmount)
+  const setAmountOf = (t: Token) => (t === 'PUSD' ? setPusdAmount : setUsdcAmount)
+  const balanceOf = (t: Token): string | null => {
+    if (t === 'PUSD' && !wallet?.connected) return null
+    if (t === 'USDC' && !baseAddr) return null
+    const units = t === 'PUSD' ? balances.pusd : balances.usdc
+    if (units === undefined) return '…'
+    return t === 'PUSD' ? pusdText(units) : usdcText(units)
+  }
+  const rate = (() => {
+    const g = Number(amountOf(giving))
+    const r = Number(amountOf(getting))
+    return g > 0 && r > 0 ? `1 ${giving} = ${(r / g).toLocaleString('en-US', { maximumFractionDigits: 4 })} ${getting}` : null
+  })()
+  const blocker = !wallet?.connected
+    ? 'Connect your Bitcoin Cash wallet first.'
+    : !baseAddr
+      ? 'Connect a Base wallet first.'
+      : !contractAddr
+        ? 'Deploy the swap contract on Base first.'
+        : contractOk === false
+          ? 'The Base contract saved in this browser is not the Nomos SwapLock.'
+          : null
+
+  const cta: { label: string; to: string } | { label: string; run: () => void } | null = !wallet?.connected
+    ? { label: 'Connect Bitcoin Cash wallet', to: '/connect' }
+    : !baseAddr
+      ? hasInjectedWallet()
+        ? { label: 'Connect Base wallet', run: () => { void connectBase('injected') } }
+        : WALLETCONNECT_ENABLED
+          ? { label: 'Connect Base wallet', run: () => { void connectBase('walletconnect') } }
+          : null
+      : !contractAddr
+        ? { label: 'Deploy SwapLock on Base', run: () => { void deploy() } }
+        : contractOk === false
+          ? null
+          : { label: 'Create offer', run: () => { void createOffer() } }
+
+  // ── Offer progress ───────────────────────────────────────
+  const current = steps.findIndex((st) => !st.done)
+  const complete = steps.length > 0 && current === -1
+  const fromToken: Token = offer?.direction === 'usdc-to-pusd' ? 'USDC' : 'PUSD'
+  const toToken: Token = fromToken === 'PUSD' ? 'USDC' : 'PUSD'
+  const unitsOf = (t: Token) => (offer ? (t === 'PUSD' ? pusdText(offer.pusdUnits) : usdcText(offer.usdcUnits)) : '')
+
+  const walletsPanel = (
+    <section className="rounded-2xl border hairline bg-nomos-surface p-5" aria-label="Your wallets">
+      <h2 className="text-[15px] font-semibold text-nomos-text">Your wallets</h2>
+      <ul className="mt-3 space-y-3">
+        <li className="flex items-center gap-3">
+          <ChainDot chain="bch" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-nomos-text">Bitcoin Cash</p>
+            <p className="truncate font-mono text-xs text-nomos-muted">{wallet?.connected ? shortAddr(wallet.address, 10, 6) : 'Not connected'}</p>
+          </div>
+          {wallet?.connected && <p className="shrink-0 text-sm tabular-nums text-nomos-text">{balanceOf('PUSD')}</p>}
+        </li>
+        <li className="flex items-center gap-3">
+          <ChainDot chain="base" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-nomos-text">Base</p>
+            <p className="truncate font-mono text-xs text-nomos-muted">{baseAddr ? shortAddr(baseAddr, 6, 4) : 'Not connected'}</p>
+          </div>
+          {baseAddr && <p className="shrink-0 text-sm tabular-nums text-nomos-text">{balanceOf('USDC')}</p>}
+        </li>
+      </ul>
+
+      {!wallet?.connected && <Link to="/connect" className="btn-secondary mt-4 w-full text-sm">Connect Bitcoin Cash wallet</Link>}
+      {!baseAddr && (
+        <div className={`mt-3 grid gap-2 ${WALLETCONNECT_ENABLED ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          <button type="button" className="btn-secondary text-sm" disabled={!hasInjectedWallet() || Boolean(busy)} onClick={() => { void connectBase('injected') }}>Browser wallet</button>
+          {WALLETCONNECT_ENABLED && (
+            <button type="button" className="btn-secondary text-sm" disabled={Boolean(busy)} onClick={() => { void connectBase('walletconnect') }}>WalletConnect</button>
+          )}
+        </div>
       )}
-      {activeContract && (
-        <p className="text-xs text-nomos-muted">
-          Base contract <a className="underline" href={`${BASE_EXPLORER_ADDRESS}${activeContract}`} target="_blank" rel="noreferrer">{shortAddr(activeContract, 6, 4)}</a>
-          {contractOk === true && ' · code matches contracts/evm/SwapLock.sol'}
-          {contractOk === null && ' · checking its code…'}
+      {!baseAddr && !hasInjectedWallet() && (
+        <p className="mt-2 text-xs leading-relaxed text-nomos-muted">
+          For the Base side, open this page in a browser with MetaMask, Rabby or Coinbase Wallet{WALLETCONNECT_ENABLED ? ', or pair a phone wallet with WalletConnect' : ''}.
         </p>
       )}
-      {activeContract && contractOk === false && (
-        <Panel title="Not the Nomos swap contract">
-          <p className="text-sm text-nomos-refuse">
-            The Base contract {offer ? 'this offer names' : 'saved in this browser'} does not run the audited SwapLock code. Do not lock or claim anything with it.
-          </p>
-        </Panel>
+      {wcUri && (
+        <div className="mt-3 flex flex-col items-center gap-2 rounded-xl bg-white p-3">
+          <canvas ref={qrRef} />
+          <button type="button" className="text-sm font-semibold text-[#0b1d17] underline underline-offset-4" onClick={() => { void copy(wcUri, 'Pairing link') }}>Copy pairing link</button>
+        </div>
       )}
-      {!offer ? (
-        <>
-          <Panel title="Create an offer">
-            <div className="space-y-2">
-              <select className="input" value={direction} onChange={(e) => setDirection(e.target.value as SwapDirection)}>
-                <option value="pusd-to-usdc">I give PUSD, I get USDC</option>
-                <option value="usdc-to-pusd">I give USDC, I get PUSD</option>
-              </select>
-              <div className="grid grid-cols-2 gap-2">
-                <input className="input" inputMode="decimal" placeholder="PUSD amount" value={pusdAmount} onChange={(e) => setPusdAmount(e.target.value)} />
-                <input className="input" inputMode="decimal" placeholder="USDC amount" value={usdcAmount} onChange={(e) => setUsdcAmount(e.target.value)} />
-              </div>
-              <textarea className="input min-h-[64px] font-mono text-sm" placeholder="Counterparty swap details (they copy them from this page)" value={counterparty} onChange={(e) => setCounterparty(e.target.value)} />
-              <button type="button" className="btn-primary w-full" disabled={!contractAddr || contractOk === false || Boolean(busy)} onClick={() => { void createOffer() }}>Create offer</button>
-              <p className="text-sm text-nomos-muted">Your lock lasts 24 hours and theirs 12, so you always claim first.</p>
-            </div>
-          </Panel>
-          <Panel title="Open an offer">
-            <div className="flex gap-2">
-              <input className="input" placeholder="Paste an offer link" value={openText} onChange={(e) => setOpenText(e.target.value)} />
-              <button type="button" className="btn-ghost shrink-0 text-sm" onClick={openOffer} disabled={!openText.trim()}>Open</button>
-            </div>
-          </Panel>
-        </>
-      ) : (
-        <>
-          <Panel title="Offer" right={<button type="button" className="text-sm font-medium text-nomos-text hover:underline" onClick={() => { void copy(shareLink, 'Offer link') }}>Copy link</button>}>
-            <KV label="Trade">{offer.direction === 'pusd-to-usdc' ? `${pusdText(offer.pusdUnits)} for ${usdcText(offer.usdcUnits)}` : `${usdcText(offer.usdcUnits)} for ${pusdText(offer.pusdUnits)}`}</KV>
-            <KV label="Secret hash">{offer.secretHash.slice(0, 16)}…</KV>
-            <KV label="PUSD lock address">{shortAddr(bchLockAddress(offer), 10, 6)}</KV>
-            <KV label="Your role">{role === 'initiator' ? 'Offer creator' : 'Counterparty'}</KV>
-            {secret && (
-              <button type="button" className="mt-2 text-sm text-nomos-muted hover:text-nomos-text" onClick={() => setRole(role === 'initiator' ? 'responder' : 'initiator')}>
-                Show the {role === 'initiator' ? 'counterparty' : 'offer creator'} steps
-              </button>
-            )}
-          </Panel>
 
-          <Panel title="Steps" right={<button type="button" className="text-sm font-medium text-nomos-text hover:underline" onClick={() => { void refresh() }}>Refresh</button>}>
-            <ol className="space-y-3">
-              {steps.map((step, i) => (
-                <li key={step.label} className="rounded-lg border hairline p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className={`text-[15px] font-medium ${step.done ? 'text-nomos-muted' : 'text-nomos-text'}`}>{i + 1}. {step.label}{step.done ? ' · done' : ''}</p>
-                      <p className="mt-1 text-sm leading-relaxed text-nomos-muted">{step.detail}</p>
-                    </div>
-                    {step.action && !step.done && (
-                      <button type="button" className="btn-ghost shrink-0 py-1.5 text-sm" disabled={step.action.disabled || Boolean(busy)} onClick={() => { void step.action!.run() }}>
-                        {step.action.label}
+      <button type="button" className="btn-primary mt-4 w-full" disabled={!myDetails} onClick={() => { if (myDetails) void copy(myDetails, 'Swap details') }}>
+        Copy my swap details
+      </button>
+      <p className="mt-2 text-xs leading-relaxed text-nomos-muted">
+        {myDetails
+          ? 'Send these to the other person so they can make you an offer. They hold your public key and Base address, nothing secret.'
+          : 'Connect both wallets to get the details another person needs to make you an offer.'}
+      </p>
+    </section>
+  )
+
+  const contractPanel = !activeContract ? (
+    <section className="rounded-2xl border-2 border-nomos-accent/70 bg-nomos-surface p-5">
+      <h2 className="text-[15px] font-semibold text-nomos-text">Swap contract not on Base yet</h2>
+      <p className="mt-1 text-sm text-nomos-muted">It has to be deployed once. That costs a few cents of ETH on Base.</p>
+      <button type="button" className="btn-primary mt-3 w-full text-sm" disabled={!baseAddr || Boolean(busy)} onClick={() => { void deploy() }}>Deploy SwapLock on Base</button>
+    </section>
+  ) : (
+    <section className={`rounded-2xl border p-4 text-sm ${contractOk === false ? 'border-nomos-refuse/50 bg-nomos-refuse/10' : 'hairline bg-nomos-surface'}`}>
+      <p className="flex items-center gap-2 text-nomos-text">
+        <span className={`h-2 w-2 shrink-0 rounded-full ${contractOk === true ? 'bg-nomos-ok' : contractOk === false ? 'bg-nomos-refuse' : 'bg-nomos-pending'}`} aria-hidden="true" />
+        Base contract{' '}
+        <a className="font-mono underline underline-offset-2" href={`${BASE_EXPLORER_ADDRESS}${activeContract}`} target="_blank" rel="noreferrer">{shortAddr(activeContract, 6, 4)}</a>
+      </p>
+      <p className={`mt-1 ${contractOk === false ? 'text-nomos-refuse' : 'text-nomos-muted'}`}>
+        {contractOk === true
+          ? 'Its code matches contracts/evm/SwapLock.sol.'
+          : contractOk === null
+            ? 'Checking its code…'
+            : `The contract ${offer ? 'this offer names' : 'saved in this browser'} does not run the SwapLock code. Do not lock or claim anything with it.`}
+      </p>
+    </section>
+  )
+
+  const howItWorks = (
+    <section className="rounded-2xl border hairline bg-nomos-surface p-5" aria-label="How the swap works">
+      <h2 className="text-[15px] font-semibold text-nomos-text">How it works</h2>
+      <ol className="mt-3 grid gap-4 sm:grid-cols-3">
+        {[
+          { title: 'You lock', body: 'Your coins go into a lock tied to a secret only you hold. Yours refunds after 24 hours.' },
+          { title: 'They lock', body: 'The other side checks your lock, then locks theirs to the same secret. Theirs refunds after 12.' },
+          { title: 'Both claim', body: 'Claiming reveals the secret, which lets the other side claim. You always claim first.' },
+        ].map((item, i) => (
+          <li key={item.title}>
+            <p className="flex items-center gap-2 text-sm font-semibold text-nomos-text">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-nomos-surface-raised text-xs font-bold" aria-hidden="true">{i + 1}</span>
+              {item.title}
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-nomos-muted">{item.body}</p>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+
+  const offerForm = (
+    <>
+      <section className="rounded-3xl border hairline bg-nomos-surface p-3 sm:p-4" aria-label="Create an offer">
+        <AmountField label="You send" token={giving} value={amountOf(giving)} onChange={setAmountOf(giving)} balance={balanceOf(giving)} />
+        <div className="relative z-10 -my-3 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setDirection((d) => (d === 'pusd-to-usdc' ? 'usdc-to-pusd' : 'pusd-to-usdc'))}
+            aria-label={`Switch to sending ${getting}`}
+            className="flex h-11 w-11 items-center justify-center rounded-full border-4 border-nomos-surface bg-nomos-surface-raised text-nomos-text transition-transform duration-300 hover:text-nomos-accent motion-reduce:transition-none"
+            style={{ transform: direction === 'usdc-to-pusd' ? 'rotate(180deg)' : 'none' }}
+          >
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M6 3v13M6 16l-3-3M6 16l3-3M14 17V4M14 4l-3 3M14 4l3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
+        <AmountField label="You receive" token={getting} value={amountOf(getting)} onChange={setAmountOf(getting)} balance={null} />
+        <p className="mt-3 min-h-[1.25rem] px-2 text-sm tabular-nums text-nomos-muted">{rate ?? 'You set both amounts; the other person accepts by locking.'}</p>
+
+        <div className="px-2 pb-1">
+          <label className="mt-3 block text-sm font-semibold text-nomos-text" htmlFor="swap-counterparty">Their swap details</label>
+          <textarea
+            id="swap-counterparty"
+            className="input mt-2 min-h-[72px] font-mono text-sm"
+            placeholder='{"bchPk":"02…","baseAddress":"0x…"}'
+            value={counterparty}
+            onChange={(e) => setCounterparty(e.target.value)}
+            spellCheck={false}
+          />
+          <p className="mt-1.5 text-xs leading-relaxed text-nomos-muted">The other person opens this page, connects both wallets and taps Copy my swap details.</p>
+
+          {cta && 'to' in cta ? (
+            <Link to={cta.to} className="btn-primary mt-4 min-h-[52px] w-full text-base">{cta.label}</Link>
+          ) : (
+            <button type="button" className="btn-primary mt-4 min-h-[52px] w-full text-base" disabled={!cta || Boolean(busy)} onClick={() => cta?.run()}>
+              {busy ? <><span className="spinner mr-2" aria-hidden="true" />{busy}…</> : cta?.label ?? 'Create offer'}
+            </button>
+          )}
+          {!cta && blocker && <p className="mt-2 text-center text-sm text-nomos-muted">{blocker}</p>}
+          {error && <p className="mt-2 text-sm text-nomos-refuse" role="alert">{error}</p>}
+        </div>
+      </section>
+
+      {!wide && walletsPanel}
+      {!wide && contractPanel}
+
+      <section className="rounded-2xl border hairline bg-nomos-surface p-5" aria-label="Open an offer">
+        <label htmlFor="swap-open" className="text-[15px] font-semibold text-nomos-text">Got an offer link?</label>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <input id="swap-open" className="input" placeholder="Paste the offer link" value={openText} onChange={(e) => setOpenText(e.target.value)} />
+          <button type="button" className="btn-secondary shrink-0 sm:w-32" onClick={openOffer} disabled={!openText.trim()}>Open offer</button>
+        </div>
+      </section>
+
+      {howItWorks}
+    </>
+  )
+
+  const timers = offer && (() => {
+    const bch = bchLockParams(offer)
+    const base = baseLockParams(offer)
+    const rows = [
+      { label: 'PUSD refund opens', at: bch.refundAfter + BCH_TIME_LAG_S },
+      { label: 'USDC refund opens', at: base.refundAfter },
+    ]
+    return (
+      <section className="rounded-2xl border hairline bg-nomos-surface p-5" aria-label="Time limits">
+        <h2 className="text-[15px] font-semibold text-nomos-text">Time limits</h2>
+        <p className="mt-1 text-xs leading-relaxed text-nomos-muted">Each lock can only be claimed before its refund opens.</p>
+        <ul className="mt-3 space-y-3 text-sm">
+          {rows.map((r) => (
+            <li key={r.label}>
+              <p className="flex justify-between gap-3">
+                <span className="text-nomos-muted">{r.label}</span>
+                <span className="tabular-nums font-semibold text-nomos-text">{left(r.at)}</span>
+              </p>
+              <p className="text-xs text-nomos-muted">{when(r.at)}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  })()
+
+  const transactions = txLinks.length > 0 && (
+    <section className="rounded-2xl border hairline bg-nomos-surface p-5" aria-label="Transactions">
+      <h2 className="text-[15px] font-semibold text-nomos-text">Transactions</h2>
+      <ul className="mt-3 space-y-2 text-sm">
+        {txLinks.map((t) => (
+          <li key={t.label} className="flex justify-between gap-3">
+            <span className="text-nomos-muted">{t.label}</span>
+            <a className="font-semibold text-nomos-text underline underline-offset-4" href={t.href} target="_blank" rel="noreferrer">View</a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+
+  const tracker = offer && (
+    <>
+      <section className="rounded-3xl border hairline bg-nomos-surface p-5 sm:p-6" aria-label="Offer">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <TradeSide token={fromToken} amount={unitsOf(fromToken)} />
+          <svg width="22" height="22" viewBox="0 0 20 20" fill="none" className="text-nomos-muted" aria-hidden="true">
+            <path d="M3 10h13M16 10l-4-4M16 10l-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <TradeSide token={toToken} amount={unitsOf(toToken)} />
+        </div>
+        <p className="mt-4 text-sm text-nomos-muted">
+          {role === 'initiator' ? 'You made this offer.' : 'You are the counterparty in this offer.'}
+          {secret && (
+            <button type="button" className="ml-2 font-semibold text-nomos-text underline underline-offset-4" onClick={() => setRole(role === 'initiator' ? 'responder' : 'initiator')}>
+              Show the {role === 'initiator' ? 'counterparty' : 'offer creator'} steps
+            </button>
+          )}
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button type="button" className="btn-primary min-h-[40px] px-4 text-sm" onClick={() => { void copy(shareLink, 'Offer link') }}>Copy offer link</button>
+          <button type="button" className="btn-ghost min-h-[40px] px-4 text-sm" onClick={() => { void refresh() }}>Refresh</button>
+        </div>
+        <details className="mt-4 text-sm text-nomos-muted">
+          <summary className="cursor-pointer">Offer details</summary>
+          <dl className="mt-2 space-y-1.5">
+            <div className="flex justify-between gap-3"><dt>Secret hash</dt><dd className="font-mono text-nomos-text">{offer.secretHash.slice(0, 16)}…</dd></div>
+            <div className="flex justify-between gap-3"><dt>PUSD lock address</dt><dd className="font-mono text-nomos-text">{shortAddr(bchLockAddress(offer), 10, 6)}</dd></div>
+            <div className="flex justify-between gap-3"><dt>Created</dt><dd className="text-nomos-text">{when(offer.createdAt)}</dd></div>
+          </dl>
+        </details>
+      </section>
+
+      {complete && (
+        <section className="rounded-3xl border-2 border-nomos-ok/60 bg-nomos-ok/10 p-6" aria-live="polite">
+          <h2 className="font-display text-[1.6rem] font-extrabold leading-tight text-nomos-text" style={{ fontStretch: '112%' }}>Swap complete</h2>
+          <p className="mt-1.5 text-sm text-nomos-muted">Your side of the trade has been claimed. The links below show every transaction.</p>
+        </section>
+      )}
+
+      <section className="rounded-3xl border hairline bg-nomos-surface p-5 sm:p-6" aria-label="Steps">
+        <h2 className="text-[15px] font-semibold text-nomos-text">Progress</h2>
+        <ol className="mt-4">
+          {steps.map((st, i) => {
+            const isCurrent = i === current
+            return (
+              <li key={st.label} className="relative flex gap-4 pb-6 last:pb-0">
+                {i < steps.length - 1 && <span className={`absolute left-[15px] top-9 h-[calc(100%-2.25rem)] w-0.5 ${st.done ? 'bg-nomos-ok' : 'bg-nomos-surface-raised'}`} aria-hidden="true" />}
+                <span
+                  className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                    st.done
+                      ? 'bg-nomos-ok text-nomos-on-ok'
+                      : st.warn
+                        ? 'bg-nomos-refuse text-white'
+                        : isCurrent
+                          ? 'bg-nomos-accent text-nomos-on-accent ring-4 ring-nomos-accent/25'
+                          : 'bg-nomos-surface-raised text-nomos-muted'
+                  }`}
+                  aria-hidden="true"
+                >
+                  {st.done ? (
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  ) : st.warn ? '!' : i + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-[15px] font-semibold ${st.done || isCurrent ? 'text-nomos-text' : 'text-nomos-muted'}`}>
+                    {st.label}
+                    <span className="sr-only">{st.done ? ' (done)' : isCurrent ? ' (current step)' : ''}</span>
+                  </p>
+                  <p className={`mt-1 text-sm leading-relaxed ${st.warn ? 'text-nomos-refuse' : 'text-nomos-muted'}`}>{st.detail}</p>
+                  {st.tx && (
+                    <a href={st.tx.href} target="_blank" rel="noreferrer" className="mt-1.5 inline-block text-sm font-semibold text-nomos-text underline underline-offset-4">{st.tx.label}</a>
+                  )}
+                  {st.action && !st.done && (
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        className={`${isCurrent ? 'btn-primary' : 'btn-secondary'} min-h-[40px] px-4 text-sm`}
+                        disabled={st.action.disabled || Boolean(busy)}
+                        onClick={() => { void st.action!.run() }}
+                      >
+                        {st.action.label}
                       </button>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ol>
-            {offer.direction === 'usdc-to-pusd' && role === 'responder' && (
-              <input className="input mt-3 font-mono text-sm" placeholder="PUSD claim transaction ID from the other side" value={claimTxid} onChange={(e) => setClaimTxid(e.target.value)} />
-            )}
-            {busy && <p className="mt-3 text-sm text-nomos-muted-bright"><span className="spinner mr-2" />{busy}…</p>}
-            {error && <p className="mt-3 text-xs text-nomos-refuse">{error}</p>}
-          </Panel>
-
-          {refunds.length > 0 && (
-            <Panel title="Refunds">
-              {refunds.map((r) => (
-                <div key={r.label} className="flex items-center justify-between gap-3 py-1">
-                  <span className="text-sm text-nomos-text">{r.label}</span>
-                  <button type="button" className="btn-ghost py-1.5 text-sm" disabled={Boolean(busy)} onClick={() => { void r.action!.run() }}>{r.action!.label}</button>
+                    </div>
+                  )}
                 </div>
-              ))}
-            </Panel>
-          )}
+              </li>
+            )
+          })}
+        </ol>
+        {offer.direction === 'usdc-to-pusd' && role === 'responder' && (
+          <div className="mt-5">
+            <label htmlFor="swap-claim-txid" className="text-sm font-semibold text-nomos-text">PUSD claim transaction from the other side</label>
+            <input id="swap-claim-txid" className="input mt-2 font-mono text-sm" placeholder="Transaction ID" value={claimTxid} onChange={(e) => setClaimTxid(e.target.value)} spellCheck={false} />
+          </div>
+        )}
+        {busy && <p className="mt-4 text-sm text-nomos-muted-bright"><span className="spinner mr-2" />{busy}…</p>}
+        {error && <p className="mt-4 text-sm text-nomos-refuse" role="alert">{error}</p>}
+      </section>
 
-          {txLinks.length > 0 && (
-            <Panel title="Transactions">
-              {txLinks.map((t) => (
-                <KV key={t.label} label={t.label}><a className="underline" href={t.href} target="_blank" rel="noreferrer">view</a></KV>
-              ))}
-            </Panel>
-          )}
-
-          <button type="button" className="btn-ghost w-full text-sm" onClick={() => setParams({})}>New offer</button>
-        </>
+      {refunds.length > 0 && (
+        <section className="rounded-2xl border-2 border-nomos-accent/70 bg-nomos-surface p-5" aria-label="Refunds">
+          <h2 className="text-[15px] font-semibold text-nomos-text">Refund available</h2>
+          {refunds.map((r) => (
+            <div key={r.label} className="mt-3 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-nomos-text">{r.label}</p>
+                <p className="text-sm text-nomos-muted">{r.detail}</p>
+              </div>
+              <button type="button" className="btn-primary min-h-[40px] shrink-0 px-4 text-sm" disabled={Boolean(busy)} onClick={() => { void r.action!.run() }}>{r.action!.label}</button>
+            </div>
+          ))}
+        </section>
       )}
+
+      {!wide && <>{walletsPanel}{contractPanel}{timers}{transactions}</>}
+
+      <button type="button" className="btn-ghost w-full text-sm" onClick={() => setParams({})}>Start a new offer</button>
+    </>
+  )
+
+  return (
+    <div className="page-enter space-y-6">
+      <header>
+        <h1 className="page-title">Swap PUSD and USDC</h1>
+        <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-nomos-muted">
+          Trade PUSD on Bitcoin Cash for USDC on Base with one other person. Both sides lock to the same secret, and each lock refunds if the other side never pays.
+        </p>
+      </header>
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)] lg:items-start lg:gap-8">
+        <div className="min-w-0 space-y-5">
+          {offer ? tracker : offerForm}
+        </div>
+        {wide && (
+          <aside className="min-w-0 space-y-4">
+            {walletsPanel}
+            {contractPanel}
+            {timers}
+            {transactions}
+          </aside>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Pieces ─────────────────────────────────────────────────
+
+/** True at the two-column breakpoint (Tailwind lg). */
+function useWide(): boolean {
+  const query = '(min-width: 1024px)'
+  const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches)
+  useEffect(() => {
+    const m = window.matchMedia(query)
+    const on = () => setWide(m.matches)
+    m.addEventListener('change', on)
+    return () => m.removeEventListener('change', on)
+  }, [])
+  return wide
+}
+
+type Token = 'PUSD' | 'USDC'
+
+/** Chain marks are plain coloured discs: Bitcoin Cash green, Base blue. */
+function ChainDot({ chain }: { chain: 'bch' | 'base' }) {
+  return (
+    <span
+      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${chain === 'bch' ? 'bg-[#0AC18E] text-[#04261b]' : 'bg-[#2f6bff] text-white'}`}
+      aria-hidden="true"
+    >
+      {chain === 'bch' ? 'BCH' : 'B'}
+    </span>
+  )
+}
+
+function TokenBadge({ token }: { token: Token }) {
+  const pusd = token === 'PUSD'
+  return (
+    <span className="inline-flex shrink-0 items-center gap-2 rounded-full border hairline-strong bg-nomos-surface py-1.5 pl-1.5 pr-3">
+      <span className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-extrabold ${pusd ? 'bg-[#0AC18E] text-[#04261b]' : 'bg-[#2f6bff] text-white'}`} aria-hidden="true">
+        {pusd ? 'P' : 'U'}
+      </span>
+      <span className="text-left leading-tight">
+        <span className="block text-sm font-bold text-nomos-text">{token}</span>
+        <span className="block text-[11px] text-nomos-muted">on {pusd ? 'Bitcoin Cash' : 'Base'}</span>
+      </span>
+    </span>
+  )
+}
+
+function AmountField({
+  label, token, value, onChange, balance,
+}: {
+  label: string
+  token: Token
+  value: string
+  onChange: (value: string) => void
+  balance: string | null
+}) {
+  const id = `swap-amount-${label.replace(/\s+/g, '-').toLowerCase()}`
+  return (
+    <div className="rounded-2xl bg-nomos-surface-raised p-4 focus-within:ring-2 focus-within:ring-nomos-accent">
+      <div className="flex items-center justify-between gap-3 text-sm text-nomos-muted">
+        <label htmlFor={id}>{label}</label>
+        {balance && <span className="tabular-nums">Balance {balance}</span>}
+      </div>
+      <div className="mt-2 flex items-center gap-3">
+        <input
+          id={id}
+          className="min-w-0 flex-1 bg-transparent font-display text-[2rem] font-extrabold tabular-nums text-nomos-text outline-none placeholder:text-nomos-muted/50"
+          style={{ fontStretch: '112%' }}
+          inputMode="decimal"
+          placeholder="0.00"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          autoComplete="off"
+        />
+        <TokenBadge token={token} />
+      </div>
+    </div>
+  )
+}
+
+function TradeSide({ token, amount }: { token: Token; amount: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <ChainDot chain={token === 'PUSD' ? 'bch' : 'base'} />
+      <div>
+        <p className="font-display text-[1.5rem] font-extrabold leading-none tabular-nums text-nomos-text" style={{ fontStretch: '112%' }}>{amount}</p>
+        <p className="mt-1 text-xs text-nomos-muted">on {token === 'PUSD' ? 'Bitcoin Cash' : 'Base'}</p>
+      </div>
+    </div>
+  )
+}
+
+function MainnetOnly() {
+  return (
+    <div className="page-enter mx-auto max-w-xl space-y-4">
+      <h1 className="page-title">Swap PUSD and USDC</h1>
+      <section className="rounded-2xl border-2 border-nomos-accent/70 bg-nomos-surface p-6">
+        <h2 className="font-display text-[1.35rem] font-extrabold leading-tight text-nomos-text" style={{ fontStretch: '112%' }}>The swap runs on mainnet</h2>
+        <p className="mt-1.5 text-sm leading-relaxed text-nomos-muted">
+          PUSD lives on Bitcoin Cash mainnet and USDC on Base, so there is nothing to swap on chipnet. Your chipnet vault stays here for when you switch back.
+        </p>
+        <button type="button" onClick={() => switchNetwork('mainnet')} className="btn-primary mt-4">Switch to mainnet</button>
+      </section>
     </div>
   )
 }

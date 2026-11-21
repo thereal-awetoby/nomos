@@ -1,3 +1,4 @@
+import { networkKey } from './network'
 export type RejectionKind = 'script-failure' | 'missing-inputs' | 'node-rejection'
 
 /** A node's rejection is a point-in-time observation, never chain confirmation. */
@@ -14,7 +15,7 @@ export interface RefusalProof {
   checkedAt: number
 }
 
-const STORAGE_KEY = 'nomos:local-refusal-proofs'
+const STORAGE_KEY = networkKey('nomos:local-refusal-proofs')
 const MAX_SAVED_PROOFS = 12
 const MAX_RAW_TX_CHARS = 200_000
 const PROOFS_UPDATED_EVENT = 'nomos:proofs-updated'

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
 import { useToast } from './Toast'
-import { shortAddr } from './ui'
+import { fmtBch, shortAddr } from './ui'
+import { AddFundsDialog, useWalletBalance } from './AddFunds'
 
 // ── The connected wallet, in the header ─────────────────────
 // Shows the address; opens a small panel to copy it or disconnect.
@@ -18,7 +19,11 @@ export default function WalletChip() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [open, setOpen] = useState(false)
+  const [adding, setAdding] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const { sats, refresh } = useWalletBalance(wallet?.connected ? wallet.address : undefined)
+
+  useEffect(() => { if (open) void refresh() }, [open, refresh])
 
   useEffect(() => { setOpen(false) }, [pathname])
 
@@ -82,13 +87,20 @@ export default function WalletChip() {
           className="absolute right-0 top-11 z-50 w-72 rounded-2xl border hairline-strong bg-nomos-surface p-4 shadow-2xl"
         >
           <p className="text-xs text-nomos-muted">Connected with {PROVIDER_NAME[wallet.provider] ?? 'a wallet'}</p>
-          <p className="mt-2 break-all rounded-lg bg-nomos-surface-raised p-2.5 font-mono text-xs leading-relaxed text-nomos-text">{wallet.address}</p>
+          <p className="mt-2 font-display text-2xl font-extrabold tabular-nums text-nomos-text" style={{ fontStretch: '112%' }}>
+            {sats === null ? '…' : fmtBch(sats)} <span className="text-sm font-semibold text-nomos-muted">BCH</span>
+          </p>
+          <button type="button" onClick={() => { setOpen(false); setAdding(true) }} className="btn-primary mt-2 min-h-[38px] w-full text-sm">
+            Add BCH
+          </button>
+          <p className="mt-3 break-all rounded-lg bg-nomos-surface-raised p-2.5 font-mono text-xs leading-relaxed text-nomos-text">{wallet.address}</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button type="button" onClick={() => { void copy() }} className="btn-secondary min-h-[38px] text-sm">Copy</button>
             <button type="button" onClick={() => { void leave() }} className="btn-danger min-h-[38px] text-sm">Disconnect</button>
           </div>
         </div>
       )}
+      {adding && <AddFundsDialog address={wallet.address} onClose={() => { setAdding(false); void refresh() }} />}
     </div>
   )
 }

@@ -18,7 +18,7 @@ Publish the contents of `frontend/dist`.
 
 | Variable | Value | Notes |
 | --- | --- | --- |
-| `VITE_BCH_NETWORK` | `mainnet` | The default. `chipnet` only for testing. |
+| `VITE_BCH_NETWORK` | `mainnet` | The default network. Visitors can switch to chipnet, the test network, from the header; the choice is kept in their browser. |
 | `VITE_WC_PROJECT_ID` | a WalletConnect (Reown) project ID | Optional. Without it the WalletConnect buttons are hidden; Paytaca over WizardConnect and browser wallets on Base still work. |
 
 Vite reads these at build time, so set them before `npm run build` (in the host's build settings, or in `frontend/.env`). Changing them later needs a new build.
