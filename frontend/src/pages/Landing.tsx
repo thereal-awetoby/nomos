@@ -2,6 +2,9 @@ import { Link } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
 import { useToast } from '../components/Toast'
 import ThemeToggle from '../components/ThemeToggle'
+import BlazeStrip from '../components/BlazeStrip'
+import LimitDemo from '../components/LimitDemo'
+import NomosMark from '../components/NomosMark'
 import { shortAddr } from '../components/ui'
 import {
   CONTRACT_URL,
@@ -87,38 +90,22 @@ const FAQ = [
   },
 ]
 
-function Eyebrow({ children }: { children: string }) {
-  return <p className="text-sm font-medium text-nomos-muted">/ {children}</p>
-}
+// What each step's marker says about the payment: neutral, paid, the rule, refused.
+const STEP_TONE = [
+  'border-land-ink/30 text-land-ink',
+  'border-land-pass bg-land-pass text-land-on-pass',
+  'border-land-rule bg-land-rule text-[#0b1d17]',
+  'border-land-refuse bg-land-refuse text-white',
+]
 
-/** Illustration of the app's rules card and a refusal, with example numbers. */
-function RulesIllustration() {
+const XO_RESULTS_URL = `${GITHUB_URL}/blob/main/xo/REPRODUCE.md#results`
+
+function Wordmark() {
   return (
-    <div className="mx-auto w-full max-w-sm" aria-hidden="true">
-      <div className="card p-5 shadow-xl">
-        <div className="flex items-baseline justify-between">
-          <p className="text-[15px] font-semibold text-nomos-text">Rules</p>
-          <p className="text-xs text-nomos-muted">Example</p>
-        </div>
-        <div className="mt-3 flex items-baseline justify-between text-sm">
-          <span className="text-nomos-muted">Spent today</span>
-          <span className="tabular-nums text-nomos-text">2,000 / 5,000 sats</span>
-        </div>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-nomos-surface-raised">
-          <div className="h-2 w-2/5 rounded-full bg-nomos-text" />
-        </div>
-        <div className="mt-3 divide-hairline border-t hairline">
-          <div className="kv"><span>Daily limit</span><span>5,000 sats</span></div>
-          <div className="kv"><span>Allowlist</span><span>On · 2 of 5</span></div>
-          <div className="kv"><span>Agent key</span><span>Set</span></div>
-        </div>
-      </div>
-      <div className="card mt-3 p-5 shadow-xl" style={{ borderColor: 'rgb(var(--nomos-refuse) / 0.45)' }}>
-        <p className="text-lg font-semibold text-nomos-refuse">Refused</p>
-        <p className="mt-0.5 text-sm text-nomos-text">Pay 5,500 sats: over today's limit by 2,500</p>
-        <p className="mt-1 font-mono text-xs text-nomos-muted">Script failed an OP_VERIFY operation</p>
-      </div>
-    </div>
+    <span className="flex items-center gap-2.5 text-land-ink">
+      <NomosMark size={20} />
+      <span className="l-heading text-[21px]">Nomos</span>
+    </span>
   )
 }
 
@@ -140,122 +127,140 @@ export default function Landing() {
   }
 
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-40 border-b hairline bg-nomos-bg/95 backdrop-blur">
-        <nav aria-label="Main" className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4">
-          <Link to="/" className="text-lg font-semibold tracking-tight text-nomos-text">Nomos</Link>
-          <div className="hidden items-center gap-6 text-sm text-nomos-muted md:flex">
-            <a href="#how" className="hover:text-nomos-text">How it works</a>
-            <a href="#proof" className="hover:text-nomos-text">On mainnet</a>
-            <a href="#faq" className="hover:text-nomos-text">FAQ</a>
-            <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="hover:text-nomos-text">Source</a>
+    <div className="landing min-h-screen">
+      <BlazeStrip />
+
+      <header className="sticky top-0 z-40 border-b l-hair bg-land-ground/90 backdrop-blur">
+        <nav aria-label="Main" className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-4">
+          <Link to="/" aria-label="Nomos home"><Wordmark /></Link>
+          <div className="hidden items-center gap-7 text-[15px] text-land-muted md:flex">
+            <a href="#how" className="transition-colors hover:text-land-ink">How it works</a>
+            <a href="#proof" className="transition-colors hover:text-land-ink">On mainnet</a>
+            <a href="#faq" className="transition-colors hover:text-land-ink">FAQ</a>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />
-            <Link to={appTo} className="btn-primary min-h-[36px] px-4 py-1.5 text-sm">Open app</Link>
+            <Link to={appTo} className="l-btn-ink">Open app</Link>
           </div>
         </nav>
       </header>
 
       <main id="main-content">
-        {/* Hero */}
-        <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-14 pt-10 md:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] md:pb-20 md:pt-24">
-          <div>
-            <p className="flex items-center gap-2 text-sm text-nomos-muted">
-              <span className="h-2 w-2 rounded-full" style={{ background: 'rgb(var(--nomos-ok))' }} aria-hidden="true" />
-              Live on Bitcoin Cash mainnet
-            </p>
-            <h1 className="mt-4 text-4xl font-semibold leading-[1.08] tracking-tight text-nomos-text sm:text-5xl lg:text-[3.5rem]">
-              Spending rules for Bitcoin Cash that every node enforces.
-            </h1>
-            <p className="mt-5 max-w-xl text-lg leading-relaxed text-nomos-muted">
-              Keep BCH in a vault with a daily limit, an allowlist and an agent key. A payment that breaks the rules is rejected by the network, not just by an app.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link to={appTo} className="btn-primary px-6">Open the app</Link>
-              <a href="#how" className="btn-ghost min-h-[44px] px-6">How it works</a>
-              {DEMO_VIDEO_URL && (
-                <a href={DEMO_VIDEO_URL} target="_blank" rel="noreferrer" className="btn-ghost min-h-[44px] px-6">Watch the demo</a>
-              )}
+        {/* Hero: the headline, then the limit track playing out the rule. */}
+        <section className="mx-auto max-w-6xl px-4 pb-16 pt-12 md:pb-24 md:pt-20">
+          <div className="grid gap-x-12 gap-y-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,4fr)] lg:items-end">
+            <div>
+              <p className="inline-flex items-center gap-2 rounded-full border l-hair px-3 py-1 text-[13px] font-medium text-land-muted">
+                <span className="h-2 w-2 rounded-full bg-land-pass" aria-hidden="true" />
+                Live on Bitcoin Cash mainnet
+              </p>
+              <h1 className="l-display mt-6 text-[2.6rem] text-land-ink sm:text-[3.6rem] lg:text-[4.6rem]">
+                Spending rules for Bitcoin Cash that every node enforces.
+              </h1>
             </div>
-            <p className="mt-6 text-sm text-nomos-muted">
-              Works with Paytaca. No account, no sign-up, no Nomos fees.
-            </p>
+            <div className="lg:pb-2">
+              <p className="max-w-md text-[17px] leading-relaxed text-land-muted">
+                Keep BCH in a vault with a daily limit, an allowlist and an agent key. A payment that breaks the rules is rejected by the network, not just by an app.
+              </p>
+              <div className="mt-7 flex flex-wrap gap-3">
+                <Link to={appTo} className="l-btn-rule">Open the app</Link>
+                {DEMO_VIDEO_URL && (
+                  <a href={DEMO_VIDEO_URL} target="_blank" rel="noreferrer" className="l-btn-line">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" /></svg>
+                    Watch the demo
+                  </a>
+                )}
+              </div>
+              <p className="mt-5 text-sm text-land-muted">Works with Paytaca. No account, no sign-up, no Nomos fees.</p>
+            </div>
           </div>
-          <RulesIllustration />
+          <div className="mt-12 md:mt-16">
+            <LimitDemo />
+          </div>
         </section>
 
-        {/* How it works */}
-        <section id="how" className="scroll-mt-16 border-t hairline">
-          <div className="mx-auto max-w-6xl px-4 py-14 md:py-20">
-            <Eyebrow>How it works</Eyebrow>
-            <h2 className="mt-2 max-w-2xl text-3xl font-semibold tracking-tight text-nomos-text">The rules are in the coins, not in an app.</h2>
-            <ol className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* How it works: a real sequence, so the steps are numbered. */}
+        <section id="how" className="scroll-mt-20 border-t l-hair">
+          <div className="mx-auto max-w-6xl px-4 py-16 md:py-24">
+            <h2 className="l-heading max-w-2xl text-[2rem] text-land-ink sm:text-[2.6rem]">The rules are in the coins, not in an app.</h2>
+            <ol className="relative mt-12 grid gap-9 md:grid-cols-4 md:gap-8">
+              <span className="absolute left-4 right-[calc((100%_-_6rem)/4_-_18px)] top-[17px] hidden h-[2px] bg-land-ink/15 md:block" aria-hidden="true" />
               {STEPS.map((step, i) => (
-                <li key={step.title} className="card p-5">
-                  <p className="text-sm tabular-nums text-nomos-muted">{String(i + 1).padStart(2, '0')}</p>
-                  <h3 className="mt-3 text-[17px] font-semibold text-nomos-text">{step.title}</h3>
-                  <p className="mt-2 text-[15px] leading-relaxed text-nomos-muted">{step.body}</p>
+                <li key={step.title} className="relative pl-14 md:pl-0">
+                  {/* On a phone the steps stack: a connector runs down to the next marker. */}
+                  {i < STEPS.length - 1 && <span className="absolute -bottom-9 left-[17px] top-9 w-[2px] bg-land-ink/15 md:hidden" aria-hidden="true" />}
+                  <span className={`absolute left-0 top-0 flex h-9 w-9 items-center justify-center rounded-full border-2 bg-land-ground text-sm font-bold tabular-nums md:static ${STEP_TONE[i]}`}>
+                    {i + 1}
+                  </span>
+                  <h3 className="text-[18px] font-semibold text-land-ink md:mt-6">{step.title}</h3>
+                  <p className="mt-2 text-[15px] leading-relaxed text-land-muted">{step.body}</p>
                 </li>
               ))}
             </ol>
           </div>
         </section>
 
-        {/* Mainnet proof */}
-        <section id="proof" className="scroll-mt-16 border-t hairline">
-          <div className="mx-auto max-w-6xl px-4 py-14 md:py-20">
-            <Eyebrow>On mainnet</Eyebrow>
-            <h2 className="mt-2 max-w-2xl text-3xl font-semibold tracking-tight text-nomos-text">Check it on the chain.</h2>
-            <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-nomos-muted">
+        {/* On mainnet */}
+        <section id="proof" className="scroll-mt-20 border-t l-hair">
+          <div className="mx-auto max-w-6xl px-4 py-16 md:py-24">
+            <h2 className="l-heading max-w-2xl text-[2rem] text-land-ink sm:text-[2.6rem]">Check it on the chain.</h2>
+            <p className="mt-4 max-w-2xl text-[17px] leading-relaxed text-land-muted">
               {cashScriptOnMainnet
                 ? 'Both editions of the vault have run on Bitcoin Cash mainnet: paid under the limit and refused over it. The SolidCash vault was also rescued with two keys.'
                 : 'The vault has run on Bitcoin Cash mainnet: paid under the limit, refused over it, and rescued with two keys.'}
             </p>
-            <div className="mt-8 grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-              <div className="card divide-hairline overflow-hidden">
+            <div className="mt-10 grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+              <ul className="divide-y overflow-hidden rounded-[18px] border l-hair bg-land-raised [&>li]:border-[color:var(--l-hair)]">
                 {proofs.map((p) => (
-                  <a
-                    key={p.txid}
-                    href={`${MAINNET_EXPLORER_TX}${p.txid}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-4 px-5 py-4 hover:bg-nomos-surface-raised/50"
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[15px] text-nomos-text">{p.step}</span>
-                      <span className="block text-sm text-nomos-muted">{p.edition}</span>
-                    </span>
-                    <span className="shrink-0 font-mono text-xs text-nomos-muted-bright">{p.txid.slice(0, 8)}…</span>
-                  </a>
+                  <li key={p.txid}>
+                    <a
+                      href={`${MAINNET_EXPLORER_TX}${p.txid}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-land-ink/[0.04]"
+                    >
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-land-pass" aria-hidden="true" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[15px] font-medium text-land-ink">{p.step}</span>
+                        <span className="block text-sm text-land-muted">{p.edition}</span>
+                      </span>
+                      <span className="shrink-0 rounded-md bg-land-ink/[0.06] px-2 py-1 font-mono text-xs text-land-ink">{p.txid.slice(0, 8)}…</span>
+                    </a>
+                  </li>
                 ))}
-              </div>
-              <div className="card p-5">
-                <p className="text-[15px] font-semibold text-nomos-text">Refused over the limit</p>
-                <p className="mt-2 text-[15px] leading-relaxed text-nomos-muted">
+              </ul>
+              <div className="rounded-[18px] border-2 border-land-refuse/60 p-6">
+                <p className="flex items-center gap-2 text-[17px] font-semibold text-land-refuse">
+                  <span className="h-2.5 w-2.5 rounded-full bg-land-refuse" aria-hidden="true" />
+                  Refused over the limit
+                </p>
+                <p className="mt-3 text-[15px] leading-relaxed text-land-muted">
                   A signed CashScript vault payment over the daily limit was sent to a mainnet node. The node rejected it:
                 </p>
-                <p className="mt-3 rounded-lg bg-nomos-surface-raised p-3 font-mono text-xs leading-relaxed text-nomos-text">
+                <p className="mt-3 rounded-lg bg-land-ink/[0.06] p-3 font-mono text-xs leading-relaxed text-land-ink">
                   mandatory-script-verify-flag-failed (Script failed an OP_VERIFY operation)
                 </p>
-                <p className="mt-3 text-[15px] leading-relaxed text-nomos-muted">
+                <p className="mt-3 text-[15px] leading-relaxed text-land-muted">
                   The SolidCash vault refused a second payment the same day at the contract's daily-limit check.
                 </p>
               </div>
             </div>
+            <p className="mt-6 max-w-2xl text-[15px] leading-relaxed text-land-muted">
+              The XO template ran the same vault on chipnet: payments up to the daily limit, an over-limit payment the node refused, and a rescue signed by two keys in two separate engines.{' '}
+              <a href={XO_RESULTS_URL} target="_blank" rel="noreferrer" className="font-medium text-land-ink underline decoration-land-ink/30 underline-offset-4 hover:decoration-land-ink">See the transactions</a>
+            </p>
           </div>
         </section>
 
         {/* Features */}
-        <section className="border-t hairline">
-          <div className="mx-auto max-w-6xl px-4 py-14 md:py-20">
-            <Eyebrow>What you get</Eyebrow>
-            <h2 className="mt-2 max-w-2xl text-3xl font-semibold tracking-tight text-nomos-text">One vault, a few clear rules.</h2>
-            <div className="mt-10 grid gap-x-8 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="border-t l-hair">
+          <div className="mx-auto max-w-6xl px-4 py-16 md:py-24">
+            <h2 className="l-heading max-w-2xl text-[2rem] text-land-ink sm:text-[2.6rem]">One vault, a few clear rules.</h2>
+            <div className="mt-12 grid gap-x-10 gap-y-9 sm:grid-cols-2 lg:grid-cols-4">
               {FEATURES.map((f) => (
-                <div key={f.title}>
-                  <h3 className="text-[17px] font-semibold text-nomos-text">{f.title}</h3>
-                  <p className="mt-1.5 text-[15px] leading-relaxed text-nomos-muted">{f.body}</p>
+                <div key={f.title} className="border-t-2 border-land-ink/15 pt-4">
+                  <h3 className="text-[17px] font-semibold text-land-ink">{f.title}</h3>
+                  <p className="mt-1.5 text-[15px] leading-relaxed text-land-muted">{f.body}</p>
                 </div>
               ))}
             </div>
@@ -263,17 +268,17 @@ export default function Landing() {
         </section>
 
         {/* Trust */}
-        <section className="border-t hairline">
-          <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 md:py-20 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-            <div>
-              <Eyebrow>Trust</Eyebrow>
-              <h2 className="mt-2 text-3xl font-semibold tracking-tight text-nomos-text">Nomos never holds your keys or your coins.</h2>
-            </div>
-            <ul className="grid gap-4 sm:grid-cols-2">
-              {TRUST.map((t) => (
-                <li key={t.title} className="card p-5">
-                  <h3 className="text-[17px] font-semibold text-nomos-text">{t.title}</h3>
-                  <p className="mt-1.5 text-[15px] leading-relaxed text-nomos-muted">{t.body}</p>
+        <section className="border-t l-hair">
+          <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 md:py-24 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+            <h2 className="l-heading text-[2rem] text-land-ink sm:text-[2.6rem]">Nomos never holds your keys or your coins.</h2>
+            <ul className="grid sm:grid-cols-2">
+              {TRUST.map((t, i) => (
+                <li
+                  key={t.title}
+                  className={`border-t l-hair py-5 sm:px-6 ${i % 2 === 0 ? 'sm:pl-0' : 'sm:border-l'} ${i < 2 ? 'sm:pt-0 sm:border-t-0' : ''}`}
+                >
+                  <h3 className="text-[17px] font-semibold text-land-ink">{t.title}</h3>
+                  <p className="mt-1.5 text-[15px] leading-relaxed text-land-muted">{t.body}</p>
                 </li>
               ))}
             </ul>
@@ -281,32 +286,29 @@ export default function Landing() {
         </section>
 
         {/* Built on */}
-        <section className="border-t hairline">
-          <div className="mx-auto max-w-6xl px-4 py-12 md:py-14">
-            <Eyebrow>Built on</Eyebrow>
-            <ul className="mt-4 flex flex-wrap gap-2">
+        <section className="border-t l-hair">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-4 px-4 py-12">
+            <h2 className="text-[15px] font-semibold text-land-ink">Built on</h2>
+            <ul className="flex flex-wrap gap-2">
               {BUILT_ON.map((name) => (
-                <li key={name} className="rounded-lg border hairline-strong px-3 py-1.5 text-sm text-nomos-text">{name}</li>
+                <li key={name} className="rounded-full border l-hair-strong px-3.5 py-1.5 text-sm text-land-ink">{name}</li>
               ))}
             </ul>
           </div>
         </section>
 
         {/* FAQ */}
-        <section id="faq" className="scroll-mt-16 border-t hairline">
-          <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 md:py-20 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-            <div>
-              <Eyebrow>FAQ</Eyebrow>
-              <h2 className="mt-2 text-3xl font-semibold tracking-tight text-nomos-text">Questions, answered plainly.</h2>
-            </div>
-            <div className="divide-hairline border-y hairline">
+        <section id="faq" className="scroll-mt-20 border-t l-hair">
+          <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 md:py-24 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+            <h2 className="l-heading text-[2rem] text-land-ink sm:text-[2.6rem]">Questions, answered plainly.</h2>
+            <div className="divide-y border-y l-hair [&>*]:border-[color:var(--l-hair)]">
               {FAQ.map((item) => (
                 <details key={item.q} className="group py-4">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[17px] font-medium text-nomos-text [&::-webkit-details-marker]:hidden">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[17px] font-medium text-land-ink [&::-webkit-details-marker]:hidden">
                     {item.q}
-                    <span className="shrink-0 text-2xl font-light leading-none text-nomos-muted transition-transform group-open:rotate-45" aria-hidden="true">+</span>
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border l-hair-strong text-lg leading-none text-land-muted transition-transform group-open:rotate-45" aria-hidden="true">+</span>
                   </summary>
-                  <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-nomos-muted">{item.a}</p>
+                  <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-land-muted">{item.a}</p>
                 </details>
               ))}
             </div>
@@ -314,48 +316,48 @@ export default function Landing() {
         </section>
 
         {/* Closing */}
-        <section className="border-t hairline">
-          <div className="mx-auto max-w-6xl px-4 py-16 text-center md:py-24">
-            <h2 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight text-nomos-text sm:text-4xl">Set up a vault in a few minutes.</h2>
-            <p className="mx-auto mt-3 max-w-xl text-[15px] leading-relaxed text-nomos-muted">Connect Paytaca, choose a daily limit and make a payment.</p>
-            <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <Link to={appTo} className="btn-primary px-6">Open the app</Link>
-              <Link to="/simulate" className="btn-ghost min-h-[44px] px-6">Try without a wallet</Link>
+        <section className="border-t l-hair">
+          <div className="mx-auto max-w-6xl px-4 py-20 md:py-28">
+            <h2 className="l-display max-w-3xl text-[2.4rem] text-land-ink sm:text-[3.4rem]">Set up a vault in a few minutes.</h2>
+            <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-land-muted">Connect Paytaca, choose a daily limit and make a payment.</p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link to={appTo} className="l-btn-rule">Open the app</Link>
+              <Link to="/simulate" className="l-btn-line">Try without a wallet</Link>
             </div>
           </div>
         </section>
       </main>
 
-      <footer className="border-t hairline">
+      <footer className="border-t l-hair">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <p className="text-lg font-semibold tracking-tight text-nomos-text">Nomos</p>
-            <p className="mt-2 text-sm text-nomos-muted">Built for BCH BLAZE 2026.</p>
+            <Wordmark />
+            <p className="mt-3 text-sm text-land-muted">Built for BCH BLAZE 2026.</p>
           </div>
           <div>
-            <p className="text-sm font-medium text-nomos-text">App</p>
-            <ul className="mt-3 space-y-2 text-sm text-nomos-muted">
-              <li><Link to={appTo} className="hover:text-nomos-text">Open the app</Link></li>
-              <li><Link to="/simulate" className="hover:text-nomos-text">Simulator</Link></li>
-              <li><Link to="/proof" className="hover:text-nomos-text">Proof checker</Link></li>
-              <li><Link to="/identity" className="hover:text-nomos-text">Nostr identity</Link></li>
-              <li><Link to="/bridge" className="hover:text-nomos-text">Swap PUSD and USDC</Link></li>
+            <p className="text-sm font-semibold text-land-ink">App</p>
+            <ul className="mt-3 space-y-2 text-sm text-land-muted">
+              <li><Link to={appTo} className="hover:text-land-ink">Open the app</Link></li>
+              <li><Link to="/simulate" className="hover:text-land-ink">Simulator</Link></li>
+              <li><Link to="/proof" className="hover:text-land-ink">Proof checker</Link></li>
+              <li><Link to="/identity" className="hover:text-land-ink">Nostr identity</Link></li>
+              <li><Link to="/bridge" className="hover:text-land-ink">Swap PUSD and USDC</Link></li>
             </ul>
           </div>
           <div>
-            <p className="text-sm font-medium text-nomos-text">Project</p>
-            <ul className="mt-3 space-y-2 text-sm text-nomos-muted">
-              <li><a href={GITHUB_URL} target="_blank" rel="noreferrer" className="hover:text-nomos-text">Source code</a></li>
-              <li><a href={CONTRACT_URL} target="_blank" rel="noreferrer" className="hover:text-nomos-text">The contract</a></li>
-              <li><Link to="/architecture" className="hover:text-nomos-text">How it's built</Link></li>
-              {DECK_URL && <li><a href={DECK_URL} target="_blank" rel="noreferrer" className="hover:text-nomos-text">Presentation</a></li>}
-              {DEMO_VIDEO_URL && <li><a href={DEMO_VIDEO_URL} target="_blank" rel="noreferrer" className="hover:text-nomos-text">Demo video</a></li>}
+            <p className="text-sm font-semibold text-land-ink">Project</p>
+            <ul className="mt-3 space-y-2 text-sm text-land-muted">
+              <li><a href={GITHUB_URL} target="_blank" rel="noreferrer" className="hover:text-land-ink">Source code</a></li>
+              <li><a href={CONTRACT_URL} target="_blank" rel="noreferrer" className="hover:text-land-ink">The contract</a></li>
+              <li><Link to="/architecture" className="hover:text-land-ink">How it's built</Link></li>
+              {DECK_URL && <li><a href={DECK_URL} target="_blank" rel="noreferrer" className="hover:text-land-ink">Presentation</a></li>}
+              {DEMO_VIDEO_URL && <li><a href={DEMO_VIDEO_URL} target="_blank" rel="noreferrer" className="hover:text-land-ink">Demo video</a></li>}
             </ul>
           </div>
           <div>
-            <p className="text-sm font-medium text-nomos-text">Vote with EMBER2026</p>
-            <p className="mt-3 break-all font-mono text-xs text-nomos-muted" title={EMBER_ADDRESS}>{shortAddr(EMBER_ADDRESS, 10, 8)}</p>
-            <button type="button" onClick={() => { void copyEmber() }} className="link-action mt-2">Copy address</button>
+            <p className="text-sm font-semibold text-land-ink">Vote with EMBER2026</p>
+            <p className="mt-3 break-all font-mono text-xs text-land-muted" title={EMBER_ADDRESS}>{shortAddr(EMBER_ADDRESS, 10, 8)}</p>
+            <button type="button" onClick={() => { void copyEmber() }} className="mt-2 text-sm font-medium text-land-ink underline-offset-4 hover:underline">Copy address</button>
           </div>
         </div>
       </footer>

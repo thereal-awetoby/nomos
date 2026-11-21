@@ -224,6 +224,233 @@
   .date-divider > div { background: var(--line); }
 }
 
+/* ── Landing ──────────────────────────────────────────────────
+   The front door has its own palette: a vault-green ground, chalk ink,
+   Bitcoin Cash green for a payment that went through, red for a refusal,
+   and saffron for the rule itself (the limit line) and the main action. */
+.landing {
+  --l-ground: 11 29 23;
+  --l-raised: 17 40 32;
+  --l-ink: 234 242 236;
+  --l-muted: 147 168 156;
+  --l-pass: 10 193 142;
+  --l-refuse: 255 106 92;
+  --l-rule: 244 196 48;
+  --l-rule-line: 244 196 48;
+  --l-on-pass: 11 29 23;
+  --l-hair: rgb(234 242 236 / 0.1);
+  --l-hair-strong: rgb(234 242 236 / 0.18);
+  background-color: rgb(var(--l-ground));
+  color: rgb(var(--l-ink));
+}
+
+:root[data-theme='light'] .landing {
+  --l-ground: 238 243 239;
+  --l-raised: 255 255 255;
+  --l-ink: 11 29 23;
+  --l-muted: 78 99 90;
+  --l-pass: 6 122 89;
+  --l-refuse: 194 49 30;
+  --l-rule: 244 196 48;
+  --l-rule-line: 168 124 0;
+  --l-on-pass: 255 255 255;
+  --l-hair: rgb(11 29 23 / 0.1);
+  --l-hair-strong: rgb(11 29 23 / 0.18);
+}
+
+.landing ::selection { background: rgb(var(--l-rule) / 0.35); }
+
+.l-hair { border-color: var(--l-hair); }
+.l-hair-strong { border-color: var(--l-hair-strong); }
+
+/* Headlines: Archivo, semi-expanded and heavy. */
+.l-display {
+  font-family: Archivo, Inter, system-ui, sans-serif;
+  font-stretch: 118%;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 0.98;
+}
+.l-heading {
+  font-family: Archivo, Inter, system-ui, sans-serif;
+  font-stretch: 112%;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+  line-height: 1.05;
+}
+
+.l-btn-rule,
+.l-btn-line,
+.l-btn-ink {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  padding: 0.7rem 1.5rem;
+  font-size: 15px;
+  font-weight: 650;
+  transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+.l-btn-rule {
+  background: rgb(var(--l-rule));
+  color: rgb(11 29 23);
+  box-shadow: 0 0 0 0 rgb(var(--l-rule) / 0);
+}
+.l-btn-rule:hover { box-shadow: 0 0 0 4px rgb(var(--l-rule) / 0.28); }
+.l-btn-line {
+  border: 1.5px solid var(--l-hair-strong);
+  color: rgb(var(--l-ink));
+}
+.l-btn-line:hover { background: rgb(var(--l-ink) / 0.06); }
+.l-btn-ink {
+  min-height: 38px;
+  padding: 0.45rem 1rem;
+  font-size: 14px;
+  background: rgb(var(--l-ink));
+  color: rgb(var(--l-ground));
+}
+.l-btn-ink:hover { background: rgb(var(--l-ink) / 0.86); }
+.l-btn-rule:active,
+.l-btn-line:active,
+.l-btn-ink:active { transform: translateY(1px); }
+
+.landing a:focus-visible,
+.landing button:focus-visible,
+.landing summary:focus-visible,
+.blaze-strip a:focus-visible,
+.blaze-strip button:focus-visible,
+.blaze-dialog a:focus-visible,
+.blaze-dialog button:focus-visible {
+  outline: 2px solid rgb(var(--l-rule-line, 244 196 48));
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ── The limit track: the landing's one moment of motion ──── */
+.limit-track {
+  position: relative;
+  height: 64px;
+  margin-right: 24%;
+  border-radius: 14px;
+  background: rgb(var(--l-ink) / 0.06);
+  box-shadow: inset 0 0 0 1px var(--l-hair);
+}
+.limit-seg {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 8px;
+  transition: width 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.limit-seg.is-paid {
+  background: rgb(var(--l-pass));
+  color: rgb(var(--l-on-pass));
+}
+.limit-seg-label {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  opacity: 0;
+  transition: opacity 0.3s ease 0.45s;
+}
+.limit-seg.is-shown .limit-seg-label { opacity: 1; }
+
+/* The payment that crosses the line: arrives hatched, then is refused. */
+.limit-seg.is-attempt {
+  overflow: visible;
+  color: rgb(var(--l-refuse));
+  background: repeating-linear-gradient(
+    -45deg,
+    rgb(var(--l-refuse) / 0.42) 0 6px,
+    rgb(var(--l-refuse) / 0.16) 6px 12px
+  );
+  transition: width 0.55s cubic-bezier(0.55, 0, 0.9, 0.4);
+}
+.limit-seg.is-refused {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px rgb(var(--l-refuse));
+  border-radius: 8px;
+  animation: refuseHit 0.36s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+.limit-seg-over {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 8px);
+  transform: translateY(-50%);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: rgb(var(--l-refuse));
+  opacity: 0;
+  transition: opacity 0.3s ease 0.2s;
+}
+.limit-seg.is-refused .limit-seg-over { opacity: 1; }
+
+.limit-seg.is-refused::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: repeating-linear-gradient(-45deg, rgb(var(--l-refuse) / 0.22) 0 2px, transparent 2px 9px);
+}
+
+.limit-line {
+  position: absolute;
+  top: -14px;
+  bottom: -14px;
+  left: 100%;
+  width: 4px;
+  margin-left: -2px;
+  border-radius: 2px;
+  background: rgb(var(--l-rule-line));
+  z-index: 2;
+}
+.limit-line.is-hit { animation: limitHit 0.6s ease-out both; }
+@keyframes limitHit {
+  0% { box-shadow: 0 0 0 0 rgb(var(--l-rule) / 0.7); }
+  100% { box-shadow: 0 0 0 14px rgb(var(--l-rule) / 0); }
+}
+
+.limit-row {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.limit-row.is-shown {
+  opacity: 1;
+  transform: none;
+}
+
+/* ── BCH BLAZE strip (every page) ─────────────────────────── */
+.blaze-strip {
+  background: #f4c430;
+  color: #0b1d17;
+}
+.blaze-strip a,
+.blaze-strip button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 32px;
+  border-radius: 6px;
+  text-underline-offset: 3px;
+}
+.blaze-strip a:hover,
+.blaze-strip button:hover { text-decoration: underline; }
+.blaze-strip a:focus-visible,
+.blaze-strip button:focus-visible { outline-color: #0b1d17; }
+.blaze-dialog { color: #0b1d17; }
+.blaze-dialog .blaze-qr svg { display: block; width: 100%; height: auto; }
+
 .spend-gauge-progress {
   transition: stroke-dashoffset 0.6s ease-out, stroke 0.3s ease;
 }
@@ -265,5 +492,20 @@
 
   .pay-success-particle {
     display: none !important;
+  }
+
+  /* The limit track jumps to its final state. */
+  .limit-seg,
+  .limit-seg-label,
+  .limit-row,
+  .limit-line.is-hit,
+  .limit-seg.is-refused,
+  .l-btn-rule,
+  .l-btn-line,
+  .l-btn-ink {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
   }
 }
