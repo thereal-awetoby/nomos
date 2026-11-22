@@ -56,9 +56,15 @@ Daily limit 2,000 sats. Run with `contracts/solidcash/demo.mjs mainnet`.
 
 ## PUSD and USDC swap
 
+`SwapLock.sol` runs on Base at
+[`0xe366dae0ccd2cfab7fc311652d9d4b48c82c1446`](https://basescan.org/address/0xe366dae0ccd2cfab7fc311652d9d4b48c82c1446),
+deployed from the Swap page on 22 Nov 2026. The page compares the code at that
+address with the runtime bytecode of `contracts/evm/SwapLock.sol` before it
+uses it, and showed that it matches. The site uses this contract by default.
+
 | Step | Transaction |
 |------|-------------|
-| Deploy `SwapLock.sol` on Base | pending |
+| Deploy `SwapLock.sol` on Base | [`0x82b1e501…`](https://basescan.org/tx/0x82b1e50182fd6383bff76df08258a31fbd08fe9478558c17581adef43569e74f) |
 | PUSD to USDC: lock PUSD, lock USDC, claim USDC, claim PUSD | pending |
 | USDC to PUSD: lock USDC, lock PUSD, claim PUSD, claim USDC | pending |
 

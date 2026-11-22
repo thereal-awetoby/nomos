@@ -18,11 +18,12 @@ export const BASE_EXPLORER_TX = 'https://basescan.org/tx/'
 export const BASE_EXPLORER_ADDRESS = 'https://basescan.org/address/'
 
 /**
- * SwapLock on Base for this site. Empty until deployed; a deployment from the
- * Swap page is remembered locally, and every offer names the contract it uses.
- * Any address is checked against the audited bytecode before it is trusted.
+ * SwapLock on Base for this site, deployed from the Swap page on 22 Nov 2026
+ * (tx 0x82b1e50182fd6383bff76df08258a31fbd08fe9478558c17581adef43569e74f).
+ * Every offer still names the contract it uses, and any address is checked
+ * against the audited bytecode before it is trusted.
  */
-export const SWAPLOCK_BASE = ''
+export const SWAPLOCK_BASE = '0xe366dae0ccd2cfab7fc311652d9d4b48c82c1446'
 const SWAPLOCK_KEY = 'nomos:baseSwapLock'
 /** Runtime code of contracts/evm/SwapLock.sol, from the same compile as `bytecode`. */
 const SWAPLOCK_RUNTIME = ((artifact as { deployedBytecode?: string }).deployedBytecode ?? '').toLowerCase()

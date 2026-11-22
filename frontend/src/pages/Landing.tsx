@@ -216,7 +216,7 @@ export default function Landing() {
                 {proofs.map((p) => (
                   <li key={p.txid}>
                     <a
-                      href={`${MAINNET_EXPLORER_TX}${p.txid}`}
+                      href={`${p.explorer ?? MAINNET_EXPLORER_TX}${p.txid}`}
                       target="_blank"
                       rel="noreferrer"
                       className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-land-ink/[0.04]"
