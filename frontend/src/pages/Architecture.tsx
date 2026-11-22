@@ -4,7 +4,7 @@ const REPO = 'https://github.com/thereal-awetoby/nomos'
 
 const LAYERS: { label: string; items: string[] }[] = [
   { label: 'App (in your browser)', items: ['Vault', 'Pay', 'Rules', 'Activity', 'Proof checker', 'Swap', 'Nostr identity'] },
-  { label: 'Wallets', items: ['Paytaca over WizardConnect', 'WalletConnect', 'Any EVM wallet for Base'] },
+  { label: 'Wallets', items: ['WizardConnect wallets: Paytaca, Selene, Cashonize', 'WalletConnect', 'Any EVM wallet for Base'] },
   { label: 'Networks', items: ['BCH nodes (Electrum)', 'Nostr relays', 'Base'] },
 ]
 

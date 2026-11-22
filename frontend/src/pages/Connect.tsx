@@ -162,7 +162,7 @@ export default function Connect() {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 id="wc2-title" className="text-lg font-bold">Scan with your BCH wallet</h2>
-                  <p className="mt-1 text-sm text-[#4e635a]">Open WalletConnect in Paytaca or Cashonize and scan. Then approve the connection and the one message it asks you to sign.</p>
+                  <p className="mt-1 text-sm text-[#4e635a]">Open WalletConnect in your wallet and scan. Then approve the connection and the one message it asks you to sign.</p>
                 </div>
                 <button type="button" onClick={() => setWc2Hidden(true)} aria-label="Close" className="-mr-1 -mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xl leading-none hover:bg-[#0b1d17]/5">×</button>
               </div>
@@ -274,6 +274,13 @@ const WALLETS = [
     body: 'Phone app and Chrome extension. The vaults on mainnet were made with Paytaca over WizardConnect.',
     connects: ['WizardConnect', 'WalletConnect'],
     tone: 'bg-nomos-accent text-nomos-on-accent',
+  },
+  {
+    name: 'Selene',
+    url: 'https://selene.cash/',
+    body: 'Phone app for iOS and Android, with CashTokens support.',
+    connects: ['WizardConnect'],
+    tone: 'bg-nomos-surface-raised text-nomos-text',
   },
   {
     name: 'Cashonize',

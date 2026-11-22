@@ -47,7 +47,7 @@ const FEATURES = [
 ]
 
 const TRUST = [
-  { title: 'Your keys stay in your wallet', body: 'Paytaca signs every transaction. Nomos never sees a key.' },
+  { title: 'Your keys stay in your wallet', body: 'Your wallet signs every transaction. Nomos never sees a key.' },
   { title: 'No Nomos server', body: 'The app runs in your browser and reads the chain directly.' },
   { title: 'Rules live in the contract', body: 'Not even the Nomos app can get around them.' },
   { title: 'Open source', body: 'Every contract and page is on GitHub under the MIT license.' },
@@ -78,7 +78,7 @@ const FAQ = [
   },
   {
     q: 'Which wallets work?',
-    a: 'Paytaca over WizardConnect, and Bitcoin Cash wallets that support WalletConnect. Over WizardConnect, Nomos sees every address in your wallet, shows your whole balance, and gathers coins from those addresses when you create a vault. A WalletConnect wallet shares one address, so Nomos uses the BCH there.',
+    a: 'Any wallet that supports WizardConnect, such as Paytaca, Selene or Cashonize, and Bitcoin Cash wallets that support WalletConnect. Over WizardConnect, Nomos sees every address in your wallet, shows your whole balance, and gathers coins from those addresses when you create a vault. A WalletConnect wallet shares one address, so Nomos uses the BCH there.',
   },
   {
     q: 'Can I pay someone by name?',
@@ -172,7 +172,7 @@ export default function Landing() {
                   </a>
                 )}
               </div>
-              <p className="mt-5 text-sm text-land-muted">Works with Paytaca. No account, no sign-up, no Nomos fees.</p>
+              <p className="mt-5 text-sm text-land-muted">Works with any WizardConnect wallet, such as Paytaca, Selene or Cashonize. No account, no sign-up, no Nomos fees.</p>
             </div>
           </div>
           <div className="mt-12 md:mt-16">
@@ -321,7 +321,7 @@ export default function Landing() {
         <section className="border-t l-hair">
           <div className="mx-auto max-w-6xl px-4 py-20 md:py-28">
             <h2 className="l-display max-w-3xl text-[2.4rem] text-land-ink sm:text-[3.4rem]">Set up a vault in a few minutes.</h2>
-            <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-land-muted">Connect Paytaca, choose a daily limit and make a payment.</p>
+            <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-land-muted">Connect your wallet, choose a daily limit and make a payment.</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to={appTo} className="l-btn-rule">Open the app</Link>
               <Link to="/simulate" className="l-btn-line">Try without a wallet</Link>

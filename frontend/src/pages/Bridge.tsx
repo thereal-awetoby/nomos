@@ -373,7 +373,7 @@ export default function Bridge() {
       if (!baseAddr) throw new Error('Connect your Base wallet')
     }
     const lockPusdStep = (pk: string): Step['action'] => ({
-      label: 'Lock in Paytaca',
+      label: 'Lock in your wallet',
       disabled: pusdLocked,
       run: () => run('Locking PUSD', async () => {
         const w = needBch(pk)
@@ -428,7 +428,7 @@ export default function Bridge() {
         {
           label: 'Claim the PUSD on Bitcoin Cash', detail: `This reveals the secret on Bitcoin Cash. Claim before ${when(bch.refundAfter - BCH_TIME_LAG_S)}, then send the counterparty the updated offer link.`, done: Boolean(progress.bchClaimTxid), tx: bchTx(progress.bchClaimTxid),
           action: {
-            label: 'Claim in Paytaca', disabled: !pusdLocked || Boolean(progress.bchClaimTxid),
+            label: 'Claim in your wallet', disabled: !pusdLocked || Boolean(progress.bchClaimTxid),
             run: () => run('Claiming PUSD', async () => {
               const w = needBch(offer.initiator.bchPk)
               updateProgress({ bchClaimTxid: await claimPusd(offer, secret!, w.address, w.provider, w.wcIndex ?? 0) })
@@ -465,7 +465,7 @@ export default function Bridge() {
     if (myBchRefund && bchLock && bchLock.pusd > 0n && now() >= bch.refundAfter + BCH_TIME_LAG_S) {
       refunds.push({
         label: 'Refund the PUSD', detail: 'The other side did not complete in time.', done: false,
-        action: { label: 'Refund in Paytaca', run: () => run('Refunding PUSD', async () => { updateProgress({ bchRefundTxid: await refundPusd(offer, wallet!.address, wallet!.provider, wallet!.wcIndex ?? 0) }) }) },
+        action: { label: 'Refund in your wallet', run: () => run('Refunding PUSD', async () => { updateProgress({ bchRefundTxid: await refundPusd(offer, wallet!.address, wallet!.provider, wallet!.wcIndex ?? 0) }) }) },
       })
     }
     if (baseLock && !baseLock.done && baseAddr && baseLock.sender.toLowerCase() === baseAddr.toLowerCase() && now() >= base.refundAfter) {

@@ -10,7 +10,7 @@
 
 Nomos keeps your BCH in a CashScript vault, and your rules (a daily limit, an allowlist, an agent key and a rescue key) are part of the contract. A payment that breaks a rule fails the script, so no node relays it and no miner can include it, whichever app built it and whoever signed it.
 
-- **Use it:** [nomos.asgaya.org](https://nomos.asgaya.org), with Paytaca over WizardConnect. No account, no Nomos fee.
+- **Use it:** [nomos.asgaya.org](https://nomos.asgaya.org), with any WizardConnect wallet, such as Paytaca, Selene or Cashonize. No account, no Nomos fee.
 - **Watch it:** [the demo video](https://youtu.be/eR8DS4LNMvA).
 - **See the slides:** [the presentation](https://docs.google.com/presentation/d/1ruPJk74ME0xVz1BZ3AAijFfSmS5pkSdsXZm5N2HRkRI/edit?usp=sharing).
 - **Read the rule:** [`contracts/NomosVault.cash` line 45](contracts/NomosVault.cash#L45), `require(effectiveSpent + amount <= dailyLimitSats);`
@@ -56,7 +56,7 @@ The same payment in the app, from setting the rules to a refusal:
 | An agent key leaks, or an AI agent misbehaves | It can spend at most what is left today, and only to allowed addresses. The owner can replace the key or rescue the vault. |
 | A buggy or compromised website builds a payment that breaks the rules | Nodes reject it. The app is not what enforces the rules. |
 | You type an amount over the limit | Refused before your wallet signs, and invalid if signed anyway. |
-| The owner key | The owner can change the rules, so the owner key stays in your own wallet. Paytaca holds it, and Nomos never sees it. |
+| The owner key | The owner can change the rules, so the owner key stays in your own wallet. Your wallet holds it, and Nomos never sees it. |
 
 ## One vault, three editions
 

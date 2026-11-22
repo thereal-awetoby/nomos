@@ -6,7 +6,7 @@ time? The [demo video](https://youtu.be/eR8DS4LNMvA) shows the whole flow.
 ## 1. The live app (about 5 minutes, needs a BCH wallet)
 
 1. Open [nomos.asgaya.org](https://nomos.asgaya.org/) and choose **Open app**.
-2. Connect Paytaca with WizardConnect (or a WalletConnect wallet).
+2. Connect your wallet with WizardConnect, for example Paytaca, Selene or Cashonize (or a WalletConnect wallet).
 3. On **Rules**, create a vault with a small deposit and a low daily limit,
    for example 5,000 sats.
 4. On **Pay**, pay 1,000 sats to any address. The receipt links to the
