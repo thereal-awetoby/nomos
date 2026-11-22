@@ -11,7 +11,7 @@ export const MERCAR_URL = 'https://mercar.asgaya.org/'
 export const ASGAYA_URL = 'https://asgaya.org/'
 
 // CashTokens address for EMBER2026 community-choice votes
-export const EMBER_ADDRESS = 'bitcoincash:zqz0cjlclvk6909mctktqsk77d7z6gev0cqejwlp4h'
+export const EMBER_ADDRESS = 'bitcoincash:zpqpr0xhygfa7vpcl8lkugccdzx77hfweu5djd5y0a'
 
 export const MAINNET_EXPLORER_TX = 'https://blockchair.com/bitcoin-cash/transaction/'
 
