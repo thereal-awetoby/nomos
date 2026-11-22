@@ -10,16 +10,18 @@
 //
 // The token is a new CashToken category made by this run. It is not PUSD and
 // has no value. The wallet is the pool's admin and its only trader. Fund about
-// 40,000 sats split into a few coins; the pool's BCH comes back at the end,
-// and the run costs a few thousand sats in fees and state tokens.
+// 80,000 sats. The pool's BCH comes back at the end except about 1,000 sats the
+// SDK keeps in it; the deploy's state tokens are most of what a run costs.
 
 import { readFileSync } from 'node:fs'
-import { createHash, randomBytes } from 'node:crypto'
+import { randomBytes } from 'node:crypto'
 import { Signer, SignatureTemplate, TransactionBuilder, randomUtxo } from '@solidcash/solidcash'
 import { ContractFactory } from '@solidcash/solidcash/contract-factory'
-import { ElectrumNetworkProvider } from '@solidcash/solidcash/network/electrum'
 import { MockNetworkProvider } from '@solidcash/solidcash/network/mock'
 import { decodePrivateKeyWif, hash160 } from '@bitauth/libauth'
+import {
+  derivedKey, isConnectionError, isFundingError, keepRunningThroughDroppedSockets, liveProvider,
+} from './live.mjs'
 
 const NETWORK = process.argv[2] ?? 'chipnet'
 const TX = {
@@ -34,8 +36,6 @@ const POOL_TOKENS = 1_000_000n
 const BCH_IN = 1_000n
 
 const artifact = JSON.parse(readFileSync(new URL('./build/StableSwap.json', import.meta.url)))
-const randomKey = () => new Uint8Array(randomBytes(32))
-const sha256 = (bytes) => new Uint8Array(createHash('sha256').update(bytes).digest())
 const sig = (signer) => new SignatureTemplate(signer.privateKey)
 const pkhOf = (signer) => hash160(signer.publicKey)
 const n = (v) => BigInt(v).toLocaleString('en-US')
@@ -45,23 +45,26 @@ const reason = (e) => {
 }
 const quote = (amountIn, reserveIn, reserveOut) => (amountIn * 997n * reserveOut) / (reserveIn * 1000n + amountIn * 997n)
 
+keepRunningThroughDroppedSockets()
 let provider
 let wallet
 if (NETWORK === 'mock') {
-  // Offline: a throwaway key holding one coin of the suggested funding.
+  // Offline: a throwaway key holding one coin of the suggested funding. The
+  // mock could make up fee coins by itself; like a live network, it may not.
   provider = new MockNetworkProvider()
-  wallet = new Signer(randomKey(), provider)
+  wallet = new Signer(new Uint8Array(randomBytes(32)), provider)
   await provider.addUtxo(wallet.address, { ...randomUtxo({ satoshis: 80_000n }) })
+  provider.addUtxo = undefined
 } else {
   const wif = process.env.PRIVATE_KEY
   if (!wif) { console.error(`Set PRIVATE_KEY to a funded ${NETWORK} WIF`); process.exit(1) }
   const decoded = decodePrivateKeyWif(wif)
   if (typeof decoded === 'string') { console.error(`Bad WIF: ${decoded}`); process.exit(1) }
-  provider = new ElectrumNetworkProvider(NETWORK)
+  provider = await liveProvider(NETWORK)
   wallet = new Signer(decoded.privateKey, provider)
 }
 // Signs the refused withdrawal; it never holds coins.
-const stranger = new Signer(sha256(new Uint8Array([...Buffer.from('nomos-swap-stranger'), ...wallet.privateKey])), provider)
+const stranger = new Signer(derivedKey('nomos-swap-stranger', wallet.privateKey), provider)
 const me = wallet.getLockingBytecode()
 
 const bchCoins = async () => (await wallet.getUtxos()).filter((u) => !u.token)
@@ -94,12 +97,18 @@ async function mintTestToken(amount) {
 }
 
 let ok = true
+/** Only the contract or the network turning a call down counts; a run that could not pay for it proves nothing. */
 const expectRefusal = async (label, attempt) => {
   try {
     const r = await attempt()
     ok = false
     console.log(`  NOT REFUSED (unexpected): ${TX(r.txid)}`)
   } catch (e) {
+    if (isFundingError(e) || isConnectionError(e)) {
+      ok = false
+      console.log(`  NOT TESTED, ${label}: ${reason(e)}`)
+      return
+    }
     console.log(`  REFUSED, ${label}: ${reason(e)}`)
   }
 }
@@ -203,5 +212,6 @@ try {
 }
 
 console.log(ok ? '\nDone: liquidity in, swapped both ways, refusals as expected, pool withdrawn.' : '\nSomething did not go as expected; see above.')
-console.log(`Wallet: ${(await bchOf(wallet)).toLocaleString('en-US')} of ${startSats.toLocaleString('en-US')} sats back; the run cost ${(startSats - await bchOf(wallet)).toLocaleString('en-US')} sats.`)
+const endSats = await bchOf(wallet)
+console.log(`Wallet: ${endSats.toLocaleString('en-US')} of ${startSats.toLocaleString('en-US')} sats back; the run cost ${(startSats - endSats).toLocaleString('en-US')} sats.`)
 process.exit(ok ? 0 : 1)

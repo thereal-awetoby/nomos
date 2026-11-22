@@ -96,6 +96,7 @@ spend is shown for the CashScript vault in the main README.
 
 ```bash
 npm run key                                       # a throwaway key: address and WIF, printed once
+PRIVATE_KEY=<WIF> node keys.mjs balance mainnet   # what the key and its run's receiver hold
 PRIVATE_KEY=<WIF> npm run htlc:mainnet            # claimed with the secret, refunded after the deadline
 PRIVATE_KEY=<WIF> npm run swap:mainnet            # test token, liquidity, swaps both ways, withdrawal
 PRIVATE_KEY=<WIF> node keys.mjs sweep <your address> mainnet
@@ -105,10 +106,11 @@ On Windows, `set PRIVATE_KEY=<WIF>` first, then run the commands without the
 `PRIVATE_KEY=<WIF>` part.
 
 `htlc-demo.mjs` deploys two locks of 2,000 sats. The receiver is a second key
-derived from the wallet's, so one key signs both sides, and its coins are swept
-back at the end. The first lock refuses a wrong secret, then is claimed with
-the right one; the second refuses a claim after its deadline, then refunds the
-sender.
+derived from the wallet's, so one key signs both sides. A contract call spends
+some of its signer's coins as inputs and needs more for the fee, so the
+receiver gets four 3,000-sat coins first and sends what is left back at the
+end. The first lock refuses a wrong secret, then is claimed with the right one;
+the second refuses a claim after its deadline, then refunds the sender.
 
 `swap-demo.mjs` mints a test token (a new CashToken category with no value),
 deploys the pool, adds 10,000 sats and 1,000,000 tokens, swaps 1,000 sats in and
@@ -116,11 +118,25 @@ the tokens back out, sees a quote one token too high and a withdrawal signed by
 another key refused, then withdraws the pool. The SDK keeps about 1,000 sats in
 the pool on that last withdrawal.
 
-Each run costs about 35,000 to 40,000 sats: network fees plus the state and
-event outputs SolidCash leaves in every contract it deploys. Fund one key with
-170,000 sats for both runs and sweep the rest back. `node htlc-demo.mjs mock`
-and `node swap-demo.mjs mock` run the same steps offline, and `npm test`
-includes them.
+Each run costs about 45,000 sats: network fees plus the state and event outputs
+SolidCash leaves in every contract it deploys. Fund one key with 150,000 sats
+for both runs and sweep the rest back; the sweep also collects the receiver's
+coins if a run stopped early. A refusal counts only when the contract or the
+network turned the call down. A call the key could not pay for, or one lost to
+the connection, prints NOT TESTED and fails the run. `node htlc-demo.mjs mock`
+and `node swap-demo.mjs mock` run the same steps offline, paying every fee from
+the key's own coins as on mainnet, and `npm test` includes them.
+
+The scripts keep one connection to `bch.imaginary.cash` open, retry a request
+when it drops, and move to `electrum.imaginary.cash` if it keeps dropping.
+`ELECTRUM=<host>` puts another server first.
+
+If `npm ci` stalls on `@bitauth/libauth`, git is trying SSH for that GitHub
+dependency. This makes it use HTTPS:
+
+```bash
+git config --global url."https://github.com/".insteadOf ssh://git@github.com/
+```
 
 ## Notes
 

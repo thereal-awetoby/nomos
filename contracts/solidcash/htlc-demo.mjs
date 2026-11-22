@@ -9,18 +9,22 @@
 //   Windows: set PRIVATE_KEY=<WIF>  then  node htlc-demo.mjs mainnet
 //
 // The wallet is the sender. The receiver is a second key derived from the
-// wallet's key, so this script can sign for both sides; the receiver gets two
-// small coins for its fees and everything it holds is swept back to the wallet
-// at the end. Fund about 30,000 sats split into a few coins. Each lock leaves
-// its state tokens in the settled contract, so a run costs a few thousand sats.
+// wallet's key, so this script can sign for both sides. A contract call spends
+// some of its signer's coins as inputs and needs more for the fee, so the
+// receiver gets four small coins first. Whatever it holds goes back to the
+// wallet at the end, or later with `node keys.mjs sweep`. Fund about 60,000
+// sats. Each deploy leaves state tokens in its contract, which is most of what
+// a run costs.
 
 import { readFileSync } from 'node:fs'
 import { createHash, randomBytes } from 'node:crypto'
 import { Signer, SignatureTemplate, TransactionBuilder, randomUtxo } from '@solidcash/solidcash'
 import { ContractFactory } from '@solidcash/solidcash/contract-factory'
-import { ElectrumNetworkProvider } from '@solidcash/solidcash/network/electrum'
 import { MockNetworkProvider } from '@solidcash/solidcash/network/mock'
 import { decodePrivateKeyWif, hash160 } from '@bitauth/libauth'
+import {
+  derivedKey, isConnectionError, isFundingError, keepRunningThroughDroppedSockets, liveProvider,
+} from './live.mjs'
 
 const NETWORK = process.argv[2] ?? 'chipnet'
 const TX = {
@@ -32,9 +36,9 @@ if (!TX) { console.error('Network must be mainnet, chipnet or mock'); process.ex
 
 const LOCK_SATS = 2_000n
 const FEE_COIN = 3_000n
+const RECEIVER_COINS = 4
 
 const artifact = JSON.parse(readFileSync(new URL('./build/HashedTimeLock.json', import.meta.url)))
-const randomKey = () => new Uint8Array(randomBytes(32))
 const sha256 = (bytes) => new Uint8Array(createHash('sha256').update(bytes).digest())
 const p2pkh = (pkh) => new Uint8Array([0x76, 0xa9, 0x14, ...pkh, 0x88, 0xac])
 const sig = (signer) => new SignatureTemplate(signer.privateKey)
@@ -45,23 +49,26 @@ const reason = (e) => {
   return m.match(/failing require[^\n]*/)?.[0] ?? m.split('\n')[0]
 }
 
+keepRunningThroughDroppedSockets()
 let provider
 let wallet
 if (NETWORK === 'mock') {
-  // Offline: a throwaway key holding one coin of the suggested funding.
+  // Offline: a throwaway key holding one coin of the suggested funding. The
+  // mock could make up fee coins by itself; like a live network, it may not.
   provider = new MockNetworkProvider()
-  wallet = new Signer(randomKey(), provider)
-  await provider.addUtxo(wallet.address, { ...randomUtxo({ satoshis: 80_000n }) })
+  wallet = new Signer(new Uint8Array(randomBytes(32)), provider)
+  await provider.addUtxo(wallet.address, { ...randomUtxo({ satoshis: 60_000n }) })
+  provider.addUtxo = undefined
   provider.increaseTime(Math.floor(Date.now() / 1000) - provider.getBlockTime())
 } else {
   const wif = process.env.PRIVATE_KEY
   if (!wif) { console.error(`Set PRIVATE_KEY to a funded ${NETWORK} WIF`); process.exit(1) }
   const decoded = decodePrivateKeyWif(wif)
   if (typeof decoded === 'string') { console.error(`Bad WIF: ${decoded}`); process.exit(1) }
-  provider = new ElectrumNetworkProvider(NETWORK)
+  provider = await liveProvider(NETWORK)
   wallet = new Signer(decoded.privateKey, provider)
 }
-const receiver = new Signer(sha256(new Uint8Array([...Buffer.from('nomos-htlc-receiver'), ...wallet.privateKey])), provider)
+const receiver = new Signer(derivedKey('nomos-htlc-receiver', wallet.privateKey), provider)
 
 /** Plain BCH payment from a key's coins, change back to the same key. */
 async function pay(from, outputs) {
@@ -109,12 +116,18 @@ const refund = (htlc, locktime) => htlc.call
 const now = Math.floor(Date.now() / 1000)
 const locktime = now - 3 * 3600 // nodes need a timestamp locktime below median time past
 let ok = true
+/** Only the contract or the network turning a call down counts; a run that could not pay for it proves nothing. */
 const expectRefusal = async (label, attempt) => {
   try {
     const r = await attempt()
     ok = false
     console.log(`  NOT REFUSED (unexpected): ${TX(r.txid)}`)
   } catch (e) {
+    if (isFundingError(e) || isConnectionError(e)) {
+      ok = false
+      console.log(`  NOT TESTED, ${label}: ${reason(e)}`)
+      return
+    }
     console.log(`  REFUSED, ${label}: ${reason(e)}`)
   }
 }
@@ -125,16 +138,15 @@ console.log(`Network: ${NETWORK}`)
 console.log('Sender (wallet):   ', wallet.address)
 console.log('Receiver (derived):', receiver.address)
 
-console.log('\nGive the receiver two coins for its fees…')
-const funding = await pay(wallet, [
-  { to: receiver.getLockingBytecode(), amount: FEE_COIN },
-  { to: receiver.getLockingBytecode(), amount: FEE_COIN },
-  { to: wallet.getLockingBytecode(), amount: FEE_COIN },
-  { to: wallet.getLockingBytecode(), amount: FEE_COIN },
-])
-console.log('  funded:', TX(funding.txid))
-
 try {
+  console.log(`\nGive the receiver ${RECEIVER_COINS} coins for its inputs and fees…`)
+  const funding = await pay(wallet, [
+    ...Array.from({ length: RECEIVER_COINS }, () => ({ to: receiver.getLockingBytecode(), amount: FEE_COIN })),
+    { to: wallet.getLockingBytecode(), amount: FEE_COIN },
+    { to: wallet.getLockingBytecode(), amount: FEE_COIN },
+  ])
+  console.log('  funded:', TX(funding.txid))
+
   // ── 1. Claimed with the secret ─────────────────────────────
   const secret = randomBytes(32)
   const deadline = now + 2 * 3600
@@ -163,10 +175,15 @@ try {
   ok = false
   console.error('\nStopped:', reason(e))
 } finally {
-  const swept = await sweep(receiver).catch((e) => { console.error('Sweep failed:', reason(e)); return null })
+  const swept = await sweep(receiver).catch((e) => {
+    console.error('Could not sweep the receiver yet:', reason(e))
+    console.error('Its coins stay with the same WIF; `node keys.mjs sweep <address> mainnet` collects them later.')
+    return null
+  })
   if (swept) console.log('\nReceiver swept back to the wallet:', TX(swept.txid))
 }
 
 console.log(ok ? '\nDone: claimed with the secret, refunded after the deadline, refusals as expected.' : '\nSomething did not go as expected; see above.')
-console.log(`Wallet: ${(await bchOf(wallet)).toLocaleString('en-US')} of ${startSats.toLocaleString('en-US')} sats back; the run cost ${(startSats - await bchOf(wallet)).toLocaleString('en-US')} sats.`)
+const endSats = await bchOf(wallet)
+console.log(`Wallet: ${endSats.toLocaleString('en-US')} of ${startSats.toLocaleString('en-US')} sats back; the run cost ${(startSats - endSats).toLocaleString('en-US')} sats.`)
 process.exit(ok ? 0 : 1)
