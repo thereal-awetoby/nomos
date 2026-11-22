@@ -139,6 +139,7 @@ export default function Landing() {
             <a href="#how" className="transition-colors hover:text-land-ink">How it works</a>
             <a href="#proof" className="transition-colors hover:text-land-ink">On mainnet</a>
             <a href="#faq" className="transition-colors hover:text-land-ink">FAQ</a>
+            <Link to="/guide" className="transition-colors hover:text-land-ink">Guide</Link>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />
@@ -199,6 +200,12 @@ export default function Landing() {
                 </li>
               ))}
             </ol>
+            <div className="mt-12 flex flex-wrap items-center gap-x-5 gap-y-3 border-t l-hair pt-8">
+              <Link to="/guide" className="l-btn-line">Read the step-by-step guide</Link>
+              <p className="max-w-xl text-[15px] leading-relaxed text-land-muted">
+                Every feature, from connecting a wallet to swapping PUSD and USDC, with each button named as it appears in the app.
+              </p>
+            </div>
           </div>
         </section>
 
@@ -342,6 +349,7 @@ export default function Landing() {
             <p className="text-sm font-semibold text-land-ink">App</p>
             <ul className="mt-3 space-y-2 text-sm text-land-muted">
               <li><Link to={appTo} className="hover:text-land-ink">Open the app</Link></li>
+              <li><Link to="/guide" className="hover:text-land-ink">Guide: how to use Nomos</Link></li>
               <li><Link to="/simulate" className="hover:text-land-ink">Simulator</Link></li>
               <li><Link to="/proof" className="hover:text-land-ink">Proof checker</Link></li>
               <li><Link to="/identity" className="hover:text-land-ink">Nostr identity</Link></li>

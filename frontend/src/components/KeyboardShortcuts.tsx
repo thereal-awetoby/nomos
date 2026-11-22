@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { OPEN_SHORTCUTS_EVENT } from '../lib/theme'
+import { useWallet } from '../context/WalletContext'
+import { GuideSectionView } from './GuideContent'
+import { sectionsFor } from '../lib/guide'
 
 interface Shortcut {
   key: string
@@ -10,6 +13,7 @@ interface Shortcut {
 
 const SHORTCUTS: Shortcut[] = [
   { key: 'h', label: 'Home', route: '/' },
+  { key: 'g', label: 'Guide: how to use Nomos', route: '/guide' },
   { key: 'v', label: 'Vault', route: '/vault' },
   { key: 'p', label: 'Pay', route: '/pay' },
   { key: 'm', label: 'Rules', route: '/mandate' },
@@ -28,9 +32,12 @@ function isEditableTarget(target: EventTarget | null): boolean {
   return target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]') !== null
 }
 
-/** Press ? for the help palette; Escape closes it. */
+/** The help button: this page's steps from the guide, then the keyboard shortcuts. Press ? to open it; Escape closes it. */
 export default function KeyboardShortcuts() {
-  const onLanding = useLocation().pathname === '/'
+  const { pathname } = useLocation()
+  const onLanding = pathname === '/'
+  const { wallet } = useWallet()
+  const pageHelp = sectionsFor(pathname)
   const [open, setOpen] = useState(false)
   const [shortcutsEnabled, setShortcutsEnabled] = useState(() => {
     try { return localStorage.getItem('nomos-shortcuts') !== 'off' } catch { return true }
@@ -133,11 +140,11 @@ export default function KeyboardShortcuts() {
       {!onLanding && <button
         type="button"
         onClick={openPalette}
-        aria-label="Open keyboard shortcuts"
+        aria-label="Help for this page"
         aria-haspopup="dialog"
         aria-expanded={open}
-        title="Keyboard shortcuts"
-        className="fixed bottom-4 right-4 z-40 hidden h-9 w-9 items-center justify-center rounded-full border hairline-strong bg-nomos-surface text-sm font-semibold text-nomos-muted-bright transition-colors hover:text-nomos-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomos-accent md:flex"
+        title="Help for this page"
+        className={`fixed right-4 z-40 flex h-10 w-10 items-center justify-center rounded-full border hairline-strong bg-nomos-surface text-base font-semibold text-nomos-muted-bright shadow-sm transition-colors hover:text-nomos-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomos-accent ${wallet?.connected ? 'bottom-20 md:bottom-4' : 'bottom-4'}`}
       >
         ?
       </button>}
@@ -151,26 +158,52 @@ export default function KeyboardShortcuts() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="keyboard-shortcuts-title"
-            className="card mx-4 max-h-full w-full max-w-sm overflow-y-auto p-5"
+            className="card mx-2 max-h-full w-full max-w-lg overflow-y-auto p-5"
             onClick={(event) => event.stopPropagation()}
             onKeyDown={handleDialogKeyDown}
           >
             <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 id="keyboard-shortcuts-title" className="font-mono text-sm font-bold text-nomos-text">
-                Keyboard shortcuts
+              <h2 id="keyboard-shortcuts-title" className="text-[17px] font-semibold text-nomos-text">
+                {pageHelp.length > 0 ? 'Help for this page' : 'Help'}
               </h2>
               <button
                 ref={closeButtonRef}
                 type="button"
                 onClick={closePalette}
-                aria-label="Close keyboard shortcuts"
-                className="rounded-lg px-2 py-1 text-xs text-nomos-muted transition-colors hover:text-nomos-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomos-accent"
+                aria-label="Close help"
+                className="rounded-lg px-2 py-1 text-sm text-nomos-muted transition-colors hover:text-nomos-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-nomos-accent"
               >
-                Esc
+                Close
               </button>
             </div>
 
-            <div className="mb-4 flex items-center justify-between gap-3 rounded-xl bg-nomos-surface-raised/60 px-3 py-2">
+            {pageHelp.length > 0 ? (
+              <div className="space-y-6">
+                {pageHelp.map((section) => (
+                  <div key={section.id}>
+                    <GuideSectionView section={section} compact onNavigate={closePalette} />
+                    <Link to={`/guide#${section.id}`} onClick={() => { returnFocusRef.current = null; setOpen(false) }} className="link-action mt-3 inline-block">
+                      More on this in the guide
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm leading-relaxed text-nomos-muted-bright">The guide explains every feature step by step.</p>
+            )}
+
+            <Link
+              to="/guide"
+              onClick={() => { returnFocusRef.current = null; setOpen(false) }}
+              className="btn-secondary mt-5 w-full text-sm"
+            >
+              Open the full guide
+            </Link>
+
+            <details className="mt-5 border-t hairline pt-4">
+              <summary className="cursor-pointer text-sm font-semibold text-nomos-text">Keyboard shortcuts</summary>
+
+            <div className="mb-4 mt-3 flex items-center justify-between gap-3 rounded-xl bg-nomos-surface-raised/60 px-3 py-2">
               <div>
                 <p className="text-xs font-medium text-nomos-text">Single-key shortcuts</p>
                 <p id="single-key-shortcuts-description" className="text-xs text-nomos-muted">Turn off page keys and the ? key if they interfere with typing. The help button remains available.</p>
@@ -212,9 +245,10 @@ export default function KeyboardShortcuts() {
               ))}
             </ul>
 
-            <p className="mt-4 text-center text-xs text-nomos-muted/60">
-              Use the help button or press <kbd className="font-mono">?</kbd> to toggle this palette; <kbd className="font-mono">Esc</kbd> to close.
+            <p className="mt-4 text-center text-xs text-nomos-muted">
+              Press <kbd className="font-mono">?</kbd> to open or close help, and <kbd className="font-mono">Esc</kbd> to close it.
             </p>
+            </details>
           </div>
         </div>
       )}

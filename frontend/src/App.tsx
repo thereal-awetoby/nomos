@@ -18,6 +18,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/identity': 'Nostr Identity',
   '/simulate': 'Simulator',
   '/architecture': "How it's built",
+  '/guide': 'Guide',
 }
 
 function PageTitle() {
@@ -41,6 +42,7 @@ const Identity = lazy(() => import('./pages/Identity'))
 const Simulate = lazy(() => import('./pages/Simulate'))
 const Architecture = lazy(() => import('./pages/Architecture'))
 const Proof = lazy(() => import('./pages/Proof'))
+const Guide = lazy(() => import('./pages/Guide'))
 
 function RouteLoading() {
   return (
@@ -72,6 +74,7 @@ export default function App() {
               <Route path="/identity" element={<Identity />} />
               <Route path="/simulate" element={<Simulate />} />
               <Route path="/architecture" element={<Architecture />} />
+              <Route path="/guide" element={<Guide />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>

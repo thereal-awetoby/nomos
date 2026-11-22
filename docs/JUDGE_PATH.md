@@ -27,6 +27,7 @@ time? The [demo video](https://youtu.be/eR8DS4LNMvA) shows the whole flow.
   [check it](https://nomos.asgaya.org/identity?verify=npub1lx04uta90k4ytqnuxrd9pt7u9hjrnhv5zgpmr4jtm8afxdwhp37sc5u5rv).
 - **`/proof`**: send signed transaction hex to a node and see its answer.
 - **`/architecture`**: the parts of the system and the contracts.
+- **`/guide`**: every feature step by step. The **?** button on each page opens that page's steps.
 
 ## 3. The proof on mainnet
 

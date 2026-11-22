@@ -11,6 +11,7 @@
 Nomos keeps your BCH in a CashScript vault, and your rules (a daily limit, an allowlist, an agent key and a rescue key) are part of the contract. A payment that breaks a rule fails the script, so no node relays it and no miner can include it, whichever app built it and whoever signed it.
 
 - **Use it:** [nomos.asgaya.org](https://nomos.asgaya.org), with any WizardConnect wallet, such as Paytaca, Selene or Cashonize. No account, no Nomos fee.
+- **Learn it:** [the guide](https://nomos.asgaya.org/guide) walks through every feature step by step, and the **?** button on each page shows that page's steps.
 - **Watch it:** [the demo video](https://youtu.be/eR8DS4LNMvA).
 - **See the slides:** [the presentation](https://docs.google.com/presentation/d/1ruPJk74ME0xVz1BZ3AAijFfSmS5pkSdsXZm5N2HRkRI/edit?usp=sharing).
 - **Read the rule:** [`contracts/NomosVault.cash` line 45](contracts/NomosVault.cash#L45), `require(effectiveSpent + amount <= dailyLimitSats);`

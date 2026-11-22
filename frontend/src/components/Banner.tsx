@@ -21,6 +21,7 @@ const PRIMARY = [
 ]
 
 const MENU = [
+  { to: '/guide', label: 'Guide: how to use Nomos', key: 'G' },
   { to: '/vault', label: 'Vault', key: 'V' },
   { to: '/pay', label: 'Pay', key: 'P' },
   { to: '/mandate', label: 'Rules', key: 'M' },
@@ -159,14 +160,14 @@ export default function Banner() {
                     </Link>
                   </li>
                 ))}
-                <li className="hidden md:block">
+                <li>
                   <button
                     type="button"
                     onClick={() => { setOpen(false); window.dispatchEvent(new Event(OPEN_SHORTCUTS_EVENT)) }}
                     className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-[15px] text-nomos-muted-bright transition-colors hover:bg-nomos-surface-raised hover:text-nomos-text"
                   >
-                    <span>Keyboard shortcuts</span>
-                    <kbd className="font-sans text-xs text-nomos-muted">?</kbd>
+                    <span>Help for this page</span>
+                    <kbd className="hidden font-sans text-xs text-nomos-muted md:inline">?</kbd>
                   </button>
                 </li>
               </ul>
