@@ -48,8 +48,8 @@ slippage, and verifies that only the admin can withdraw liquidity. The intended
 PUSD category and metadata are not verified or configured in this repository.
 
 It has no LP-share accounting or oracle. `swap-demo.mjs` runs it on a live
-network with a test token minted for the run, not PUSD; its mainnet run is
-pending. See [`docs/BRIDGE_DESIGN.md`](../../docs/BRIDGE_DESIGN.md) for what a
+network with a test token minted for the run, not PUSD; its mainnet run is in
+[`docs/MAINNET_PROOFS.md`](../../docs/MAINNET_PROOFS.md#solidcash-stableswap-22-nov-2026). See [`docs/BRIDGE_DESIGN.md`](../../docs/BRIDGE_DESIGN.md) for what a
 real PUSD pool would need.
 
 ## BCH hash-time-lock prototype
@@ -60,7 +60,7 @@ deadline by revealing the preimage; the sender can refund at or after the
 deadline. The test exercises
 claim and refund paths, wrong preimage/signer refusals, and both sides of the
 claim/refund deadline. `htlc-demo.mjs` runs it on a live network; its mainnet
-run is pending. It is not an EVM contract, an other-chain contract, or a
+run is in [`docs/MAINNET_PROOFS.md`](../../docs/MAINNET_PROOFS.md#solidcash-hash-time-lock-22-nov-2026). It is not an EVM contract, an other-chain contract, or a
 cross-chain bridge. A genuine
 cross-chain swap needs a separately reviewed contract on the other chain and
 carefully ordered timeouts.
@@ -121,11 +121,16 @@ the pool on that last withdrawal.
 Each run costs about 45,000 sats: network fees plus the state and event outputs
 SolidCash leaves in every contract it deploys. Fund one key with 150,000 sats
 for both runs and sweep the rest back; the sweep also collects the receiver's
-coins if a run stopped early. A refusal counts only when the contract or the
-network turned the call down. A call the key could not pay for, or one lost to
-the connection, prints NOT TESTED and fails the run. `node htlc-demo.mjs mock`
-and `node swap-demo.mjs mock` run the same steps offline, paying every fee from
-the key's own coins as on mainnet, and `npm test` includes them.
+coins if a run stopped early. A refusal counts only when the contract's own
+`require` turned the call down with the message the script expects. Anything
+else (a call the key could not pay for, a dropped connection, an SDK rule)
+prints NOT TESTED and fails the run. `node htlc-demo.mjs mock` and
+`node swap-demo.mjs mock` run the same steps offline on the SDK's production
+profile: mainnet's dust rules, and every fee paid from the key's own coins.
+`npm test` includes them.
+
+Lines starting `STB debug() best-effort error` come from the SDK trying a call
+before its fee coins are added. The line after each says what happened.
 
 The scripts keep one connection to `bch.imaginary.cash` open, retry a request
 when it drops, and move to `electrum.imaginary.cash` if it keeps dropping.

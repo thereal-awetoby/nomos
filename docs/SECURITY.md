@@ -5,8 +5,8 @@
 This document describes the trust boundaries of the current code. The
 CashScript and SolidCash vaults have run on mainnet (see `MAINNET_PROOFS.md`);
 as with any new contract, start with small amounts. StableSwap and
-HashedTimeLock have mock-network tests and live-run scripts; their mainnet runs
-are pending. The PUSD and
+HashedTimeLock have mock-network tests and have run on mainnet with test
+amounts; they remain prototypes. The PUSD and
 USDC swap locks real funds on two chains; each lock refunds its sender after
 its timeout.
 

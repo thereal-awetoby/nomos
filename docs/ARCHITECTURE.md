@@ -91,11 +91,12 @@ script failed or prove that the Nomos covenant rule caused it.
 | NomosVault (CashScript) | `contracts/NomosVault.cash` | BCH spend mandate; spend state is carried by the CashTokens NFT commitment. Run on mainnet from the app; see `docs/MAINNET_PROOFS.md`. |
 | NomosVault (SolidCash) | `contracts/solidcash/NomosVault.scash` | SolidCash edition with mock-network tests; run on mainnet with `demo.mjs`. |
 | SwapLock | `contracts/SwapLock.cash`, `contracts/evm/SwapLock.sol` | Hash-time locks for the PUSD and USDC swap; tested in the BCH VM and on a local EVM node. |
-| StableSwap | `contracts/solidcash/StableSwap.scash` | Prototype BCH / one configured CashToken-category pool. Admin-only liquidity management; no LP-share accounting. PUSD metadata and deployment are pending. |
-| HashedTimeLock | `contracts/solidcash/HashedTimeLock.scash` | BCH-only native-satoshi lock, SHA-256 claim, and timestamp refund prototype. It does not hold PUSD or verify another chain. |
+| StableSwap | `contracts/solidcash/StableSwap.scash` | Prototype BCH / one configured CashToken-category pool. Admin-only liquidity management; no LP-share accounting. Run on mainnet with a test token; PUSD metadata is not verified. |
+| HashedTimeLock | `contracts/solidcash/HashedTimeLock.scash` | BCH-only native-satoshi lock, SHA-256 claim, and timestamp refund prototype, run on mainnet with test amounts. It does not hold PUSD or verify another chain. |
 
 The StableSwap and HTLC tests run compiled contracts on SolidCash's mock BCH
-VM; neither prototype is deployed. A real cross-chain flow would require a
+VM. Each prototype has also run on mainnet with test amounts (see
+[MAINNET_PROOFS.md](MAINNET_PROOFS.md)); the app uses neither. A real cross-chain flow would require a
 separate contract on the other chain and reviewed timeout/recovery behavior.
 
 ## Validation entry points

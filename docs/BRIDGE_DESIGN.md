@@ -129,8 +129,9 @@ deployment, or end-to-end integration is configured in this repository.
 
 ## Before deploying the prototypes
 
-`StableSwap.scash` and `HashedTimeLock.scash` are prototypes tested on a mock
-network; neither is deployed. Before any pool deployment, the project must identify and
+`StableSwap.scash` and `HashedTimeLock.scash` are prototypes. Both are tested
+on a mock network and have run on mainnet with test amounts (a test token, not
+PUSD; see [MAINNET_PROOFS.md](MAINNET_PROOFS.md)). Before any pool deployment, the project must identify and
 verify the intended PUSD category, review decimal and supply metadata, review
 the covenant and transaction-building path, add LP ownership/redemption
 accounting (or clearly limit a custodial pilot), test adversarial token

@@ -83,9 +83,58 @@ invitations and checks them in the BCH VM, offline; see
 the template fix, created an earlier vault: genesis
 [`d73393f2…`](https://chipnet.chaingraph.cash/tx/d73393f2355f97bf98f2c8827f5e6ddf2b8d76756e27369d1b5f460c70db2b66).
 
-## SolidCash hash-time-lock and StableSwap
+## SolidCash hash-time-lock, 22 Nov 2026
 
-Both have mock-network tests and a script for a live run
-(`contracts/solidcash/htlc-demo.mjs` and `swap-demo.mjs`, see the
+Run with `contracts/solidcash/htlc-demo.mjs mainnet` (see the
 [SolidCash README](../contracts/solidcash/README.md#hash-time-lock-and-stableswap-runs)).
-Their mainnet runs are pending. The app does not use either contract.
+The sender is `bitcoincash:qrx2q58hue6zw2nqeffqcdsycm56j3y7s5dwzcddew`. The
+receiver, `bitcoincash:qrdmakng5ywtnwkhqfnxfm9gujunx3a6ugev0t8n5d`, is a key
+derived from the sender's, so one run signs both sides. Each lock holds 2,000
+sats. The app does not use this contract.
+
+| Step | Transaction |
+|------|-------------|
+| Give the receiver four coins for its call inputs and fees | [`f74c4541…`](https://blockchair.com/bitcoin-cash/transaction/f74c45410827a76dddfb68aa10b3253d8df56b06e1049c8c3b2eb8a63e75cc5c) |
+| Lock 1: deploy, claimable for 2 hours | [`b7f2a425…`](https://blockchair.com/bitcoin-cash/transaction/b7f2a425c68b4ab534a86c339e1842c37f60953bea34bc44e5c0a7f46e9f3e34) |
+| Lock 1: lock 2,000 sats to the SHA-256 of a secret | [`fcfdfc8c…`](https://blockchair.com/bitcoin-cash/transaction/fcfdfc8c449328679a44db54c1ed89ad73e03643850ac639ff11687433ea5e07) |
+| Lock 1: claim with a wrong secret | Refused at `HashedTimeLock.scash:48` (`Wrong preimage`) before broadcast |
+| Lock 1: claimed by the receiver with the secret | [`37f3163a…`](https://blockchair.com/bitcoin-cash/transaction/37f3163aa53a1b1e032d2592c61afd3653d08002aebfd719b43c29d605aca5cc) |
+| Lock 2: deploy, its deadline already past | [`de3fb510…`](https://blockchair.com/bitcoin-cash/transaction/de3fb510cbb84407c5360543983f2801d6b6d55f06c7c07997c623efeaa8e346) |
+| Lock 2: lock 2,000 sats | [`5e5abdb8…`](https://blockchair.com/bitcoin-cash/transaction/5e5abdb8dac6e175ca60b4972bdd8d620babc1102b27cd637beb3f38c6518ee0) |
+| Lock 2: claim after the deadline | Refused at `HashedTimeLock.scash:50` (`Claim window expired`) before broadcast |
+| Lock 2: refunded to the sender | [`7d8231c3…`](https://blockchair.com/bitcoin-cash/transaction/7d8231c3b8b43ecd8663ded47df841475eef13d812882d7bbaa6b73d56ebd18f) |
+| The receiver's leftover coins back to the sender | [`e224334b…`](https://blockchair.com/bitcoin-cash/transaction/e224334bd6997cd57e56398c531db5b83ae681f064b69b7d188ef4eaace729a3) |
+
+The claim put the secret on chain:
+`68207b6e17c3f5c18f854a482735b62cb04bd350e5633b4d4a7e6e231148e628`. Its
+SHA-256 is the hash lock 1 was locked to. The run cost 41,923 sats: fees plus
+the state outputs SolidCash leaves in each contract.
+
+An earlier attempt the same night stopped after its first lock, because the
+receiver had too few coins to pay for its calls: deploy
+[`c68557d8…`](https://blockchair.com/bitcoin-cash/transaction/c68557d85af5b75ee161d040934faa4b2132b748d3fa7d4e3fea2e72f811b4d0),
+lock [`10a605b1…`](https://blockchair.com/bitcoin-cash/transaction/10a605b146d8f9d6627a9b696a335f2a21049a61e1b83d790710b716b88fd707).
+Its 2,000 sats stay in that contract.
+
+## SolidCash StableSwap, 22 Nov 2026
+
+Run with `contracts/solidcash/swap-demo.mjs mainnet`, with a test token minted
+for the run: category
+`0ba2e9bc43181a8d681ca451db75be6f9d44516017b03d052675a629123fb89b`, not PUSD
+and of no value. The wallet,
+`bitcoincash:qrx2q58hue6zw2nqeffqcdsycm56j3y7s5dwzcddew`, is the pool's admin
+and its only trader. The app does not use this contract.
+
+| Step | Transaction |
+|------|-------------|
+| Split coins for the mint | [`0ba2e9bc…`](https://blockchair.com/bitcoin-cash/transaction/0ba2e9bc43181a8d681ca451db75be6f9d44516017b03d052675a629123fb89b) |
+| Mint 1,000,000 test tokens | [`a2ada84c…`](https://blockchair.com/bitcoin-cash/transaction/a2ada84cfedef1452fbd8e3d21964c9af50d84b65756970ce3f9c9de6e3eb727) |
+| Deploy the pool | [`fb745731…`](https://blockchair.com/bitcoin-cash/transaction/fb745731b7a50171e00e689a779b825dd55c2bb4f6cd5b906f684f84ad3984f3) |
+| Add 10,000 sats and 1,000,000 tokens | [`b446aa60…`](https://blockchair.com/bitcoin-cash/transaction/b446aa60e0a5b22108ede6d54ecffdb29c5cc4bf659400902bafb1bde20d25e2) |
+| Swap 1,000 sats, asking for one token more than the quote | Refused at `StableSwap.scash:43` (`Slippage: PUSD output below minimum`) before broadcast |
+| Swap 1,000 sats for 90,661 tokens | [`d3cb2dad…`](https://blockchair.com/bitcoin-cash/transaction/d3cb2dadff5867284e5e2c2a68d9d3b7819425ebfce431d92ade5525f8a8c579) |
+| Swap the 90,661 tokens back for 994 sats | [`555c5583…`](https://blockchair.com/bitcoin-cash/transaction/555c55831a526bbd097a8615d7521c137b30738db0c23ef97da46ed7eacd9d74) |
+| Withdrawal signed by another key | Not shown in this run: it asked for a 1-sat output, below the dust limit, so the SDK stopped it before the contract's admin check (`StableSwap.scash:115`) ran. `swap.test.mjs` covers that check offline. |
+| The admin withdraws 9,006 sats and the 1,000,000 tokens | [`710f8e7f…`](https://blockchair.com/bitcoin-cash/transaction/710f8e7ff11d2d50780839670793af1749cb2d38ed1bcff97de12cd5533099e1) |
+
+The SDK keeps the pool's last 1,000 sats. The run cost 46,279 sats.

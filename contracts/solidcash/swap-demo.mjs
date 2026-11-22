@@ -49,12 +49,11 @@ keepRunningThroughDroppedSockets()
 let provider
 let wallet
 if (NETWORK === 'mock') {
-  // Offline: a throwaway key holding one coin of the suggested funding. The
-  // mock could make up fee coins by itself; like a live network, it may not.
-  provider = new MockNetworkProvider()
+  // Offline, on the SDK's production profile: dust rules as on mainnet and no
+  // made-up fee coins. A throwaway key holds one coin of the suggested funding.
+  provider = new MockNetworkProvider({ profile: 'production' })
   wallet = new Signer(new Uint8Array(randomBytes(32)), provider)
-  await provider.addUtxo(wallet.address, { ...randomUtxo({ satoshis: 80_000n }) })
-  provider.addUtxo = undefined
+  await MockNetworkProvider.prototype.addUtxo.call(provider, wallet.address, { ...randomUtxo({ satoshis: 80_000n }) })
 } else {
   const wif = process.env.PRIVATE_KEY
   if (!wif) { console.error(`Set PRIVATE_KEY to a funded ${NETWORK} WIF`); process.exit(1) }
@@ -97,19 +96,24 @@ async function mintTestToken(amount) {
 }
 
 let ok = true
-/** Only the contract or the network turning a call down counts; a run that could not pay for it proves nothing. */
-const expectRefusal = async (label, attempt) => {
+/**
+ * A refusal counts only when the contract's own require turned the call down,
+ * named by its message. Anything else (a call the key could not pay for, a
+ * dropped connection, an SDK rule) proves nothing about the contract.
+ */
+const expectRefusal = async (label, requireMessage, attempt) => {
   try {
     const r = await attempt()
     ok = false
     console.log(`  NOT REFUSED (unexpected): ${TX(r.txid)}`)
   } catch (e) {
-    if (isFundingError(e) || isConnectionError(e)) {
-      ok = false
-      console.log(`  NOT TESTED, ${label}: ${reason(e)}`)
+    if (reason(e).includes(requireMessage)) {
+      console.log(`  REFUSED, ${label}: ${reason(e)}`)
       return
     }
-    console.log(`  REFUSED, ${label}: ${reason(e)}`)
+    ok = false
+    const why = isFundingError(e) ? 'the key could not pay for the call' : isConnectionError(e) ? 'the connection dropped' : 'stopped before the contract ran'
+    console.log(`  NOT TESTED, ${label} (${why}): ${reason(e)}`)
   }
 }
 
@@ -144,7 +148,7 @@ try {
 
   const out = quote(BCH_IN, await pool.state.reserveBch(), await pool.state.reservePusd())
   console.log(`\nSwap ${n(BCH_IN)} sats for tokens (quote ${n(out)}, 0.3% fee kept by the pool)…`)
-  await expectRefusal('asking for one token more than the quote', () => pool.call
+  await expectRefusal('asking for one token more than the quote', 'Slippage', () => pool.call
     .swapBchToPusd(pkhOf(wallet), out + 1n)
     .withValue(BCH_IN)
     .tokenContainerTransfer(category, me, out + 1n)
@@ -167,10 +171,11 @@ try {
     .send()
   console.log('  SWAPPED:', TX(sold.txid))
 
-  console.log('\nA withdrawal signed by another key…')
-  await expectRefusal('not the admin', () => pool.call
-    .removeLiquidity(pkhOf(stranger), 1n, 1n, sig(stranger))
-    .transfer(stranger.getLockingBytecode(), 1n)
+  // Amounts above the dust limit, so the attempt reaches the contract's check.
+  console.log('\nA withdrawal of 1,000 sats and 1 token signed by another key…')
+  await expectRefusal('not the admin', 'Admin signature required', () => pool.call
+    .removeLiquidity(pkhOf(stranger), 1_000n, 1n, sig(stranger))
+    .transfer(stranger.getLockingBytecode(), 1_000n)
     .tokenContainerTransfer(category, stranger.getLockingBytecode(), 1n)
     .send())
 } catch (e) {

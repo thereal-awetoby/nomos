@@ -31,8 +31,9 @@ time? The [demo video](https://youtu.be/eR8DS4LNMvA) shows the whole flow.
 ## 3. The proof on mainnet
 
 [`docs/MAINNET_PROOFS.md`](MAINNET_PROOFS.md) lists every mainnet transaction:
-the CashScript vault run from the app, the SolidCash vault run, the swap and
-the identity link.
+the CashScript vault run from the app, the SolidCash vault run, the SolidCash
+hash-time-lock and StableSwap runs, the PUSD and USDC swap and the identity
+link.
 
 ## 4. The tests (Node.js 22 or newer)
 

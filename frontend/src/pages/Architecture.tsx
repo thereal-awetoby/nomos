@@ -30,8 +30,8 @@ const CONTRACTS: { name: string; file: string; purpose: string; status: string }
   {
     name: 'StableSwap and HashedTimeLock',
     file: 'contracts/solidcash/',
-    purpose: 'Earlier experiments with mock-network tests.',
-    status: 'Prototype',
+    purpose: 'A BCH pool and a hash-time lock. The app does not use them.',
+    status: 'Prototype, run on mainnet',
   },
 ]
 

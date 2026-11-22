@@ -116,6 +116,7 @@ export default function Landing() {
   const proofs = MAINNET_PROOFS.filter((p) => p.txid)
   // Say only what the listed transactions show.
   const cashScriptOnMainnet = proofs.some((p) => p.edition === 'CashScript vault')
+  const prototypesOnMainnet = proofs.some((p) => p.edition === 'SolidCash hash-time-lock' || p.edition === 'SolidCash StableSwap')
 
   const copyEmber = async () => {
     try {
@@ -208,6 +209,7 @@ export default function Landing() {
               {cashScriptOnMainnet
                 ? 'Both editions of the vault have run on Bitcoin Cash mainnet: paid under the limit and refused over it. The SolidCash vault was also rescued with two keys.'
                 : 'The vault has run on Bitcoin Cash mainnet: paid under the limit, refused over it, and rescued with two keys.'}
+              {prototypesOnMainnet && ' A SolidCash hash-time-lock and StableSwap pool have run there too, with test amounts.'}
             </p>
             <div className="mt-10 grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
               <ul className="divide-y overflow-hidden rounded-[18px] border l-hair bg-land-raised [&>li]:border-[color:var(--l-hair)]">
