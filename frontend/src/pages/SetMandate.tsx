@@ -1,11 +1,11 @@
-import { useCallback, useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, Navigate, Link, useLocation } from 'react-router-dom'
 import { useWallet } from '../context/WalletContext'
-import { executeSetMandate, executeCreateVault, executeCloseVault, validateAllowlistAddress, validateCashAddress, getWalletBalance, MIN_VAULT_DEPOSIT_SATS, verifyAnchor } from '../lib/contract'
+import { executeSetMandate, executeCreateVault, executeCloseVault, validateAllowlistAddress, validateCashAddress, MIN_VAULT_DEPOSIT_SATS, verifyAnchor } from '../lib/contract'
 import { isNostrIdentifier, resolveNostrPayee } from '../lib/nostr'
 import type { Mandate, VaultConfig } from '../lib/types'
 import SpentMeter from '../components/SpentMeter'
-import AddFunds from '../components/AddFunds'
+import AddFunds, { useWalletBalance } from '../components/AddFunds'
 import { fmtBch, shortAddr } from '../components/ui'
 import { addressMatchesPubkey } from '../lib/wallet'
 import { IS_CHIPNET } from '../lib/network'
@@ -41,18 +41,13 @@ export default function SetMandate() {
   const [submitting, setSubmitting] = useState(false)
   const [step, setStep] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [walletBal, setWalletBal] = useState<number | null>(null)
   const [sharing, setSharing] = useState(false)
   const [shareError, setShareError] = useState<string | null>(null)
 
-  // Fetch wallet balance on mount so the user can see it before creating
-  const loadBalance = useCallback(() => {
-    if (!wallet?.address) return
-    getWalletBalance(wallet.address)
-      .then(setWalletBal)
-      .catch(() => setWalletBal(null))
-  }, [wallet?.address])
-  useEffect(() => { loadBalance() }, [loadBalance])
+  // The balance shows before creating: the whole wallet when the connection
+  // shares all its addresses, else the connected address.
+  const { sats: addressBal, whole, refresh: loadBalance } = useWalletBalance(wallet?.address)
+  const walletBal = whole ? whole.sats : addressBal
 
   if (!wallet?.connected) return <Navigate to="/connect" replace />
 
@@ -285,10 +280,14 @@ export default function SetMandate() {
           />
           {walletBal !== null && wallet?.address && (
             <p className="mt-1.5 text-sm text-nomos-muted">
-              Balance at <span className="font-mono text-nomos-text">{shortAddr(wallet.address.replace(/^(bitcoincash|bchtest):/, ''), 4, 4)}</span>:{' '}
+              {whole ? 'Wallet balance' : <>Balance at <span className="font-mono text-nomos-text">{shortAddr(wallet.address.replace(/^(bitcoincash|bchtest):/, ''), 4, 4)}</span></>}:{' '}
               <span className="tabular-nums text-nomos-text">{(walletBal / 1e8).toFixed(8)} BCH</span>
               <span className="mt-0.5 block text-xs">
-                The vault is funded from the address your wallet shared. Your wallet's total can be higher if it holds BCH at other addresses.
+                {whole
+                  ? whole.elsewhere > 0
+                    ? `Across ${whole.addresses} ${whole.addresses === 1 ? 'address' : 'addresses'}. Creating the vault gathers what it needs into ${shortAddr(wallet.address.replace(/^(bitcoincash|bchtest):/, ''), 4, 4)}, the address that will own it.`
+                    : `All at ${shortAddr(wallet.address.replace(/^(bitcoincash|bchtest):/, ''), 4, 4)}, the address that will own the vault.`
+                  : "The vault is funded from the address your wallet shared. Your wallet's total can be higher if it holds BCH at other addresses."}
               </span>
             </p>
           )}

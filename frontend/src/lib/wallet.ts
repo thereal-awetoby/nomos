@@ -8,6 +8,7 @@ import { binToHex } from '@wizardconnect/core'
 import type { DappConnectionManager } from '@wizardconnect/dapp'
 import {
   base64ToBin,
+  cashAddressToLockingBytecode,
   decodeCashAddress,
   hash160,
   hash256,
@@ -15,10 +16,13 @@ import {
   encodeTransaction,
   binToHex as libBinToHex,
   secp256k1,
+  sha256,
   stringify,
 } from '@bitauth/libauth'
 import { ADDRESS_PREFIX, WC2_CHAIN } from './network'
 import type { RecoveryId } from '@bitauth/libauth'
+import { scanHdWallet } from './hdwallet'
+import type { HdWallet } from './hdwallet'
 
 // ── Active references (set by React layer) ────────────────
 let wcManager: DappConnectionManager | null = null
@@ -87,6 +91,65 @@ export async function findFundedWcAddress(
   }
   // Fallback to index 0
   return { address: getWcAddress(network, 0), index: 0 }
+}
+
+// ── The whole wallet (WizardConnect) ───────────────────────
+// WizardConnect shares the wallet's receive, change and DeFi keys, so Nomos
+// can see every address the wallet uses, not only the one it works with.
+
+/** An address's script hash, as Electrum servers index it. */
+function electrumScripthash(address: string): string {
+  const lock = cashAddressToLockingBytecode(address)
+  if (typeof lock === 'string') throw new Error(lock)
+  return libBinToHex(sha256.hash(lock.bytecode).reverse())
+}
+
+const WALLET_SCAN_TTL_MS = 20_000
+let walletScan: { key: string; at: number; result: Promise<HdWallet | null> } | null = null
+
+/** Forget the last scan, after coins moved. */
+export function forgetWalletScan(): void {
+  walletScan = null
+}
+
+/**
+ * Every plain BCH coin in the wallet connected with WizardConnect, found the
+ * way the wallet finds its own. A scan is reused for 20 seconds unless
+ * `force` is set. Null when no WizardConnect wallet is connected.
+ */
+export function scanWcWallet(network: 'mainnet' | 'chipnet' = 'mainnet', force = false): Promise<HdWallet | null> {
+  const manager = wcManager
+  if (!manager) return Promise.resolve(null)
+  const key = `${network}:${getWcAddress(network, 0)}`
+  if (!force && walletScan && walletScan.key === key && Date.now() - walletScan.at < WALLET_SCAN_TTL_MS) {
+    return walletScan.result
+  }
+  const prefix = network === 'mainnet' ? 'bitcoincash' : 'bchtest'
+  const result = (async () => {
+    const { ElectrumNetworkProvider } = await import('cashscript')
+    const provider = new ElectrumNetworkProvider(network, { manualConnectionManagement: true })
+    await provider.connect()
+    try {
+      return await scanHdWallet({
+        addressAt: (_path, child, index) => {
+          if (!manager.hasPath(child)) return null
+          const raw = manager.getPubkey(child, BigInt(index))
+          return raw ? pubkeyToAddress(raw, prefix) : null
+        },
+        used: async (address) => {
+          const history = await provider.performRequest('blockchain.scripthash.get_history', electrumScripthash(address))
+          return Array.isArray(history) && history.length > 0
+        },
+        coins: (address) => provider.getUtxos(address),
+      })
+    } finally {
+      provider.disconnect().catch(() => {})
+    }
+  })()
+  walletScan = { key, at: Date.now(), result }
+  // A failed scan is not kept, so the next call tries again.
+  result.catch(() => { if (walletScan?.result === result) walletScan = null })
+  return result
 }
 
 // ── BCH WalletConnect v2 ───────────────────────────────────
@@ -296,6 +359,7 @@ function toWizardRequest(wcTxObj: any): { transaction: string; sourceOutputs: an
 export async function signWcTransaction(
   provider: WalletProviderType,
   wcTxObj: any,
+  // Set when inputs come from several addresses of the wallet: each input's path and index.
   inputPaths?: [number, string, number][],
   wcIndex: number = 0,
 ): Promise<{ txid: string; signedTransaction: string }> {

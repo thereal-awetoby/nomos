@@ -42,7 +42,18 @@ switch in the header changes it for this browser (`lib/network.ts`). Each
 network keeps its own wallet, vaults and history in local storage, and each
 wallet sees only the vault its key owns or is the agent of. The `contract.ts`
 module uses CashScript's `ElectrumNetworkProvider` to read UTXOs and build or
-broadcast transactions. Nostr lookups run client-side but contact external
+broadcast transactions.
+
+Over WizardConnect the wallet shares one extended public key per path
+(receive, change and, if it has one, DeFi). `lib/hdwallet.ts` derives the
+wallet's addresses from them and finds their coins the way an HD wallet does,
+path by path until 20 unused addresses in a row, so the app shows the whole
+balance. Creating a vault, or the wallet menu's Gather button, merges coins
+from several addresses into one coin at the address Nomos works with. Nomos
+names the path and index for each input and the wallet signs each with that
+key. `frontend/tests/hdwallet.test.ts` checks the scan and the gathering
+against an emulated BIP44 wallet and the BCH virtual machine. A WalletConnect
+wallet shares a single address, so Nomos uses the coins there. Nostr lookups run client-side but contact external
 NIP-05 domains and public relays; event signatures are verified before an
 address is used. The Simulator is local-only and does not execute a covenant.
 

@@ -16,7 +16,7 @@ its timeout.
 |---|---|
 | BCH covenant validation | Enforces the conditions in the covenant when the covenant UTXO is spent. It does not protect funds after they leave that covenant. |
 | Frontend | Builds transactions and displays state, but is not itself the enforcement layer. It may be unavailable, misleading, or compromised. |
-| Wallet | Holds keys and authorizes signatures. Users must review wallet prompts and protect their recovery material. |
+| Wallet | Holds keys and authorizes signatures. Users must review wallet prompts and protect their recovery material. Over WizardConnect the wallet shares extended public keys, so the app can see every address and balance in it; gathering asks the wallet to sign each input with the key Nomos names, and the wallet signs only if the user approves. |
 | Electrum network provider | Supplies UTXO/state data and relays transactions. It can fail, withhold, or return misleading data; BCH consensus validates transactions against the network state. |
 | Nostr relays | Can censor or withhold events. The app verifies the event signature before using a published BCH address, but cannot guarantee relay availability or freshness. |
 | Browser storage | Wallet configuration and receipts are stored locally and can be cleared or modified. They are not authoritative on-chain records. |

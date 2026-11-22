@@ -21,7 +21,8 @@ import type {
 } from './types'
 import { classifyNodeRejection } from './proofs'
 import type { RefusalProof } from './proofs'
-import { signWcTransaction } from './wallet'
+import { forgetWalletScan, scanWcWallet, signWcTransaction } from './wallet'
+import { gatherTransaction, planGather } from './hdwallet'
 import {
   decodeCashAddress,
   encodeCashAddress,
@@ -433,6 +434,8 @@ export async function buildSignAndBroadcast(
   provider: WalletProviderType,
   prompt: string,
   wcIndex: number = 0,
+  // For inputs from several addresses of a WizardConnect wallet: each input's path and index.
+  inputPaths?: [number, string, number][],
 ): Promise<{ txid: string; signedTransaction: string }> {
   // CashScript 0.11.x: generateWcTransactionObject (NOT generateWizardConnectTransactionObject)
   // The wallet only signs. Nomos repairs and broadcasts the transaction itself,
@@ -442,7 +445,7 @@ export async function buildSignAndBroadcast(
     userPrompt: prompt,
   })
 
-  const result = await signWcTransaction(provider, wcTxObj, undefined, wcIndex)
+  const result = await signWcTransaction(provider, wcTxObj, inputPaths, wcIndex)
 
   if (result.signedTransaction) {
     const signedTransaction = restoreContractRedeemScripts(result.signedTransaction, wcTxObj)
@@ -689,6 +692,73 @@ export async function getWalletBalance(walletAddress: string): Promise<number> {
   return Number(utxos.reduce((s: bigint, u: any) => s + u.satoshis, 0n))
 }
 
+/** What the whole wallet holds, when the connection shares all its addresses. */
+export interface WholeWallet {
+  /** Plain BCH across every address the wallet uses. */
+  sats: number
+  /** Plain BCH at addresses other than the connected one. */
+  elsewhere: number
+  /** Addresses holding BCH. */
+  addresses: number
+}
+
+/**
+ * The whole wallet behind a WizardConnect connection. Null for other
+ * connections, which share one address, and when the scan fails.
+ */
+export async function getWholeWallet(
+  walletAddress: string,
+  walletProvider: WalletProviderType | undefined,
+  force = false,
+): Promise<WholeWallet | null> {
+  if (walletProvider !== 'wizardconnect') return null
+  try {
+    const wallet = await scanWcWallet(BCH_NETWORK, force)
+    if (!wallet) return null
+    const here = wallet.coins.filter((c) => c.address === walletAddress).reduce((sum, c) => sum + c.satoshis, 0n)
+    return { sats: Number(wallet.sats), elsewhere: Number(wallet.sats - here), addresses: wallet.fundedAddresses }
+  } catch (err) {
+    console.warn('[nomos] wallet scan failed:', err)
+    return null
+  }
+}
+
+/**
+ * Gather BCH from the wallet's addresses into one coin at output 0 of
+ * `walletAddress`, the address Nomos works with. With a target, only as many
+ * coins as it takes; without one, all of them. WizardConnect only: the wallet
+ * signs each input with the key at the path and index Nomos names for it.
+ */
+export async function gatherIntoAddress(
+  walletAddress: string,
+  target: bigint | null,
+  walletProvider: WalletProviderType,
+  prompt = 'Nomos: gather your BCH into one address',
+): Promise<{ txid: string; utxo: Utxo; inputs: number; fromAddresses: number; sats: bigint }> {
+  if (walletProvider !== 'wizardconnect') {
+    throw new Error('Gathering needs a WizardConnect connection, which shares all of the wallet\'s addresses.')
+  }
+  const wallet = await scanWcWallet(BCH_NETWORK, true)
+  if (!wallet) throw new Error('The wallet connection is not ready. Reconnect your wallet and try again.')
+  const plan = planGather(wallet.coins, walletAddress, target, (inputs) => p2pkhFee(inputs, 0, 1), DUST_LIMIT)
+  if (!plan) {
+    const have = Number(wallet.sats) / 1e8
+    throw new Error(target === null
+      ? 'Your wallet holds no BCH to gather.'
+      : `Need ${Number(target) / 1e8} BCH plus fees, but your whole wallet holds ${have} BCH.`)
+  }
+  const { builder, inputPaths } = gatherTransaction(plan, walletAddress, getProvider())
+  const result = await buildSignAndBroadcast(builder, walletProvider, prompt, 0, inputPaths)
+  forgetWalletScan()
+  return {
+    txid: result.txid,
+    utxo: { txid: result.txid, vout: 0, satoshis: plan.output },
+    inputs: plan.inputs.length,
+    fromAddresses: new Set(plan.inputs.map((coin) => coin.address)).size,
+    sats: plan.output,
+  }
+}
+
 export function p2pkhFee(inputs: number, tokenOutputs: number, plainOutputs: number): bigint {
   const bytes =
     TX_OVERHEAD_BYTES +
@@ -728,7 +798,19 @@ export async function executeCreateVault(
     const total = walletUtxos.reduce((sum, u) => sum + u.satoshis, 0n)
     const mergeFee = p2pkhFee(walletUtxos.length, 0, 1)
     const merged = total - mergeFee
-    if (walletUtxos.length === 0 || merged < needed) {
+
+    if (walletUtxos.length > 0 && merged >= needed) {
+      onStep?.('Step 1 of 2: preparing a coin for the vault. Confirm in your wallet.')
+      const mergeTx = new TransactionBuilder({ provider })
+      for (const u of walletUtxos) mergeTx.addInput(u, placeholderP2PKHUnlocker(walletAddress))
+      mergeTx.addOutput({ to: walletAddress, amount: merged })
+      const mergeResult = await buildSignAndBroadcast(mergeTx, walletProvider, 'Nomos: prepare vault coin', wcIndex)
+      genesisUtxo = { txid: mergeResult.txid, vout: 0, satoshis: merged }
+    } else if (walletProvider === 'wizardconnect') {
+      // Not enough at this address: gather the rest from the wallet's other addresses.
+      onStep?.('Step 1 of 2: gathering BCH from your wallet into one coin for the vault. Confirm in your wallet.')
+      genesisUtxo = (await gatherIntoAddress(walletAddress, needed, walletProvider, 'Nomos: gather BCH for your vault')).utxo
+    } else {
       const need = needed + mergeFee
       const have = Number(total)
       const short = Number(need) - have
@@ -738,14 +820,6 @@ export async function executeCreateVault(
           : `Need ${Number(need) / 1e8} BCH (deposit + fees) but your wallet has ${have / 1e8} BCH — short by ${short / 1e8} BCH`,
       )
     }
-
-    onStep?.('Step 1 of 2: preparing a coin for the vault. Confirm in your wallet.')
-    const mergeTx = new TransactionBuilder({ provider })
-    for (const u of walletUtxos) mergeTx.addInput(u, placeholderP2PKHUnlocker(walletAddress))
-    mergeTx.addOutput({ to: walletAddress, amount: merged })
-    const mergeResult = await buildSignAndBroadcast(mergeTx, walletProvider, 'Nomos: prepare vault coin', wcIndex)
-    genesisUtxo = { txid: mergeResult.txid, vout: 0, satoshis: merged }
-
     onStep?.('Step 2 of 2: creating your vault. Confirm in your wallet.')
   } else {
     onStep?.('Creating your vault. Confirm in your wallet.')
@@ -961,7 +1035,9 @@ function inputSpentBy(unlockingBytecode: Uint8Array, payload: Uint8Array): boole
 
 async function walletCoins(walletAddress: string): Promise<Utxo[]> {
   const coins = (await getProvider().getUtxos(walletAddress)).filter((u: any) => !u.token)
-  if (coins.length === 0) throw new Error('No BCH found at the connected wallet address.')
+  if (coins.length === 0) {
+    throw new Error('No BCH at the connected address yet. Send some to it, or gather it from your wallet\'s other addresses with the wallet button at the top.')
+  }
   return coins
 }
 

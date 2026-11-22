@@ -102,6 +102,7 @@ Node.js 22 or newer.
 cd frontend && cp .env.example .env && npm ci
 npm run dev                                       # the app
 npm run build                                     # type check and production build
+npm test                                          # whole-wallet scan and gathering, against an emulated HD wallet
 
 cd ../contracts/solidcash && npm ci && npm test   # SolidCash vault, StableSwap and HTLC in the BCH VM
 cd .. && npm ci && npm run test:swap              # SwapLock.cash, the PUSD side of the swap, in the BCH VM

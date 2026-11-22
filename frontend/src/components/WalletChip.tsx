@@ -20,8 +20,9 @@ export default function WalletChip() {
   const { pathname } = useLocation()
   const [open, setOpen] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [gathering, setGathering] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
-  const { sats, refresh } = useWalletBalance(wallet?.connected ? wallet.address : undefined)
+  const { sats, whole, refresh } = useWalletBalance(wallet?.connected ? wallet.address : undefined)
 
   useEffect(() => { if (open) void refresh() }, [open, refresh])
 
@@ -53,6 +54,22 @@ export default function WalletChip() {
       toast('Address copied', 'success')
     } catch {
       toast('Could not copy the address', 'error')
+    }
+  }
+
+  // Move the BCH at the wallet's other addresses to this one, so every part of
+  // Nomos can use it. The wallet signs each coin with its own key.
+  const gather = async () => {
+    setGathering(true)
+    try {
+      const { gatherIntoAddress } = await import('../lib/contract')
+      const result = await gatherIntoAddress(wallet.address, null, wallet.provider)
+      toast(`Gathered ${fmtBch(Number(result.sats))} BCH from ${result.fromAddresses} addresses`, 'success')
+      await refresh(true)
+    } catch (err: any) {
+      toast(err?.message || 'The BCH was not gathered', 'error')
+    } finally {
+      setGathering(false)
     }
   }
 
@@ -88,8 +105,19 @@ export default function WalletChip() {
         >
           <p className="text-xs text-nomos-muted">Connected with {PROVIDER_NAME[wallet.provider] ?? 'a wallet'}</p>
           <p className="mt-2 font-display text-2xl font-extrabold tabular-nums text-nomos-text" style={{ fontStretch: '112%' }}>
-            {sats === null ? '…' : fmtBch(sats)} <span className="text-sm font-semibold text-nomos-muted">BCH</span>
+            {whole ? fmtBch(whole.sats) : sats === null ? '…' : fmtBch(sats)} <span className="text-sm font-semibold text-nomos-muted">BCH</span>
           </p>
+          {whole && whole.elsewhere > 0 && (
+            <>
+              <p className="mt-1 text-xs leading-relaxed text-nomos-muted">
+                Across {whole.addresses} {whole.addresses === 1 ? 'address' : 'addresses'} in your wallet.
+                {sats !== null && ` ${fmtBch(sats)} BCH is at ${shortAddr(wallet.address.replace(/^(bitcoincash|bchtest):/, ''), 4, 4)}, the address Nomos uses.`}
+              </p>
+              <button type="button" onClick={() => { void gather() }} disabled={gathering} className="btn-secondary mt-2 min-h-[38px] w-full text-sm">
+                {gathering ? <><span className="spinner mr-2" aria-hidden="true" /> Waiting for your wallet…</> : `Gather it all into ${shortAddr(wallet.address.replace(/^(bitcoincash|bchtest):/, ''), 4, 4)}`}
+              </button>
+            </>
+          )}
           <button type="button" onClick={() => { setOpen(false); setAdding(true) }} className="btn-primary mt-2 min-h-[38px] w-full text-sm">
             Add BCH
           </button>

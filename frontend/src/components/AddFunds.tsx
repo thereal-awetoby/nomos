@@ -3,25 +3,36 @@ import { createPortal } from 'react-dom'
 import { useToast } from './Toast'
 import { MERCAR_URL } from '../lib/links'
 import { IS_CHIPNET, CHIPNET_FAUCET_URL } from '../lib/network'
+import { useWallet } from '../context/WalletContext'
+import type { WholeWallet } from '../lib/contract'
 
 // ── Add BCH ─────────────────────────────────────────────────
 // Shown boldly when the connected wallet is empty: its address as a QR code
 // to send BCH to, and where to buy some.
 
-/** The connected wallet's balance in sats; null while loading or unknown. */
+/**
+ * The connected wallet's BCH, in sats: `sats` at its address (null while
+ * loading or unknown) and `whole` across every address of the wallet when the
+ * connection shares them, as WizardConnect does (null otherwise).
+ */
 export function useWalletBalance(address: string | undefined) {
+  const { wallet } = useWallet()
+  const provider = wallet?.provider
   const [sats, setSats] = useState<number | null>(null)
-  const refresh = useCallback(async () => {
+  const [whole, setWhole] = useState<WholeWallet | null>(null)
+  const refresh = useCallback(async (force?: unknown) => {
     if (!address) return
+    const { getWalletBalance, getWholeWallet } = await import('../lib/contract')
     try {
-      const { getWalletBalance } = await import('../lib/contract')
       setSats(await getWalletBalance(address))
     } catch {
       setSats(null)
     }
-  }, [address])
+    // A click passes its event here: that counts as asking for a fresh look.
+    setWhole(await getWholeWallet(address, provider, Boolean(force)))
+  }, [address, provider])
   useEffect(() => { void refresh() }, [refresh])
-  return { sats, refresh }
+  return { sats, whole, refresh }
 }
 
 function AddressQr({ address }: { address: string }) {

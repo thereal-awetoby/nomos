@@ -78,7 +78,7 @@ const FAQ = [
   },
   {
     q: 'Which wallets work?',
-    a: 'Paytaca over WizardConnect, and Bitcoin Cash wallets that support WalletConnect.',
+    a: 'Paytaca over WizardConnect, and Bitcoin Cash wallets that support WalletConnect. Over WizardConnect, Nomos sees every address in your wallet, shows your whole balance, and gathers coins from those addresses when you create a vault. A WalletConnect wallet shares one address, so Nomos uses the BCH there.',
   },
   {
     q: 'Can I pay someone by name?',

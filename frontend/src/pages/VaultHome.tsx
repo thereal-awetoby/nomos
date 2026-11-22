@@ -218,17 +218,21 @@ export default function VaultHome() {
 // ── No vault yet ────────────────────────────────────────────
 // An empty wallet sees how to add BCH first; otherwise, straight to creating.
 function NoVault({ address }: { address: string }) {
-  const { sats, refresh } = useWalletBalance(address)
-  const short = sats !== null && sats < MIN_VAULT_DEPOSIT_SATS + 1_500
+  const { sats, whole, refresh } = useWalletBalance(address)
+  const total = whole ? whole.sats : sats
+  const short = total !== null && total < MIN_VAULT_DEPOSIT_SATS + 1_500
   return (
     <div className="page-enter mx-auto max-w-3xl space-y-6 py-2">
       <div>
         <h1 className="page-title">Set up your vault</h1>
         <p className="mt-2 text-[15px] text-nomos-muted">
-          Wallet balance <span className="tabular-nums font-semibold text-nomos-text">{sats === null ? '…' : `${fmtBch(sats)} BCH`}</span>
+          Wallet balance <span className="tabular-nums font-semibold text-nomos-text">{total === null ? '…' : `${fmtBch(total)} BCH`}</span>
+          {whole && whole.elsewhere > 0 && (
+            <span className="mt-0.5 block text-sm">Across {whole.addresses} {whole.addresses === 1 ? 'address' : 'addresses'}. Creating the vault gathers what it needs into the address Nomos uses.</span>
+          )}
         </p>
       </div>
-      {short && <AddFunds address={address} onRefresh={() => { void refresh() }} title={sats === 0 ? 'Add BCH to your wallet first' : 'Add a little more BCH first'} />}
+      {short && <AddFunds address={address} onRefresh={() => { void refresh(true) }} title={total === 0 ? 'Add BCH to your wallet first' : 'Add a little more BCH first'} />}
       <section className="rounded-2xl border hairline bg-nomos-surface p-6">
         <h2 className="text-[17px] font-semibold text-nomos-text">Create your vault</h2>
         <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-nomos-muted">
