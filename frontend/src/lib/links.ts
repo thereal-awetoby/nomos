@@ -24,7 +24,7 @@ export const MAINNET_PROOFS: { edition: string; step: string; txid: string; expl
   { edition: 'SolidCash vault', step: 'Vault created, 2,000-sat daily limit', txid: 'bee48c5f73f16a9ad83669b4a1350d01e07ebf104d155e2b557837e9fd04113d' },
   { edition: 'SolidCash vault', step: 'Paid 1,000 sats under the limit', txid: '93e9fdadaf3ebc5b5182a5b3dcd527b8ab9c6d8480160276a573b9d7b616aae6' },
   { edition: 'SolidCash vault', step: 'Rest of the vault rescued with two keys', txid: '305c7a47a2721ba1b290782df991b5a99bc1da7553b734d764f53e5f81ff913f' },
-  { edition: 'Nostr identity', step: 'BCH address linked to a Nostr key', txid: '8cd9f453ae7f6ce506805136700a17f7cd87341f29d1857c7f4ce7c4729359ae' },
+  { edition: 'Nostr identity', step: 'BCH address linked to a Nostr key', txid: '1e46c9d3159429c1cdf3c995011cf2e999fe5441c0889a2d8e0cd689dcd404f4' },
   { edition: 'Nostr identity', step: 'Paid the npub at its linked address', txid: '02c712c842800fa4f736ad593fe2b147be62f4a278d607ee4bfd941323e110d6' },
   { edition: 'PUSD and USDC swap', step: 'SwapLock deployed on Base', txid: '0x82b1e50182fd6383bff76df08258a31fbd08fe9478558c17581adef43569e74f', explorer: 'https://basescan.org/tx/' },
   { edition: 'SolidCash hash-time-lock', step: 'Claimed with the secret before the deadline', txid: '37f3163aa53a1b1e032d2592c61afd3653d08002aebfd719b43c29d605aca5cc' },

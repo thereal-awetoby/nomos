@@ -68,16 +68,18 @@ uses it, and showed that it matches. The site uses this contract by default.
 | PUSD to USDC: lock PUSD, lock USDC, claim USDC, claim PUSD | pending |
 | USDC to PUSD: lock USDC, lock PUSD, claim PUSD, claim USDC | pending |
 
-## BCH and Nostr identity link, 21 Nov 2026
+## BCH and Nostr identity link
 
 Nostr key `npub1lx04uta90k4ytqnuxrd9pt7u9hjrnhv5zgpmr4jtm8afxdwhp37sc5u5rv`,
 linked to `bitcoincash:qpqrel837enktgz3vanchsf7uapj883ruy76h8h7jw`.
 
 | Step | Proof |
 |------|-------|
-| BCH anchor transaction (`OP_RETURN "NOMOSID1" <Nostr key>`), signed by the address | [`8cd9f453…`](https://blockchair.com/bitcoin-cash/transaction/8cd9f453ae7f6ce506805136700a17f7cd87341f29d1857c7f4ce7c4729359ae) |
-| NIP-39 claim event (kind 10011), signed by the Nostr key | event id `4cfe0756ee885e3b7fe2d176c1aa6a5a33af2457c8c69c21ba858c3fd560e4a3` |
+| First BCH anchor transaction (`OP_RETURN "NOMOSID1" <Nostr key>`), signed by the address, 21 Nov | [`8cd9f453…`](https://blockchair.com/bitcoin-cash/transaction/8cd9f453ae7f6ce506805136700a17f7cd87341f29d1857c7f4ce7c4729359ae) |
+| Current BCH anchor transaction, the one the key's identity list names now | [`1e46c9d3…`](https://blockchair.com/bitcoin-cash/transaction/1e46c9d3159429c1cdf3c995011cf2e999fe5441c0889a2d8e0cd689dcd404f4) |
+| NIP-39 claim (kind 10011), signed by the Nostr key | The 21 Nov claim was event `4cfe0756ee885e3b7fe2d176c1aa6a5a33af2457c8c69c21ba858c3fd560e4a3`; the current claim names the current anchor |
 | Payment to the npub, resolved to the linked address, from the vault above | [`02c712c8…`](https://blockchair.com/bitcoin-cash/transaction/02c712c842800fa4f736ad593fe2b147be62f4a278d607ee4bfd941323e110d6) |
+| Prove it's you, 22 Nov: challenge `953adfe0274963b1090c58e659694c0c` answered with the BCH wallet (Paytaca over WizardConnect) and checked on the site: Authenticated, with the signature, the Nostr claim and the anchor all matching | Off chain: the answer is a signed transaction carrying the challenge, never broadcast |
 
 Check this link in a browser:
 [nomos.asgaya.org/identity?verify=npub1lx04…](https://nomos.asgaya.org/identity?verify=npub1lx04uta90k4ytqnuxrd9pt7u9hjrnhv5zgpmr4jtm8afxdwhp37sc5u5rv).
