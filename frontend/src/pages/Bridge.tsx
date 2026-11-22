@@ -46,7 +46,7 @@ import {
   usdcBalance,
 } from '../lib/evm'
 import type { BaseLock } from '../lib/evm'
-import { baseLockClaimed, tickEarlierSteps } from '../lib/swapProgress'
+import { baseLockClaimed, swapProgressKey, tickEarlierSteps } from '../lib/swapProgress'
 import { WALLETCONNECT_ENABLED } from '../lib/env'
 import { IS_CHIPNET, switchNetwork } from '../lib/network'
 import OfferBoard from '../components/OfferBoard'
@@ -69,7 +69,7 @@ interface Progress {
 }
 
 const secretKey = (hash: string) => `nomos:swapSecret:${hash}`
-const progressKey = (hash: string) => `nomos:swapProgress:${hash}`
+const progressKey = swapProgressKey
 
 function load<T>(key: string, fallback: T): T {
   try {
@@ -226,6 +226,17 @@ export default function Bridge() {
 
   useEffect(() => { void refresh() }, [refresh])
 
+  // An error belongs to the offer it happened on, not the next page.
+  useEffect(() => { setError(null) }, [offerParam])
+
+  // While an offer is open, look at both chains every 30 seconds, so a lock or
+  // claim the other side made shows up without pressing Refresh.
+  useEffect(() => {
+    if (!offer) return
+    const id = window.setInterval(() => { void refresh() }, 30_000)
+    return () => window.clearInterval(id)
+  }, [offer, refresh])
+
   const run = async (label: string, task: () => Promise<void>) => {
     setBusy(label)
     setError(null)
@@ -380,7 +391,10 @@ export default function Bridge() {
     const myPk = wallet?.connected ? wallet.pubkey.toLowerCase() : ''
     const needBch = (pk: string) => {
       if (!wallet?.connected) throw new Error('Connect your BCH wallet')
-      if (myPk !== pk.toLowerCase()) throw new Error('The connected BCH wallet is not the one named in this offer')
+      if (myPk !== pk.toLowerCase()) {
+        const side = pk.toLowerCase() === offer.initiator.bchPk.toLowerCase() ? "offer creator's" : "counterparty's"
+        throw new Error(`Only the ${side} BCH wallet can do this step, and a different wallet is connected. Use the window where that wallet is connected.`)
+      }
       return wallet
     }
     const needBase = () => {

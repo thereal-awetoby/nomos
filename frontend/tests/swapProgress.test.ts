@@ -6,7 +6,7 @@
 
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { baseLockClaimed, tickEarlierSteps, txidFrom } from '../src/lib/swapProgress'
+import { baseLockClaimed, swapOutcome, tickEarlierSteps, txidFrom } from '../src/lib/swapProgress'
 
 const TXID = 'a7c4c4c62188b26654b89b56d2263a20644cf54f27b0000000000000000000ab'
 
@@ -55,4 +55,20 @@ test('tickEarlierSteps keeps a finished swap ticked', () => {
 test('tickEarlierSteps leaves a warning in place', () => {
   const steps = tickEarlierSteps([{ done: false }, { done: false, warn: true }, { done: false }, { done: true }])
   assert.deepEqual(steps.map((s) => s.done), [true, false, true, true])
+})
+
+test('swapOutcome: each side is complete once it claims what it receives', () => {
+  // USDC to PUSD: the offer creator receives PUSD, the counterparty USDC.
+  assert.equal(swapOutcome('usdc-to-pusd', 'initiator', { bchClaimTxid: 'a7c4' }), 'complete')
+  assert.equal(swapOutcome('usdc-to-pusd', 'initiator', { baseClaimHash: '0x70f5' }), 'open', 'a USDC claim sent from this browser is not this side\'s')
+  assert.equal(swapOutcome('usdc-to-pusd', 'responder', { baseClaimHash: '0x70f5' }), 'complete')
+  // PUSD to USDC: the offer creator receives USDC, the counterparty PUSD.
+  assert.equal(swapOutcome('pusd-to-usdc', 'initiator', { baseClaimHash: '0xd55f' }), 'complete')
+  assert.equal(swapOutcome('pusd-to-usdc', 'responder', { bchClaimTxid: '2591' }), 'complete')
+  assert.equal(swapOutcome('pusd-to-usdc', 'responder', {}), 'open')
+})
+
+test('swapOutcome: a refund ends the swap without a trade', () => {
+  assert.equal(swapOutcome('pusd-to-usdc', 'initiator', { bchRefundTxid: 'aa' }), 'refunded')
+  assert.equal(swapOutcome('usdc-to-pusd', 'responder', { bchRefundTxid: 'aa' }), 'refunded')
 })

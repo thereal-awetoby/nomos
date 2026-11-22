@@ -15,7 +15,9 @@ import {
 } from '../lib/board'
 import type { BoardMessage, BoardNetwork, BoardParty, BoardPost, BoardTake, OfferTerms } from '../lib/board'
 import { formatUnits, USDC_DECIMALS } from '../lib/evm'
-import { PUSD_DECIMALS } from '../lib/swap'
+import { PUSD_DECIMALS, decodeOffer } from '../lib/swap'
+import { swapOutcome, swapProgressKey } from '../lib/swapProgress'
+import type { SwapProgressRecord } from '../lib/swapProgress'
 
 // ── Offer board ─────────────────────────────────────────────
 // Open offers from public Nostr relays. Take one and the maker's page answers
@@ -33,6 +35,38 @@ function ago(t: number, now: number): string {
   if (s < 3600) return `${Math.floor(s / 60)} min ago`
   return `${Math.floor(s / 3600)} h ago`
 }
+/** How an accepted swap ended for this browser's side, from what the swap page saved. */
+function outcomeOf(encoded: string, role: 'initiator' | 'responder'): 'complete' | 'refunded' | 'open' {
+  try {
+    const offer = decodeOffer(encoded)
+    const raw = localStorage.getItem(swapProgressKey(offer.secretHash))
+    return swapOutcome(offer.direction, role, raw ? (JSON.parse(raw) as SwapProgressRecord) : {})
+  } catch {
+    return 'open'
+  }
+}
+
+/** A finished swap: what happened, and a way back to its transactions. */
+function Finished({ outcome, onOpen }: { outcome: 'complete' | 'refunded'; onOpen: () => void }) {
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+      {outcome === 'complete' ? (
+        <span className="inline-flex items-center gap-2 rounded-full border border-nomos-ok/60 bg-nomos-ok/10 px-3 py-1.5 text-sm font-semibold text-nomos-text">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-nomos-ok text-nomos-on-ok" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </span>
+          Swap complete
+        </span>
+      ) : (
+        <span className="text-sm font-semibold text-nomos-muted-bright">Refunded: the swap did not go through</span>
+      )}
+      <button type="button" className="text-sm text-nomos-muted underline underline-offset-4 hover:text-nomos-text" onClick={onOpen}>
+        See its transactions
+      </button>
+    </div>
+  )
+}
+
 function left(t: number, now: number): string {
   const s = t - now
   if (s <= 0) return 'ended'
@@ -174,14 +208,17 @@ export default function OfferBoard({
             {own.map((post) => {
               const { makerGives, makerGets } = sides(post)
               const a = acceptOn(post)
+              const outcome = a ? outcomeOf(a.offer, 'initiator') : 'open'
               const takes = board.takes.get(postKey(post.author, post.id)) ?? []
               const wrongWallets = me !== null
                 && (me.bchPk.toLowerCase() !== post.maker.bchPk || me.baseAddress.toLowerCase() !== post.maker.baseAddress.toLowerCase())
               return (
                 <li key={post.event} className="rounded-xl bg-nomos-surface-raised p-4">
                   <p className="text-[15px] font-semibold tabular-nums text-nomos-text">You send {makerGives}, you receive {makerGets}</p>
-                  <p className="mt-0.5 text-xs text-nomos-muted">Posted {ago(post.createdAt, now)} · {left(post.expiresAt, now)}</p>
-                  {a ? (
+                  <p className="mt-0.5 text-xs text-nomos-muted">Posted {ago(post.createdAt, now)}{outcome === 'open' ? ` · ${left(post.expiresAt, now)}` : ''}</p>
+                  {a && outcome !== 'open' ? (
+                    <Finished outcome={outcome} onOpen={() => openOffer(a.offer)} />
+                  ) : a ? (
                     <button type="button" className="btn-primary mt-3 min-h-[40px] px-4 text-sm" onClick={() => openOffer(a.offer)}>
                       Accepted: open the swap
                     </button>
@@ -228,13 +265,16 @@ export default function OfferBoard({
           {others.map((post) => {
             const { makerGives, makerGets } = sides(post)
             const yours = yourOffer(post)
+            const outcome = yours?.state === 'ready' ? outcomeOf(yours.offer, 'responder') : 'open'
             return (
               <li key={post.event} className="rounded-xl bg-nomos-surface-raised p-4">
                 <p className="text-[15px] font-semibold tabular-nums text-nomos-text">You send {makerGets}, you receive {makerGives}</p>
                 <p className="mt-0.5 text-xs text-nomos-muted">
-                  Posted {ago(post.createdAt, now)} by <span className="font-mono">{shortAddr(post.maker.baseAddress, 6, 4)}</span> · {left(post.expiresAt, now)}
+                  Posted {ago(post.createdAt, now)} by <span className="font-mono">{shortAddr(post.maker.baseAddress, 6, 4)}</span>{outcome === 'open' ? ` · ${left(post.expiresAt, now)}` : ''}
                 </p>
-                {yours?.state === 'ready' ? (
+                {yours?.state === 'ready' && outcome !== 'open' ? (
+                  <Finished outcome={outcome} onOpen={() => openOffer(yours.offer)} />
+                ) : yours?.state === 'ready' ? (
                   <button type="button" className="btn-primary mt-3 min-h-[40px] px-4 text-sm" onClick={() => openOffer(yours.offer)}>
                     Accepted: open your swap
                   </button>

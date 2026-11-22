@@ -393,6 +393,8 @@ export const GUIDE_SECTIONS: GuideSection[] = [
       { q: '"The wallet holds 0 PUSD units" or "Not enough BCH in the wallet"', a: 'A lock uses only the address your wallet shares, shown under **Your wallets**. Send the PUSD to that address\'s token-aware form (it starts with z) and some BCH to the address itself. Some wallets, Selene for one, move coins between their own addresses when they send, so check **Your wallets** before you lock.' },
       { q: '"Paste the claim transaction ID" or "That transaction does not reveal this swap\'s secret"', a: 'That was not the other side\'s PUSD claim; it may be your own lock. Ask for the new offer link, or for the link to their claim transaction.' },
       { q: '**Approve and lock** or **Claim** fails on Base', a: 'The Base account needs a little ETH for fees. A USDC lock sends two transactions, an approval and the lock.' },
+      { q: '**Find secret and claim** is greyed out', a: 'The page has not seen the other side\'s claim yet. It checks both chains every 30 seconds; press **Refresh** to check now. The offer creator always claims first.' },
+      { q: '"Only the counterparty\'s BCH wallet can do this step"', a: 'Each side claims with its own wallet. Do this step in the window or browser where the other wallet is connected.' },
       { q: 'A step lost its tick, or a balance looks wrong', a: 'Press **Refresh**. A claimed lock is empty, so the page reads it from the transactions instead.' },
     ],
     open: { label: 'Open the swap', to: '/bridge' },

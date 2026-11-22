@@ -117,7 +117,8 @@ export default function Landing() {
   // Say only what the listed transactions show.
   const cashScriptOnMainnet = proofs.some((p) => p.edition === 'CashScript vault')
   const prototypesOnMainnet = proofs.some((p) => p.edition === 'SolidCash hash-time-lock' || p.edition === 'SolidCash StableSwap')
-  const swapOnMainnet = proofs.some((p) => p.edition === 'PUSD and USDC swap' && p.step.startsWith('Claimed'))
+  const swapClaims = proofs.filter((p) => p.edition === 'PUSD and USDC swap' && p.step.includes('claimed'))
+  const swapBothWays = ['USDC to PUSD', 'PUSD to USDC'].every((d) => swapClaims.some((p) => p.step.startsWith(d)))
 
   const copyEmber = async () => {
     try {
@@ -218,7 +219,9 @@ export default function Landing() {
                 ? 'Both editions of the vault have run on Bitcoin Cash mainnet: paid under the limit and refused over it. The SolidCash vault was also rescued with two keys, and a CashScript vault was closed by its owner, made again, moved to new rules, and used to pay an npub.'
                 : 'The vault has run on Bitcoin Cash mainnet: paid under the limit, refused over it, and rescued with two keys.'}
               {prototypesOnMainnet && ' A SolidCash hash-time-lock and StableSwap pool have run there too, with test amounts.'}
-              {swapOnMainnet && ' A swap of 1.2 USDC on Base for 1.2 PUSD on Bitcoin Cash has also completed, with both sides claimed.'}
+              {swapBothWays
+                ? ' Swaps between USDC on Base and PUSD on Bitcoin Cash have completed in both directions, with both sides claimed.'
+                : swapClaims.length > 0 && ' A swap of 1.2 USDC on Base for 1.2 PUSD on Bitcoin Cash has also completed, with both sides claimed.'}
             </p>
             <div className="mt-10 grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
               <ul className="divide-y overflow-hidden rounded-[18px] border l-hair bg-land-raised [&>li]:border-[color:var(--l-hair)]">

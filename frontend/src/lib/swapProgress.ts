@@ -42,3 +42,29 @@ export function tickEarlierSteps<T extends { done: boolean; warn?: boolean }>(st
   }
   return steps
 }
+
+/** Where the swap page keeps a swap's transaction IDs in this browser. */
+export const swapProgressKey = (secretHash: string) => `nomos:swapProgress:${secretHash}`
+
+export interface SwapProgressRecord {
+  bchClaimTxid?: string
+  baseClaimHash?: string
+  bchRefundTxid?: string
+  baseRefundHash?: string
+}
+
+/**
+ * How a swap ended for one side, from this browser's record: complete once
+ * that side has claimed what it receives (PUSD on Bitcoin Cash, or USDC on
+ * Base), refunded if it took its own coins back, otherwise still open.
+ */
+export function swapOutcome(
+  direction: 'pusd-to-usdc' | 'usdc-to-pusd',
+  role: 'initiator' | 'responder',
+  progress: SwapProgressRecord,
+): 'complete' | 'refunded' | 'open' {
+  const receivesPusd = (direction === 'usdc-to-pusd') === (role === 'initiator')
+  if (receivesPusd ? progress.bchClaimTxid : progress.baseClaimHash) return 'complete'
+  if (progress.bchRefundTxid || progress.baseRefundHash) return 'refunded'
+  return 'open'
+}
