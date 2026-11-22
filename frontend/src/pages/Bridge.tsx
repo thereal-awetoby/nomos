@@ -137,6 +137,9 @@ export default function Bridge() {
   const [direction, setDirection] = useState<SwapDirection>('pusd-to-usdc')
   const [pusdAmount, setPusdAmount] = useState('')
   const [usdcAmount, setUsdcAmount] = useState('')
+  // Both tokens track the US dollar, so the amount received follows the amount
+  // sent one for one until the person types their own.
+  const [receiveTyped, setReceiveTyped] = useState(false)
   const [counterparty, setCounterparty] = useState('')
   const [openText, setOpenText] = useState('')
   const [balances, setBalances] = useState<{ pusd?: bigint; usdc?: bigint }>({})
@@ -458,6 +461,14 @@ export default function Bridge() {
   const getting: Token = giving === 'PUSD' ? 'USDC' : 'PUSD'
   const amountOf = (t: Token) => (t === 'PUSD' ? pusdAmount : usdcAmount)
   const setAmountOf = (t: Token) => (t === 'PUSD' ? setPusdAmount : setUsdcAmount)
+  /** The same number of dollars in `t`, cut to its decimals ('' when not a number). */
+  const sameDollars = (value: string, t: Token): string => {
+    const text = value.trim()
+    if (!/^\d*\.?\d*$/.test(text) || text === '' || text === '.') return ''
+    const [whole, fraction = ''] = text.split('.')
+    const cut = fraction.slice(0, t === 'PUSD' ? PUSD_DECIMALS : USDC_DECIMALS)
+    return cut ? `${whole || '0'}.${cut}` : whole || '0'
+  }
   const balanceOf = (t: Token): string | null => {
     if (t === 'PUSD' && !wallet?.connected) return null
     if (t === 'USDC' && !baseAddr) return null
@@ -602,11 +613,25 @@ export default function Bridge() {
   const offerForm = (
     <>
       <section className="rounded-3xl border hairline bg-nomos-surface p-3 sm:p-4" aria-label="Create an offer">
-        <AmountField label="You send" token={giving} value={amountOf(giving)} onChange={setAmountOf(giving)} balance={balanceOf(giving)} />
+        <AmountField
+          label="You send"
+          token={giving}
+          value={amountOf(giving)}
+          onChange={(value) => {
+            setAmountOf(giving)(value)
+            if (!receiveTyped) setAmountOf(getting)(sameDollars(value, getting))
+          }}
+          balance={balanceOf(giving)}
+        />
         <div className="relative z-10 -my-3 flex justify-center">
           <button
             type="button"
-            onClick={() => setDirection((d) => (d === 'pusd-to-usdc' ? 'usdc-to-pusd' : 'pusd-to-usdc'))}
+            onClick={() => {
+              setDirection((d) => (d === 'pusd-to-usdc' ? 'usdc-to-pusd' : 'pusd-to-usdc'))
+              // The token received now is the one sent before: follow the new amount sent.
+              setReceiveTyped(false)
+              setAmountOf(giving)(sameDollars(amountOf(getting), giving))
+            }}
             aria-label={`Switch to sending ${getting}`}
             className="flex h-11 w-11 items-center justify-center rounded-full border-4 border-nomos-surface bg-nomos-surface-raised text-nomos-text transition-transform duration-300 hover:text-nomos-accent motion-reduce:transition-none"
             style={{ transform: direction === 'usdc-to-pusd' ? 'rotate(180deg)' : 'none' }}
@@ -616,8 +641,23 @@ export default function Bridge() {
             </svg>
           </button>
         </div>
-        <AmountField label="You receive" token={getting} value={amountOf(getting)} onChange={setAmountOf(getting)} balance={null} />
-        <p className="mt-3 min-h-[1.25rem] px-2 text-sm tabular-nums text-nomos-muted">{rate ?? 'You set both amounts; the other person accepts by locking.'}</p>
+        <AmountField
+          label="You receive"
+          token={getting}
+          value={amountOf(getting)}
+          onChange={(value) => {
+            setReceiveTyped(value.trim() !== '')
+            setAmountOf(getting)(value)
+          }}
+          balance={null}
+        />
+        <p className="mt-3 min-h-[1.25rem] px-2 text-sm tabular-nums text-nomos-muted">
+          {rate && receiveTyped
+            ? rate
+            : rate
+              ? `${rate}. Both track the US dollar; change the amount you receive if you agreed another price.`
+              : 'Both track the US dollar, so the amount you receive follows one for one. The other person accepts by locking.'}
+        </p>
 
         <div className="px-2 pb-1">
           <label className="mt-3 block text-sm font-semibold text-nomos-text" htmlFor="swap-counterparty">Their swap details</label>
