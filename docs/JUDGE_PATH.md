@@ -58,3 +58,5 @@ cd frontend && npm test                        # whole-wallet gathering checked 
   link and how anyone can verify it.
 - `xo/nomos.template.json` and `xo/REPRODUCE.md`: the XO template and its
   chipnet runs (payments, a refused over-limit payment, a two-engine rescue).
+  `xo/XO_FEEDBACK.md`: what building with XO was like, and what would help the
+  next builder.

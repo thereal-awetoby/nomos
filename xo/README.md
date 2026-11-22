@@ -6,12 +6,16 @@ template, for the BCH BLAZE "Build with XO" bounty. It is generated from
 `../contracts/NomosVault.cash`, so it can't drift from the contract the app
 and the chipnet tests use.
 
-Built against **`@xo-cash/engine` `0.1.0-next.17612568780`** (the newest
-`0.1.0-next.*` on npm), with its matching `@xo-cash/types` `0.0.8` and
-`@xo-cash/utils` `0.0.10`. The engine provides the live wallet side: template
-import, invitations (create / accept / update), signing, transaction building
-and broadcasting against a chipnet Electrum server (`chipnet.imaginary.cash`
-by default).
+What building it was like, where it got stuck and what would help the next
+builder: [`XO_FEEDBACK.md`](XO_FEEDBACK.md).
+
+Built against **`@xo-cash/engine` `0.1.1-next.18230317763`**, with
+`@xo-cash/types` `0.0.8` and `@xo-cash/utils` `0.0.12`. The first version used
+engine `0.1.0-next.17612568780`, which could not follow chipnet past block
+332,451 (blocker 3 in [REPRODUCE.md](REPRODUCE.md)). The engine provides the
+live wallet side: template import, invitations (create / accept / update),
+signing, transaction building and broadcasting against a chipnet Electrum
+server (`chipnet.imaginary.cash` by default).
 
 ## Actions
 
