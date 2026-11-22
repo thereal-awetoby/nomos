@@ -65,8 +65,32 @@ uses it, and showed that it matches. The site uses this contract by default.
 | Step | Transaction |
 |------|-------------|
 | Deploy `SwapLock.sol` on Base | [`0x82b1e501…`](https://basescan.org/tx/0x82b1e50182fd6383bff76df08258a31fbd08fe9478558c17581adef43569e74f) |
+| USDC to PUSD: lock USDC, lock PUSD, claim PUSD, claim USDC | Done, 22 Nov 2026 (below) |
 | PUSD to USDC: lock PUSD, lock USDC, claim USDC, claim PUSD | pending |
-| USDC to PUSD: lock USDC, lock PUSD, claim PUSD, claim USDC | pending |
+
+### 1.2 USDC for 1.2 PUSD, 22 Nov 2026
+
+Made on the site's Swap page, with the builder on both sides. The offer creator
+used Paytaca, `bitcoincash:qpqrel837enktgz3vanchsf7uapj883ruy76h8h7jw`, and
+the Base account `0x399bb824Efd7349D4525c6F1e773fcE50F86A4d8`. The
+counterparty used Selene, `bitcoincash:qrvnrh4xtva92fnzr7cg85a97ygky7yls5mkg29nl3`,
+and the Base account `0x04019Ec598DAc9624fE02bf1bA49f90285390721`. The offer
+was made at 10:42 UTC.
+
+| Step | Transaction |
+|------|-------------|
+| The offer creator locks 1.2 USDC on Base for the counterparty, refundable to the creator from 23 Nov 10:42 UTC | [`0xd7f85f1d…`](https://basescan.org/tx/0xd7f85f1d2766851949cad1b6fa9bdd39ae7e2ea12328a15de62e7a815678bf99) |
+| The counterparty's page finds that lock and checks it against the offer, then the counterparty locks 1.2 PUSD on Bitcoin Cash at `bitcoincash:pvwgz3ge8clnt5k24exqphk4h7hfk3l75fnk5t7seflpvj442hgyk2u77mv4f`, refundable to the counterparty after its 12-hour timeout, 22:42 UTC | [`81bda0ac…`](https://blockchair.com/bitcoin-cash/transaction/81bda0ac156b499c0a0c2ec58e5c7d4348b9c8a9020aba2c9d4bcb69ca7f8595) |
+| The offer creator claims the PUSD with the secret, which puts the secret on Bitcoin Cash | [`a7c4c4c6…`](https://blockchair.com/bitcoin-cash/transaction/a7c4c4c62188b26654b89b56d2263a20644cf54f27be388f4d19bddd803999d7) |
+| The USDC is claimed with that secret and paid to the counterparty | [`0x70f53f8f…`](https://basescan.org/tx/0x70f53f8f99b13ad70e18c268959b9b9df1609fdca6b4f6fd95fbab7b20eeb410) |
+
+The secret is
+`6d30110dcfa8de91d6bf80d4f2fcf8cb82f09245f3cb6b9e5d2552a70feb21c2`. Its
+SHA-256, `44ab9d0672a4d7fb6cc1238261581889cf0c9106505689068a96e1a665b17069`,
+is the ID of the Base lock and the hash in the Bitcoin Cash lock. The USDC
+claim was sent from the offer creator's Base account with the secret read from
+the PUSD claim. The contract pays a lock's recipient whoever sends the claim,
+and the claim's Transfer event shows the 1.2 USDC going to the counterparty.
 
 ## BCH and Nostr identity link
 

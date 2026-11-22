@@ -27,6 +27,8 @@ export const MAINNET_PROOFS: { edition: string; step: string; txid: string; expl
   { edition: 'Nostr identity', step: 'BCH address linked to a Nostr key', txid: '1e46c9d3159429c1cdf3c995011cf2e999fe5441c0889a2d8e0cd689dcd404f4' },
   { edition: 'Nostr identity', step: 'Paid the npub at its linked address', txid: '02c712c842800fa4f736ad593fe2b147be62f4a278d607ee4bfd941323e110d6' },
   { edition: 'PUSD and USDC swap', step: 'SwapLock deployed on Base', txid: '0x82b1e50182fd6383bff76df08258a31fbd08fe9478558c17581adef43569e74f', explorer: 'https://basescan.org/tx/' },
+  { edition: 'PUSD and USDC swap', step: 'Claimed 1.2 PUSD on Bitcoin Cash with the secret', txid: 'a7c4c4c62188b26654b89b56d2263a20644cf54f27be388f4d19bddd803999d7' },
+  { edition: 'PUSD and USDC swap', step: 'Claimed 1.2 USDC on Base with the same secret', txid: '0x70f53f8f99b13ad70e18c268959b9b9df1609fdca6b4f6fd95fbab7b20eeb410', explorer: 'https://basescan.org/tx/' },
   { edition: 'SolidCash hash-time-lock', step: 'Claimed with the secret before the deadline', txid: '37f3163aa53a1b1e032d2592c61afd3653d08002aebfd719b43c29d605aca5cc' },
   { edition: 'SolidCash hash-time-lock', step: 'Refunded to the sender after the deadline', txid: '7d8231c3b8b43ecd8663ded47df841475eef13d812882d7bbaa6b73d56ebd18f' },
   { edition: 'SolidCash StableSwap', step: 'Swapped 1,000 sats for a test token', txid: 'b9bb8a81ef2748fc3b54047691c533d2325cfec3c62db5eb28ed77be56d1bb75' },
