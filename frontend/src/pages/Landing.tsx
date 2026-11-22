@@ -207,7 +207,7 @@ export default function Landing() {
             <h2 className="l-heading max-w-2xl text-[2rem] text-land-ink sm:text-[2.6rem]">Check it on the chain.</h2>
             <p className="mt-4 max-w-2xl text-[17px] leading-relaxed text-land-muted">
               {cashScriptOnMainnet
-                ? 'Both editions of the vault have run on Bitcoin Cash mainnet: paid under the limit and refused over it. The SolidCash vault was also rescued with two keys.'
+                ? 'Both editions of the vault have run on Bitcoin Cash mainnet: paid under the limit and refused over it. The SolidCash vault was also rescued with two keys, and a CashScript vault was closed by its owner, made again, moved to new rules, and used to pay an npub.'
                 : 'The vault has run on Bitcoin Cash mainnet: paid under the limit, refused over it, and rescued with two keys.'}
               {prototypesOnMainnet && ' A SolidCash hash-time-lock and StableSwap pool have run there too, with test amounts.'}
             </p>

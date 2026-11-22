@@ -3,7 +3,7 @@
 Every Nomos transaction on Bitcoin Cash mainnet (and Base, for the swap),
 by component. Each link opens the transaction on a public explorer.
 
-## CashScript vault (Nomos app, Paytaca over WizardConnect), 21 Nov 2026
+## CashScript vault (Nomos app, Paytaca over WizardConnect), 21 and 22 Nov 2026
 
 Daily limit 1,000 sats. Vault address
 `bitcoincash:p0e4xanccaweute4m9ft280fk38tp05v36kz0xplhk0vmtf3lnx3z2g44gp8d`,
@@ -15,7 +15,7 @@ created and funded from `bitcoincash:qpqrel837enktgz3vanchsf7uapj883ruy76h8h7jw`
 | Pay 1,000 sats, the whole day's limit | [`5c8aaa04…`](https://blockchair.com/bitcoin-cash/transaction/5c8aaa0479398235d27395e65baaededb404b2296fdf17dc71b9bd61daab7520) |
 | Pay 1,000 more the same day | Refused by the app before signing: 0 sats left that day |
 | Pay 5,000 more, signed and sent anyway | Rejected by a mainnet node (below) |
-| Owner changes the rules (vault moves to a new address) | pending: to be added |
+| Owner closes the vault (22 Nov): 6,458 sats back to the owner's address, the state NFT to its token address | [`17db1d6d…`](https://blockchair.com/bitcoin-cash/transaction/17db1d6d6bd7fccde2b4b5be401935f681a32c7ca9a4a47188c6aa7f85c6ab34) |
 
 After the payment, the vault's state NFT carries the commitment
 `e8030000000000002a51000000000000`: 1,000 sats spent (`e803…`, little-endian)
@@ -28,6 +28,20 @@ on 21 Nov 2026 at 13:27:10 UTC, which rejected it with
 The signed transaction, `779086218792f5d729ea8665cf21331ead490a4a5116db9864da6d974a23e93a`,
 was never mined, so it has no explorer page. The node response and the signed
 transaction are saved with the receipt in the app.
+
+### The same owner's next vault, 22 Nov 2026
+
+After the close, the owner created a vault with the same rules. The same rules
+give the same address as above, and the new vault carries a new state NFT
+(category
+`638886b6b32cabbc73ec11c83b8e2fde39aed2d01e366e5d7b582081c3bc4405`).
+
+| Step | Transaction |
+|------|-------------|
+| Create the vault with 10,000 sats, daily limit 1,000 sats | [`dc438a43…`](https://blockchair.com/bitcoin-cash/transaction/dc438a4309c375fa109d68e26061871108ca1e991057e5f30fa4e662ad0ed7e7) |
+| Pay 1,000 sats, the whole day's limit | [`9abc77b6…`](https://blockchair.com/bitcoin-cash/transaction/9abc77b6e5eaad547a931600b8ea986aba3b24e5e61b2d6bc8122aafdf397cbc) |
+| Owner raises the daily limit to 2,000 sats. The vault's 7,508 sats move to its new address, `bitcoincash:r0s32z6a0l90v9weyq3yexnmq7csv9az2srywjt785ag07zfdwwvzxcv0l5tw`, and the day's spending starts again from zero | [`fe184c1f…`](https://blockchair.com/bitcoin-cash/transaction/fe184c1f3d20276ec11be996d2294ace83639af77f4a61447852f5b4e11c6eb8) |
+| Pay 1,000 sats to `npub1lx04…c5u5rv`, resolved to its linked address (below) | [`02c712c8…`](https://blockchair.com/bitcoin-cash/transaction/02c712c842800fa4f736ad593fe2b147be62f4a278d607ee4bfd941323e110d6) |
 
 ## SolidCash vault, 20 Nov 2026
 
@@ -57,7 +71,7 @@ linked to `bitcoincash:qpqrel837enktgz3vanchsf7uapj883ruy76h8h7jw`.
 |------|-------|
 | BCH anchor transaction (`OP_RETURN "NOMOSID1" <Nostr key>`), signed by the address | [`8cd9f453…`](https://blockchair.com/bitcoin-cash/transaction/8cd9f453ae7f6ce506805136700a17f7cd87341f29d1857c7f4ce7c4729359ae) |
 | NIP-39 claim event (kind 10011), signed by the Nostr key | event id `4cfe0756ee885e3b7fe2d176c1aa6a5a33af2457c8c69c21ba858c3fd560e4a3` |
-| Payment to the npub, resolved to the linked address | pending |
+| Payment to the npub, resolved to the linked address, from the vault above | [`02c712c8…`](https://blockchair.com/bitcoin-cash/transaction/02c712c842800fa4f736ad593fe2b147be62f4a278d607ee4bfd941323e110d6) |
 
 Check this link in a browser:
 [nomos.asgaya.org/identity?verify=npub1lx04…](https://nomos.asgaya.org/identity?verify=npub1lx04uta90k4ytqnuxrd9pt7u9hjrnhv5zgpmr4jtm8afxdwhp37sc5u5rv).
