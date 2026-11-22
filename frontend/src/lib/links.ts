@@ -26,6 +26,6 @@ export const MAINNET_PROOFS: { edition: string; step: string; txid: string }[] =
   { edition: 'Nostr identity', step: 'BCH address linked to a Nostr key', txid: '8cd9f453ae7f6ce506805136700a17f7cd87341f29d1857c7f4ce7c4729359ae' },
   { edition: 'SolidCash hash-time-lock', step: 'Claimed with the secret before the deadline', txid: '37f3163aa53a1b1e032d2592c61afd3653d08002aebfd719b43c29d605aca5cc' },
   { edition: 'SolidCash hash-time-lock', step: 'Refunded to the sender after the deadline', txid: '7d8231c3b8b43ecd8663ded47df841475eef13d812882d7bbaa6b73d56ebd18f' },
-  { edition: 'SolidCash StableSwap', step: 'Swapped 1,000 sats for a test token', txid: 'd3cb2dadff5867284e5e2c2a68d9d3b7819425ebfce431d92ade5525f8a8c579' },
-  { edition: 'SolidCash StableSwap', step: 'Swapped the tokens back for BCH', txid: '555c55831a526bbd097a8615d7521c137b30738db0c23ef97da46ed7eacd9d74' },
+  { edition: 'SolidCash StableSwap', step: 'Swapped 1,000 sats for a test token', txid: 'b9bb8a81ef2748fc3b54047691c533d2325cfec3c62db5eb28ed77be56d1bb75' },
+  { edition: 'SolidCash StableSwap', step: 'Swapped the tokens back for BCH', txid: '8191f08ec59bd0f0239973f0fa647274fa675f31b1208fe20a31276bf9699c74' },
 ]

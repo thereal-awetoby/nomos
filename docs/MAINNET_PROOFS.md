@@ -120,21 +120,30 @@ Its 2,000 sats stay in that contract.
 
 Run with `contracts/solidcash/swap-demo.mjs mainnet`, with a test token minted
 for the run: category
-`0ba2e9bc43181a8d681ca451db75be6f9d44516017b03d052675a629123fb89b`, not PUSD
+`ab9567fcb60162284ff2c66e9242a8bf1d198bbe890b1a9b39277e2d564491de`, not PUSD
 and of no value. The wallet,
 `bitcoincash:qrx2q58hue6zw2nqeffqcdsycm56j3y7s5dwzcddew`, is the pool's admin
 and its only trader. The app does not use this contract.
 
 | Step | Transaction |
 |------|-------------|
-| Split coins for the mint | [`0ba2e9bc…`](https://blockchair.com/bitcoin-cash/transaction/0ba2e9bc43181a8d681ca451db75be6f9d44516017b03d052675a629123fb89b) |
-| Mint 1,000,000 test tokens | [`a2ada84c…`](https://blockchair.com/bitcoin-cash/transaction/a2ada84cfedef1452fbd8e3d21964c9af50d84b65756970ce3f9c9de6e3eb727) |
-| Deploy the pool | [`fb745731…`](https://blockchair.com/bitcoin-cash/transaction/fb745731b7a50171e00e689a779b825dd55c2bb4f6cd5b906f684f84ad3984f3) |
-| Add 10,000 sats and 1,000,000 tokens | [`b446aa60…`](https://blockchair.com/bitcoin-cash/transaction/b446aa60e0a5b22108ede6d54ecffdb29c5cc4bf659400902bafb1bde20d25e2) |
+| Split coins for the mint | [`ab9567fc…`](https://blockchair.com/bitcoin-cash/transaction/ab9567fcb60162284ff2c66e9242a8bf1d198bbe890b1a9b39277e2d564491de) |
+| Mint 1,000,000 test tokens | [`869b1b51…`](https://blockchair.com/bitcoin-cash/transaction/869b1b51d0e42dc97d3d68745b793eb5c908b9a3c199071a54e120f903af5ca9) |
+| Deploy the pool | [`bec65e04…`](https://blockchair.com/bitcoin-cash/transaction/bec65e049335264c528ffca47530332cc1b657f00af06be9b9a8f7f1cff47d64) |
+| Add 10,000 sats and 1,000,000 tokens | [`faf0562b…`](https://blockchair.com/bitcoin-cash/transaction/faf0562b56841f0229c152194e3bfb29ecd2ea0523f6780d4d517f70012f12e3) |
 | Swap 1,000 sats, asking for one token more than the quote | Refused at `StableSwap.scash:43` (`Slippage: PUSD output below minimum`) before broadcast |
-| Swap 1,000 sats for 90,661 tokens | [`d3cb2dad…`](https://blockchair.com/bitcoin-cash/transaction/d3cb2dadff5867284e5e2c2a68d9d3b7819425ebfce431d92ade5525f8a8c579) |
-| Swap the 90,661 tokens back for 994 sats | [`555c5583…`](https://blockchair.com/bitcoin-cash/transaction/555c55831a526bbd097a8615d7521c137b30738db0c23ef97da46ed7eacd9d74) |
-| Withdrawal signed by another key | Not shown in this run: it asked for a 1-sat output, below the dust limit, so the SDK stopped it before the contract's admin check (`StableSwap.scash:115`) ran. `swap.test.mjs` covers that check offline. |
-| The admin withdraws 9,006 sats and the 1,000,000 tokens | [`710f8e7f…`](https://blockchair.com/bitcoin-cash/transaction/710f8e7ff11d2d50780839670793af1749cb2d38ed1bcff97de12cd5533099e1) |
+| Swap 1,000 sats for 90,661 tokens | [`b9bb8a81…`](https://blockchair.com/bitcoin-cash/transaction/b9bb8a81ef2748fc3b54047691c533d2325cfec3c62db5eb28ed77be56d1bb75) |
+| Swap the 90,661 tokens back for 994 sats | [`8191f08e…`](https://blockchair.com/bitcoin-cash/transaction/8191f08ec59bd0f0239973f0fa647274fa675f31b1208fe20a31276bf9699c74) |
+| Withdraw 1,000 sats and 1 token, signed by another key | Refused at `StableSwap.scash:115` (`Admin signature required`) before broadcast |
+| The admin withdraws 9,006 sats and the 1,000,000 tokens | [`f7a30992…`](https://blockchair.com/bitcoin-cash/transaction/f7a309925a31b32ec4b78d9834fdcf5bf1a36406072932c156910401198510d2) |
 
-The SDK keeps the pool's last 1,000 sats. The run cost 46,279 sats.
+The SDK keeps the pool's last 1,000 sats. The run cost 45,997 sats.
+
+An earlier run the same night went through the same steps with pool
+[`fb745731…`](https://blockchair.com/bitcoin-cash/transaction/fb745731b7a50171e00e689a779b825dd55c2bb4f6cd5b906f684f84ad3984f3)
+(swaps [`d3cb2dad…`](https://blockchair.com/bitcoin-cash/transaction/d3cb2dadff5867284e5e2c2a68d9d3b7819425ebfce431d92ade5525f8a8c579)
+and [`555c5583…`](https://blockchair.com/bitcoin-cash/transaction/555c55831a526bbd097a8615d7521c137b30738db0c23ef97da46ed7eacd9d74),
+withdrawal [`710f8e7f…`](https://blockchair.com/bitcoin-cash/transaction/710f8e7ff11d2d50780839670793af1749cb2d38ed1bcff97de12cd5533099e1)).
+Its withdrawal signed by another key asked for a 1-sat output, below the dust
+limit, so the SDK stopped it before the contract's admin check ran. The script
+now asks for 1,000 sats, and the run above shows the check.

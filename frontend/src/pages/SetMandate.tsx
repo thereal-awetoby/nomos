@@ -6,7 +6,7 @@ import { isNostrIdentifier, resolveNostrPayee } from '../lib/nostr'
 import type { Mandate, VaultConfig } from '../lib/types'
 import SpentMeter from '../components/SpentMeter'
 import AddFunds from '../components/AddFunds'
-import { fmtBch } from '../components/ui'
+import { fmtBch, shortAddr } from '../components/ui'
 import { addressMatchesPubkey } from '../lib/wallet'
 import { IS_CHIPNET } from '../lib/network'
 
@@ -283,9 +283,13 @@ export default function SetMandate() {
             placeholder="0.0001"
             className="input"
           />
-          {walletBal !== null && (
+          {walletBal !== null && wallet?.address && (
             <p className="mt-1.5 text-sm text-nomos-muted">
-              Wallet balance: <span className="tabular-nums text-nomos-text">{(walletBal / 1e8).toFixed(8)} BCH</span>
+              Balance at <span className="font-mono text-nomos-text">{shortAddr(wallet.address.replace(/^(bitcoincash|bchtest):/, ''), 4, 4)}</span>:{' '}
+              <span className="tabular-nums text-nomos-text">{(walletBal / 1e8).toFixed(8)} BCH</span>
+              <span className="mt-0.5 block text-xs">
+                The vault is funded from the address your wallet shared. Your wallet's total can be higher if it holds BCH at other addresses.
+              </span>
             </p>
           )}
         </div>
