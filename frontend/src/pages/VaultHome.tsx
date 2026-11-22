@@ -240,6 +240,9 @@ function NoVault({ address }: { address: string }) {
         </p>
         <Link to="/mandate" className="btn-primary mt-5">Create vault</Link>
       </section>
+      <p className="text-sm text-nomos-muted">
+        Already have a vault but cleared this browser? <Link to="/activity#backup" className="font-medium text-nomos-text underline-offset-4 hover:underline">Restore it from a backup</Link>.
+      </p>
     </div>
   )
 }

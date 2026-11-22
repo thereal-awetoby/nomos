@@ -8,6 +8,9 @@ import { useToast } from '../components/Toast'
 import NetworkSwitch from '../components/NetworkSwitch'
 import { IS_CHIPNET } from '../lib/network'
 
+/** Where @wizardconnect/react keeps a pairing to resume (its default). */
+const WIZARDCONNECT_SESSION_KEY = 'wizardconnect-session'
+
 export default function Connect() {
   const navigate = useNavigate()
   const { toast } = useToast()
@@ -19,6 +22,8 @@ export default function Connect() {
 
   const [localError, setLocalError] = useState<string | null>(null)
   const [showQr, setShowQr] = useState(false)
+  // "Start a new connection": drop the saved pairing, then pair afresh once idle.
+  const [restartPairing, setRestartPairing] = useState(false)
   const [wc2Uri, setWc2Uri] = useState<string | null>(null)
   const [wc2Hidden, setWc2Hidden] = useState(false)
   const qrCanvasRef = useRef<HTMLCanvasElement>(null)
@@ -64,8 +69,16 @@ export default function Connect() {
     return () => window.removeEventListener('keydown', onKey)
   }, [wc2Open])
 
+  // A new pairing still waiting has a QR code; resuming a saved one has none.
+  const pairingWaiting = wcState === 'connecting' && Boolean(wcUri)
+  const resuming = (wcState === 'connecting' && !wcUri) || wcState === 'reconnecting'
+
   const handleWizardConnect = useCallback(() => {
     setLocalError(null)
+    if (pairingWaiting) {
+      setShowQr(true)
+      return
+    }
     const started = startWizardConnect()
     if (started !== false) {
       setShowQr(true)
@@ -73,7 +86,29 @@ export default function Connect() {
     } else {
       toast('A wallet pairing is already in progress', 'info')
     }
-  }, [startWizardConnect, toast])
+  }, [pairingWaiting, startWizardConnect, toast])
+
+  // Drop the saved pairing the wallet is not answering, then pair afresh.
+  const startNewPairing = useCallback(() => {
+    setLocalError(null)
+    setRestartPairing(true)
+    void cancelWizardConnect()
+  }, [cancelWizardConnect])
+
+  useEffect(() => {
+    if (!restartPairing) return
+    if (wcState === 'idle') {
+      setRestartPairing(false)
+      handleWizardConnect()
+      return
+    }
+    // If even the goodbye gets no answer, forget the saved pairing and reload.
+    const timer = window.setTimeout(() => {
+      try { localStorage.removeItem(WIZARDCONNECT_SESSION_KEY) } catch { /* storage blocked */ }
+      window.location.reload()
+    }, 8000)
+    return () => window.clearTimeout(timer)
+  }, [restartPairing, wcState, handleWizardConnect])
 
   const handleWc2 = useCallback(async () => {
     setLocalError(null)
@@ -121,15 +156,21 @@ export default function Connect() {
             </p>
             <button
               onClick={handleWizardConnect}
-              disabled={connecting || wcState === 'connecting'}
+              disabled={connecting || resuming || restartPairing}
               className="btn-primary mt-4 w-full"
             >
-              {wcState === 'connecting'
-                ? <><span className="spinner mr-2" /> Scan QR to connect…</>
-                : wcState === 'reconnecting'
-                  ? <><span className="spinner mr-2" /> Reconnecting…</>
+              {pairingWaiting
+                ? 'Show the QR code again'
+                : resuming || restartPairing
+                  ? <><span className="spinner mr-2" /> Reconnecting to your wallet…</>
                   : 'Connect with WizardConnect'}
             </button>
+            {resuming && !restartPairing && (
+              <p className="mt-3 text-sm leading-relaxed text-nomos-muted">
+                Waiting for the wallet you connected last time. Open it, or{' '}
+                <button type="button" onClick={startNewPairing} className="font-medium text-nomos-text underline underline-offset-4">start a new connection</button>.
+              </p>
+            )}
           </div>
 
           {WALLETCONNECT_ENABLED && (

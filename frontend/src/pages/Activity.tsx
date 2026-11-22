@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import type { ChangeEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import ActivityRow from '../components/ActivityRow'
 
 import { useWallet } from '../context/WalletContext'
 import { useToast } from '../components/Toast'
+import { downloadBackup, parseBackup, restoreBackup } from '../lib/backup'
 import type { Receipt } from '../lib/types'
 
 /** Group locally saved receipts by the user's local calendar date. */
@@ -70,6 +72,7 @@ export default function Activity() {
   const { toast } = useToast()
   const [confirmClear, setConfirmClear] = useState(false)
   const [filter, setFilter] = useState<Filter>('all')
+  const restoreInput = useRef<HTMLInputElement>(null)
   const stats = receipts.reduce((total, receipt) => {
     if (!isPayment(receipt)) {
       total.adminCount += 1
@@ -104,6 +107,32 @@ export default function Activity() {
       toast('Activity exported as JSON', 'success')
     } catch {
       toast('Could not export activity', 'error')
+    }
+  }
+
+  const handleBackup = () => {
+    try {
+      downloadBackup()
+      toast('Backup downloaded', 'success')
+    } catch {
+      toast('Could not make the backup', 'error')
+    }
+  }
+
+  const handleRestore = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    try {
+      const added = restoreBackup(parseBackup(await file.text()))
+      if (added.vaults === 0 && added.receipts === 0) {
+        toast('Everything in that backup is already here', 'info')
+        return
+      }
+      toast(`Restored ${added.vaults} ${added.vaults === 1 ? 'vault' : 'vaults'} and ${added.receipts} ${added.receipts === 1 ? 'receipt' : 'receipts'}`, 'success')
+      window.setTimeout(() => window.location.reload(), 900)
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Could not restore that backup', 'error')
     }
   }
 
@@ -184,6 +213,18 @@ export default function Activity() {
           )}
         </>
       )}
+
+      <section id="backup" className="card p-5" aria-labelledby="backup-title">
+        <h2 id="backup-title" className="text-[15px] font-semibold text-nomos-text">Back up this browser</h2>
+        <p className="mt-1 text-sm leading-relaxed text-nomos-muted">
+          Your vaults and their rules are on chain, but the list of your vaults and this activity live only in this browser. Clearing browsing data deletes them. Download a backup, then restore it here or in another browser. It holds public keys and rules, never a private key.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button type="button" className="btn-secondary" onClick={handleBackup}>Download backup</button>
+          <button type="button" className="btn-secondary" onClick={() => restoreInput.current?.click()}>Restore from backup</button>
+          <input ref={restoreInput} type="file" accept="application/json,.json" className="hidden" aria-hidden="true" tabIndex={-1} onChange={(e) => { void handleRestore(e) }} />
+        </div>
+      </section>
     </div>
   )
 }
