@@ -46,6 +46,7 @@ import {
   usdcBalance,
 } from '../lib/evm'
 import type { BaseLock } from '../lib/evm'
+import { baseLockClaimed, tickEarlierSteps } from '../lib/swapProgress'
 import { WALLETCONNECT_ENABLED } from '../lib/env'
 import { IS_CHIPNET, switchNetwork } from '../lib/network'
 import OfferBoard from '../components/OfferBoard'
@@ -132,6 +133,8 @@ export default function Bridge() {
   const [progress, setProgress] = useState<Progress>({})
   const [bchLock, setBchLock] = useState<{ pusd: bigint } | null>(null)
   const [baseLock, setBaseLock] = useState<BaseLock | null | undefined>(undefined)
+  // True once the Base lock's Claimed event is found (checked only when a refund was also possible).
+  const [baseClaimSeen, setBaseClaimSeen] = useState(false)
   const [claimTxid, setClaimTxid] = useState(params.get('claim') ?? '')
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -146,6 +149,8 @@ export default function Bridge() {
   const [counterparty, setCounterparty] = useState('')
   const [openText, setOpenText] = useState('')
   const [balances, setBalances] = useState<{ pusd?: bigint; usdc?: bigint }>({})
+  // Bumped by each refresh so balances update after a lock or claim, not only on connect.
+  const [balanceTick, setBalanceTick] = useState(0)
   const wide = useWide()
   // Refund countdowns tick while the page is open.
   const [clock, setClock] = useState(now)
@@ -188,7 +193,7 @@ export default function Bridge() {
     }
     void run()
     return () => { cancelled = true }
-  }, [wallet?.connected, wallet?.address, baseAddr])
+  }, [wallet?.connected, wallet?.address, baseAddr, balanceTick])
 
   const updateProgress = useCallback((patch: Progress) => {
     if (!offer) return
@@ -208,10 +213,15 @@ export default function Bridge() {
       setBchLock(null)
     }
     try {
-      setBaseLock(activeContract ? await readBaseLock(offer.secretHash, activeContract) : null)
+      const lock = activeContract ? await readBaseLock(offer.secretHash, activeContract) : null
+      setBaseLock(lock)
+      // From refundAfter on, a done lock may have been refunded; only a claim logs the secret.
+      setBaseClaimSeen(Boolean(lock?.done && now() >= lock.refundAfter
+        && await findBaseSecret(offer.secretHash, offer.baseFromBlock, activeContract).catch(() => null)))
     } catch {
       setBaseLock(undefined)
     }
+    setBalanceTick((n) => n + 1)
   }, [offer, activeContract])
 
   useEffect(() => { void refresh() }, [refresh])
@@ -362,7 +372,11 @@ export default function Bridge() {
       && baseLock.recipient.toLowerCase() === base.recipient.toLowerCase()
       && baseLock.amount >= BigInt(offer.usdcUnits)
       && baseLock.refundAfter === base.refundAfter)
+    // Done means claimed or refunded; the claim steps only count a claim.
     const baseDone = Boolean(baseLock?.done)
+    const baseClaimed = baseLockClaimed(baseLock, now(), Boolean(progress.baseClaimHash) || baseClaimSeen)
+    // The PUSD lock refunds an hour after its locktime, when the chain's clock passes it.
+    const pusdRefundOpens = when(bch.refundAfter + BCH_TIME_LAG_S)
     const myPk = wallet?.connected ? wallet.pubkey.toLowerCase() : ''
     const needBch = (pk: string) => {
       if (!wallet?.connected) throw new Error('Connect your BCH wallet')
@@ -374,7 +388,8 @@ export default function Bridge() {
     }
     const lockPusdStep = (pk: string): Step['action'] => ({
       label: 'Lock in your wallet',
-      disabled: pusdLocked,
+      // One lock per offer: once this browser has locked, a claim emptying the lock must not invite a second one.
+      disabled: pusdLocked || Boolean(progress.bchLockTxid),
       run: () => run('Locking PUSD', async () => {
         const w = needBch(pk)
         updateProgress({ bchLockTxid: await lockPusd(offer, w.address, w.provider, w.wcIndex ?? 0) })
@@ -394,11 +409,11 @@ export default function Bridge() {
     if (offer.direction === 'pusd-to-usdc') {
       if (role === 'initiator') {
         steps.push(
-          { label: `Lock ${pusdText(offer.pusdUnits)} on Bitcoin Cash`, detail: `Refundable to you after ${when(bch.refundAfter)}.`, done: pusdLocked, tx: bchTx(progress.bchLockTxid), action: lockPusdStep(offer.initiator.bchPk) },
+          { label: `Lock ${pusdText(offer.pusdUnits)} on Bitcoin Cash`, detail: `Refundable to you after ${pusdRefundOpens}.`, done: pusdLocked, tx: bchTx(progress.bchLockTxid), action: lockPusdStep(offer.initiator.bchPk) },
           { label: 'Send the offer link to the counterparty', detail: 'They check your PUSD lock, then lock the USDC.', done: Boolean(baseLock) },
           { label: `Counterparty locks ${usdcText(offer.usdcUnits)} on Base`, detail: baseLock ? (baseLockOk ? 'Lock found and matches the offer.' : 'A lock exists but does not match the offer. Do not claim; wait for your refund.') : 'Not locked yet.', done: baseLockOk, warn: Boolean(baseLock) && !baseLockOk },
           {
-            label: 'Claim the USDC on Base', detail: `This reveals the secret on Base. Claim before ${when(base.refundAfter)}.`, done: baseDone, tx: baseTx(progress.baseClaimHash),
+            label: 'Claim the USDC on Base', detail: `This reveals the secret on Base. Claim before ${when(base.refundAfter)}.`, done: baseClaimed, tx: baseTx(progress.baseClaimHash),
             action: { label: 'Claim', disabled: !baseLockOk || baseDone, run: () => run('Claiming USDC', async () => { needBase(); updateProgress({ baseClaimHash: await claimUsdc(`0x${secret}`, activeContract) }) }) },
           },
         )
@@ -439,9 +454,10 @@ export default function Bridge() {
     } else {
       steps.push(
         { label: `Check the ${usdcText(offer.usdcUnits)} lock on Base`, detail: baseLock ? (baseLockOk ? 'Lock found and matches the offer.' : 'A lock exists but does not match the offer. Do not lock PUSD.') : 'Not locked yet.', done: baseLockOk, warn: Boolean(baseLock) && !baseLockOk },
-        { label: `Lock ${pusdText(offer.pusdUnits)} on Bitcoin Cash`, detail: `Refundable to you after ${when(bch.refundAfter)}.`, done: pusdLocked, tx: bchTx(progress.bchLockTxid), action: baseLockOk ? lockPusdStep(offer.responder.bchPk) : undefined },
+        // Once this browser has locked, the step stays done after the other side's claim empties the lock.
+        { label: `Lock ${pusdText(offer.pusdUnits)} on Bitcoin Cash`, detail: `Refundable to you after ${pusdRefundOpens}.`, done: pusdLocked || Boolean(progress.bchLockTxid), tx: bchTx(progress.bchLockTxid), action: baseLockOk ? lockPusdStep(offer.responder.bchPk) : undefined },
         {
-          label: 'Claim the USDC on Base', detail: 'Paste the transaction in which the other side claimed the PUSD; it contains the secret.', done: baseDone, tx: baseTx(progress.baseClaimHash),
+          label: 'Claim the USDC on Base', detail: 'Paste the transaction in which the other side claimed the PUSD; it contains the secret.', done: baseClaimed, tx: baseTx(progress.baseClaimHash),
           action: {
             label: 'Find secret and claim', disabled: baseDone || !claimTxid.trim(),
             run: () => run('Claiming USDC', async () => {
@@ -454,6 +470,7 @@ export default function Bridge() {
         },
       )
     }
+    tickEarlierSteps(steps)
   }
 
   // Refunds open once a timeout has passed and the funds are still locked.
@@ -886,10 +903,10 @@ export default function Bridge() {
             )
           })}
         </ol>
-        {offer.direction === 'usdc-to-pusd' && role === 'responder' && (
+        {offer.direction === 'usdc-to-pusd' && role === 'responder' && !complete && (
           <div className="mt-5">
             <label htmlFor="swap-claim-txid" className="text-sm font-semibold text-nomos-text">PUSD claim transaction from the other side</label>
-            <input id="swap-claim-txid" className="input mt-2 font-mono text-sm" placeholder="Transaction ID" value={claimTxid} onChange={(e) => setClaimTxid(e.target.value)} spellCheck={false} />
+            <input id="swap-claim-txid" className="input mt-2 font-mono text-sm" placeholder="Transaction ID or explorer link" value={claimTxid} onChange={(e) => setClaimTxid(e.target.value)} spellCheck={false} />
           </div>
         )}
         {busy && <p className="mt-4 text-sm text-nomos-muted-bright"><span className="spinner mr-2" />{busy}…</p>}

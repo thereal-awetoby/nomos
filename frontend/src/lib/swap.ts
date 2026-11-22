@@ -17,6 +17,7 @@ import {
 } from '@bitauth/libauth'
 import artifact from './SwapLock.json'
 import { getProvider, buildSignAndBroadcast, p2pkhFee, DUST_LIMIT } from './contract'
+import { txidFrom } from './swapProgress'
 import type { WalletProviderType } from './types'
 
 /** ParyonUSD (PUSD) token category, from paryonusd.com. 2 decimals: 1 unit = 0.01 PUSD. */
@@ -251,9 +252,10 @@ async function spendLock(
 }
 
 /** Read the secret from a BCH transaction that claimed the PUSD lock. */
-export async function findBchSecret(offer: SwapOffer, claimTxid: string): Promise<string | null> {
-  if (!/^[0-9a-f]{64}$/i.test(claimTxid.trim())) throw new Error('Paste the claim transaction ID')
-  const tx = decodeTransaction(hexToBin(await getProvider().getRawTransaction(claimTxid.trim().toLowerCase())))
+export async function findBchSecret(offer: SwapOffer, claimText: string): Promise<string | null> {
+  const claimTxid = txidFrom(claimText)
+  if (!claimTxid) throw new Error('Paste the Bitcoin Cash claim transaction ID or its explorer link')
+  const tx = decodeTransaction(hexToBin(await getProvider().getRawTransaction(claimTxid)))
   if (typeof tx === 'string') throw new Error('Could not decode that transaction')
   for (const input of tx.inputs) {
     for (const op of decodeAuthenticationInstructions(input.unlockingBytecode) as any[]) {

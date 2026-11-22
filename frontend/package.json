@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "compile": "cashc ../contracts/NomosVault.cash -o src/lib/NomosVault.json",
-    "test": "esbuild tests/hdwallet.test.ts tests/board.test.ts tests/backup.test.ts --bundle --platform=node --format=esm --packages=external --define:import.meta.env={} --outdir=node_modules/.cache/nomos-tests --out-extension:.js=.mjs --log-level=warning && node node_modules/.cache/nomos-tests/hdwallet.test.mjs && node node_modules/.cache/nomos-tests/board.test.mjs && node node_modules/.cache/nomos-tests/backup.test.mjs"
+    "test": "esbuild tests/hdwallet.test.ts tests/board.test.ts tests/backup.test.ts tests/swapProgress.test.ts --bundle --platform=node --format=esm --packages=external --define:import.meta.env={} --outdir=node_modules/.cache/nomos-tests --out-extension:.js=.mjs --log-level=warning && node node_modules/.cache/nomos-tests/hdwallet.test.mjs && node node_modules/.cache/nomos-tests/board.test.mjs && node node_modules/.cache/nomos-tests/backup.test.mjs && node node_modules/.cache/nomos-tests/swapProgress.test.mjs"
   },
   "dependencies": {
     "@bitauth/libauth": "^3.1.0-next.0",
