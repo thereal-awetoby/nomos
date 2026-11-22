@@ -69,7 +69,7 @@ address is used. The Simulator is local-only and does not execute a covenant.
 | `/activity` | `Activity` | Show locally saved receipts, node script-failure counts, and a JSON export. |
 | `/proof` | `Proof` | Wallet-free signed-transaction checker, optional vault-assisted signing, and browser-local node-check records. |
 | `/rescue` | `Rescue` | Present the owner/co-signer emergency path. The current in-app signing flow has limitations for separate keys; see the root README. |
-| `/bridge` | `Bridge` | Swap PUSD on Bitcoin Cash and USDC on Base with another person (hash-time locks on both chains). |
+| `/bridge` | `Bridge` | Swap PUSD on Bitcoin Cash and USDC on Base with another person (hash-time locks on both chains), found on a Nostr offer board (`lib/board.ts`) or sent a link. |
 | `/identity` | `Identity` | Create and verify BCH and Nostr links, check signed login responses, and look up published addresses. |
 | `/simulate` | `Simulate` | Local illustration of daily-limit and exact-text allowlist rules; no wallet, contract execution, or transaction. |
 | `/architecture` | `Architecture` | In-app overview of the system stack, contract surfaces, security boundaries, repository coverage, and validation entry points. |

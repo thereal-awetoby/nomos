@@ -44,7 +44,7 @@ cd contracts/evm && npm ci && npm test         # SwapLock.sol, the USDC side, in
 cd xo && npm ci && npm test                    # 14 checks of the XO template against CashScript, 4 through XO's engine
 cd xo && npm run replay                        # the chipnet runs, rebuilt from their invitations and checked in the BCH VM
 cd frontend && npm ci && npm run build         # type check and production build
-cd frontend && npm test                        # whole-wallet scan and gathering, signed and checked in the BCH VM
+cd frontend && npm test                        # whole-wallet gathering checked in the BCH VM; offer board messages
 ```
 
 ## 5. What to read

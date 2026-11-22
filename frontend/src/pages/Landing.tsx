@@ -43,7 +43,7 @@ const FEATURES = [
   { title: 'Pay by Nostr name', body: 'Pay an npub or name@domain. Addresses linked by both keys are marked.' },
   { title: 'Proof checker', body: 'Send a rule-breaking spend to a node and keep its answer.' },
   { title: 'Receipts', body: 'Every payment and refusal, saved on your device.' },
-  { title: 'Swap PUSD and USDC', body: 'Trade with someone on Base. Both sides lock to one secret.' },
+  { title: 'Swap PUSD and USDC', body: 'Post or take an offer on a Nostr board. Both sides lock to one secret.' },
 ]
 
 const TRUST = [

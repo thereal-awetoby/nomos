@@ -73,7 +73,7 @@ The same payment in the app, from setting the rules to a refusal:
 | **Pay by Nostr name** | Type an `npub`, `nprofile` or `name@domain`. The address comes from the key's signed event, checked in your browser; the rules still apply. | [`/pay`](https://nomos.asgaya.org/pay) |
 | **BCH and Nostr identity** | Link an address to a Nostr key with both keys signing. Anyone can verify it, and other apps can use it for login. | [`/identity`](https://nomos.asgaya.org/identity), [protocol](docs/IDENTITY_PROTOCOL.md) |
 | **Proof checker** | Sends a signed payment that breaks your rules to a node and keeps its answer. | [`/proof`](https://nomos.asgaya.org/proof) |
-| **Swap PUSD and USDC** | PUSD on Bitcoin Cash for USDC on Base, between two people, with hash-time locks on both chains. | [`/bridge`](https://nomos.asgaya.org/bridge) |
+| **Swap PUSD and USDC** | PUSD on Bitcoin Cash for USDC on Base between two people who meet on a Nostr offer board or through a link, with hash-time locks on both chains. | [`/bridge`](https://nomos.asgaya.org/bridge) |
 | **Activity** | Every payment, refusal and rule change, each with a receipt to save, copy or share. | [`/activity`](https://nomos.asgaya.org/activity) |
 | **Simulator** | The rules with example numbers, no wallet needed. | [`/simulate`](https://nomos.asgaya.org/simulate) |
 
@@ -102,7 +102,7 @@ Node.js 22 or newer.
 cd frontend && cp .env.example .env && npm ci
 npm run dev                                       # the app
 npm run build                                     # type check and production build
-npm test                                          # whole-wallet scan and gathering, against an emulated HD wallet
+npm test                                          # whole-wallet scan and gathering (emulated HD wallet), offer board messages
 
 cd ../contracts/solidcash && npm ci && npm test   # SolidCash vault, StableSwap and HTLC in the BCH VM
 cd .. && npm ci && npm run test:swap              # SwapLock.cash, the PUSD side of the swap, in the BCH VM

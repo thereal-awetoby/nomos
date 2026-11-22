@@ -77,9 +77,38 @@ has to claim, and reveal the secret, while the counterparty still has at least
   guard reverts (no approval, reused hash, wrong secret, expired claim, early
   refund, double claim).
 
+### Finding each other: the offer board
+
+An offer can go to one person as a link, or onto the offer board: a list on
+the Swap page, read from public Nostr relays. There is no Nomos server and no
+one in the middle. Relays only carry signed messages, and anyone can run one.
+
+| Message | Sent by | Carries |
+| --- | --- | --- |
+| Post | the maker | direction, both amounts, the maker's BCH key and Base address, an end time 24 hours out |
+| Take | a taker | the taker's BCH key and Base address, pointing at the post |
+| Accept | the maker | the swap offer, made for that taker, pointing at the take |
+
+Each is a NIP-78 event (kind 30078, topic tag `nomos-swap-board`), signed with
+the sender's board key: a key each browser makes and keeps in local storage,
+used only to sign board messages. The page drops anything unsigned, malformed
+or tampered with, and any accept that does not come from the post's author.
+It opens an accepted offer only when the amounts, the direction and both
+sides' details are exactly those of the post and the take. From there the
+swap runs as with a link: the maker locks first, and the taker locks only
+once that lock checks out on chain. A bad message can waste time, but it
+cannot move coins. `frontend/tests/board.test.ts` checks the messages,
+including forged and tampered ones.
+
+The maker opens the page to accept a take; while the page is open, it says
+when a take or an accept arrives.
+
 ### Limits
 
-- A swap needs a counterparty; Nomos runs no market maker and sets no price.
+- A swap still needs a counterparty. The board helps two people find each
+  other, but Nomos runs no market maker. The amount received follows the
+  amount sent one for one, since both track the dollar, unless the maker sets
+  another price.
 - The Base side needs a little ETH for gas.
 - Locks on Base are keyed by secret hash, so someone who sees a lock in the
   mempool can take that hash first. No funds are at risk; the maker starts a

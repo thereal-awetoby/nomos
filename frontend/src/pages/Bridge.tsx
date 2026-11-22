@@ -48,6 +48,9 @@ import {
 import type { BaseLock } from '../lib/evm'
 import { WALLETCONNECT_ENABLED } from '../lib/env'
 import { IS_CHIPNET, switchNetwork } from '../lib/network'
+import OfferBoard from '../components/OfferBoard'
+import { boardKey, newPostId, postEvent, publishToBoard } from '../lib/board'
+import type { BoardParty, BoardPost, BoardTake } from '../lib/board'
 const HOUR = 3600
 const INITIATOR_LOCK_S = 24 * HOUR
 const RESPONDER_LOCK_S = 12 * HOUR
@@ -237,6 +240,11 @@ export default function Bridge() {
   })
 
   const myDetails = wallet?.connected && baseAddr ? JSON.stringify({ bchPk: wallet.pubkey, baseAddress: baseAddr }) : null
+  // The same details for the offer board, once both wallets and the BCH key are known.
+  const me: BoardParty | null = wallet?.connected && baseAddr && /^0[23][0-9a-f]{64}$/i.test(wallet.pubkey ?? '')
+    ? { bchPk: wallet.pubkey.toLowerCase(), baseAddress: baseAddr }
+    : null
+  const [boardSignal, setBoardSignal] = useState(0)
 
   const deploy = () => run('Deploying SwapLock on Base', async () => {
     const { address } = await deploySwapLock()
@@ -246,29 +254,18 @@ export default function Bridge() {
 
   // ── Offers ───────────────────────────────────────────────
 
-  const createOffer = () => run('Creating offer', async () => {
+  /** Make a swap offer as its initiator: the secret stays in this browser; returns the offer, encoded. */
+  const buildOffer = async (dir: SwapDirection, pusdUnits: bigint, usdcUnits: bigint, other: { bchPk: string; baseAddress: string }) => {
     if (!wallet?.connected || !baseAddr) throw new Error('Connect both wallets first')
-    let other: { bchPk: string; baseAddress: string }
-    try {
-      other = JSON.parse(counterparty)
-    } catch {
-      throw new Error("Paste the counterparty's swap details exactly as they copied them")
-    }
-    if (!/^0[23][0-9a-f]{64}$/i.test(other?.bchPk ?? '') || !isEvmAddress(other?.baseAddress ?? '')) {
-      throw new Error('The counterparty details need a BCH public key and a Base address')
-    }
-    const pusdUnits = parseUnits(pusdAmount, PUSD_DECIMALS)
-    const usdcUnits = parseUnits(usdcAmount, USDC_DECIMALS)
     if (pusdUnits <= 0n || usdcUnits <= 0n) throw new Error('Both amounts must be above zero')
     if (!contractAddr || !(await isSwapLock(contractAddr))) {
       throw new Error('The Base contract saved in this browser is not the Nomos SwapLock')
     }
-
     const s = newSecret()
     const start = now()
     const next: SwapOffer = {
       v: 1,
-      direction,
+      direction: dir,
       secretHash: hashSecret(s),
       pusdUnits: pusdUnits.toString(),
       usdcUnits: usdcUnits.toString(),
@@ -281,8 +278,59 @@ export default function Bridge() {
       baseContract: contractAddr,
     }
     save(secretKey(next.secretHash), s)
-    setParams({ offer: encodeOffer(next) })
+    return encodeOffer(next)
+  }
+
+  const createOffer = () => run('Creating offer', async () => {
+    let other: { bchPk: string; baseAddress: string }
+    try {
+      other = JSON.parse(counterparty)
+    } catch {
+      throw new Error("Paste the counterparty's swap details exactly as they copied them")
+    }
+    if (!/^0[23][0-9a-f]{64}$/i.test(other?.bchPk ?? '') || !isEvmAddress(other?.baseAddress ?? '')) {
+      throw new Error('The counterparty details need a BCH public key and a Base address')
+    }
+    const encoded = await buildOffer(direction, parseUnits(pusdAmount, PUSD_DECIMALS), parseUnits(usdcAmount, USDC_DECIMALS), other)
+    setParams({ offer: encoded })
   })
+
+  // ── Offer board ──────────────────────────────────────────
+
+  const postToBoard = () => run('Posting to the offer board', async () => {
+    if (!me) throw new Error('Connect both wallets first')
+    const pusdUnits = parseUnits(pusdAmount, PUSD_DECIMALS)
+    const usdcUnits = parseUnits(usdcAmount, USDC_DECIMALS)
+    if (pusdUnits <= 0n || usdcUnits <= 0n) throw new Error('Both amounts must be above zero')
+    if (!contractAddr || !(await isSwapLock(contractAddr))) {
+      throw new Error('The Base contract saved in this browser is not the Nomos SwapLock')
+    }
+    await publishToBoard(postEvent(boardKey().secretKey, {
+      id: newPostId(),
+      network: IS_CHIPNET ? 'chipnet' : 'mainnet',
+      direction,
+      pusdUnits: pusdUnits.toString(),
+      usdcUnits: usdcUnits.toString(),
+      maker: me,
+    }))
+    setBoardSignal((n) => n + 1)
+    toast('Posted to the offer board for 24 hours', 'success')
+  })
+
+  // The maker accepts a take: the same offer as above, made for the taker.
+  const makeBoardOffer = async (post: BoardPost, take: BoardTake) => {
+    if (!me || me.bchPk !== post.maker.bchPk || me.baseAddress.toLowerCase() !== post.maker.baseAddress.toLowerCase()) {
+      throw new Error('Connect the wallets you posted with')
+    }
+    return buildOffer(post.direction, BigInt(post.pusdUnits), BigInt(post.usdcUnits), take.taker)
+  }
+  const checkBoardOffer = (encoded: string) => {
+    try {
+      return decodeOffer(encoded)
+    } catch {
+      return null
+    }
+  }
 
   const openOffer = () => {
     const text = openText.trim()
@@ -503,7 +551,9 @@ export default function Bridge() {
         ? { label: 'Deploy SwapLock on Base', run: () => { void deploy() } }
         : contractOk === false
           ? null
-          : { label: 'Create offer', run: () => { void createOffer() } }
+          : counterparty.trim()
+            ? { label: 'Create offer', run: () => { void createOffer() } }
+            : { label: 'Post to the offer board', run: () => { void postToBoard() } }
 
   // ── Offer progress ───────────────────────────────────────
   const current = steps.findIndex((st) => !st.done)
@@ -660,7 +710,7 @@ export default function Bridge() {
         </p>
 
         <div className="px-2 pb-1">
-          <label className="mt-3 block text-sm font-semibold text-nomos-text" htmlFor="swap-counterparty">Their swap details</label>
+          <label className="mt-3 block text-sm font-semibold text-nomos-text" htmlFor="swap-counterparty">Their swap details (only for an offer to one person)</label>
           <textarea
             id="swap-counterparty"
             className="input mt-2 min-h-[72px] font-mono text-sm"
@@ -669,7 +719,7 @@ export default function Bridge() {
             onChange={(e) => setCounterparty(e.target.value)}
             spellCheck={false}
           />
-          <p className="mt-1.5 text-xs leading-relaxed text-nomos-muted">The other person opens this page, connects both wallets and taps Copy my swap details.</p>
+          <p className="mt-1.5 text-xs leading-relaxed text-nomos-muted">Leave this empty to post on the offer board, where anyone can take it. To make the offer for one person, paste the details they copied with Copy my swap details.</p>
 
           {cta && 'to' in cta ? (
             <Link to={cta.to} className="btn-primary mt-4 min-h-[52px] w-full text-base">{cta.label}</Link>
@@ -682,6 +732,15 @@ export default function Bridge() {
           {error && <p className="mt-2 text-sm text-nomos-refuse" role="alert">{error}</p>}
         </div>
       </section>
+
+      <OfferBoard
+        network={IS_CHIPNET ? 'chipnet' : 'mainnet'}
+        me={me}
+        refreshSignal={boardSignal}
+        makeOffer={makeBoardOffer}
+        checkOffer={checkBoardOffer}
+        openOffer={(encoded) => setParams({ offer: encoded })}
+      />
 
       {!wide && walletsPanel}
       {!wide && contractPanel}
@@ -863,7 +922,7 @@ export default function Bridge() {
       <header>
         <h1 className="page-title">Swap PUSD and USDC</h1>
         <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-nomos-muted">
-          Trade PUSD on Bitcoin Cash for USDC on Base with one other person. Both sides lock to the same secret, and each lock refunds if the other side never pays.
+          Trade PUSD on Bitcoin Cash for USDC on Base with another person, found on the offer board or sent a link. Both sides lock to the same secret, and each lock refunds if the other side never pays.
         </p>
       </header>
 
